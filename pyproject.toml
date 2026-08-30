@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sorimun"
+version = "0.1.0"
+description = "소리문 — 한국어 문장을 음악적 표현으로 옮긴다"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Calandiva" }]
+keywords = ["korean", "music", "linguistics", "generative", "art"]
+
+# 사전을 새로 만들거나 문장을 분석할 때만 필요하다.
+# 이미 만들어진 사전을 훑어보는 데에는 표준 라이브러리로 충분하다.
+dependencies = []
+
+[project.optional-dependencies]
+analyze = ["kiwipiepy>=0.20"]
+build = ["kiwipiepy>=0.20", "certifi"]
+dev = ["kiwipiepy>=0.20", "certifi", "pytest>=8"]
+
+[project.scripts]
+sorimun = "sorimun.cli:main"
+
+[tool.setuptools]
+packages = ["sorimun", "sorimun.core", "sorimun.io"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

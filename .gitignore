@@ -1,0 +1,25 @@
+# 원본 다운로드 데이터 (tools/fetch_data.py 로 재생성)
+data/raw/
+# 중간 빌드 산출물은 저장소에 넣는다 — 원본을 다시 받지 않고도
+# 사전을 재생성할 수 있게 하려는 것이다.
+data/build/*.tmp
+# 파이썬
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+# 생성된 음악 파일
+out/
+*.mid
+*.wav
+*.musicxml
+!examples/*.mid
+!examples/*.musicxml
+# macOS
+.DS_Store
+# 편집 가능 설치 흔적
+*.egg-link
+/build/
+/dist/
