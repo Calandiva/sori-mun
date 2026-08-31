@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """웹페이지가 쓸 자료를 만든다.
 
-브라우저에서도 **되읽기**는 그대로 된다. 되읽기에는 형태소 분석기가
-필요 없고 화음 은행과 개념표만 있으면 되기 때문이다. 그래서 페이지는
-소리를 넣으면 한국어와 영어로 내어 준다.
+브라우저는 **적기와 되읽기 둘 다** 한다. 그래서 이런 것들을 실어 보낸다.
 
-다만 한국어 활용(아름답 + ㄴ → 아름다운)은 브라우저에서 지을 수 없으므로,
-자리마다 필요한 꼴을 여기서 미리 지어 실어 보낸다.
+    화음 은행·부호     되읽기의 바탕
+    개념표·근사표      두 말을 잇는 자리
+    사전 부분집합      흔한 낱말의 (등급, 성질, 번호). 여기 없는 낱말은
+                       글자로 받아 적으므로 정확성은 잃지 않는다
+    활용표             한국어의 융합형 (부른 = 부르 + ᆫ). 규칙형은
+                       단순 연결이라 표가 필요 없다
 
 내는 것: docs/data.js
 """
@@ -21,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from sorimun.compose import Composer  # noqa: E402
+from sorimun.core import tags as KT  # noqa: E402
 from sorimun.concepts import Concepts  # noqa: E402
 from sorimun.core import codes as C, pitch  # noqa: E402
 from sorimun.core.banks import BANKS  # noqa: E402
@@ -151,14 +154,130 @@ def main() -> int:
             row.append([f["p"], f["pp"], f["a"], f["ap"], f["v"]])
         concepts.append(row)
 
+    # ── 사전 부분집합 — 브라우저 인코더의 낱말 ──────────────────────
+    from sorimun.dictionary import Dictionary
+    Q = {"major": 0, "minor": 1, "neutral": 2}
+
+    ko_dic = Dictionary.load("ko")
+    ko_rows = []
+    ko_kept: set[tuple[str, str]] = set()
+    concept_ko = {(c.ko_form, c.ko_tag) for c in cx.all if c.ko_tag != "∅"}
+    for e in sorted(ko_dic.entries, key=lambda x: -x.freq):
+        is_marker = e.tag in KT.GRAMMATICAL
+        need = (is_marker or (e.form, e.tag) in concept_ko
+                or len(ko_kept) < 32_000)
+        if not need:
+            continue
+        ko_kept.add((e.form, e.tag))
+        ko_rows.append([e.form, e.tag, e.tier, Q[e.quality.value],
+                        e.index, e.polarity])
+
+    en_dic = Dictionary.load("en")
+    en_rows = []
+    en_kept: set[tuple[str, str]] = set()
+    concept_en = {(c.en_form, c.en_tag) for c in cx.all}
+    from sorimun.lang import tags_en as ET
+    for e in sorted(en_dic.entries, key=lambda x: -x.freq):
+        closed = e.tag in ET.GRAMMATICAL or e.form in ET.CLOSED
+        need = (closed or (e.form, e.tag) in concept_en
+                or len(en_kept) < 22_000)
+        if not need:
+            continue
+        en_kept.add((e.form, e.tag))
+        en_rows.append([e.form, e.tag, e.tier, Q[e.quality.value],
+                        e.index, e.polarity])
+
+    # ── 활용표 — 융합형만 (부른 = 부르/VV + ᆫ/ETM) ──────────────────
+    inflect_rows = []
+    inflect_path = ROOT / "data" / "raw" / "mecab" / "Inflect.csv"
+    if inflect_path.exists():
+        import csv as _csv
+        best: dict[tuple[str, str], tuple[int, str]] = {}
+        with inflect_path.open(encoding="utf-8") as fh:
+            for row in _csv.reader(fh):
+                if len(row) < 12:
+                    continue
+                surface, cost, expr = row[0], int(row[3]), row[11]
+                morphs = []
+                bad = False
+                for part in expr.split("+"):
+                    bits = part.split("/")
+                    if len(bits) < 2:
+                        bad = True
+                        break
+                    morphs.append((bits[0], KT.normalize(bits[1])))
+                if bad or not morphs:
+                    continue
+                head_form, head_tag = morphs[0]
+                # 첫 형태소는 내용어(부분집합에 있어야 한다), 나머지는 표지
+                if (head_form, head_tag) not in ko_kept:
+                    continue
+                if head_tag in KT.GRAMMATICAL:
+                    continue
+                if any(t not in KT.GRAMMATICAL for _f, t in morphs[1:]):
+                    continue
+                mstr = " ".join(f"{f}/{t}" for f, t in morphs)
+                key = (surface, mstr)
+                if key not in best or cost < best[key][0]:
+                    best[key] = (cost, mstr)
+        for (surface, mstr), (cost, _m) in sorted(best.items()):
+            inflect_rows.append([surface, mstr, cost])
+
+    # ── 영어 태거 표 — 파이썬 쪽이 진실 원천이다 ────────────────────
+    en_tagger = {
+        "closed": dict(ET.CLOSED),
+        "prior": dict(ET.PRIOR),
+        "trans": {k: dict(v) for k, v in ET._T.items()},
+        "suffix": [[a, b] for a, b in ET.SUFFIX],
+        "copula": sorted(ET.COPULA),
+        "be": sorted(ET.BE),
+        "aux": sorted(ET.AUXVERB),
+        "nominal": sorted(ET.NOMINAL),
+        "grammatical": sorted(ET.GRAMMATICAL),
+        "content": sorted(ET.CONTENT),
+        "koreanName": dict(ET.KOREAN_NAME),
+    }
+
+    # 한국어 품사 이름과 갈래
+    ko_tags = {
+        "koreanName": dict(KT.KOREAN_NAME),
+        "grammatical": sorted(KT.GRAMMATICAL),
+        "substantive": sorted(KT.SUBSTANTIVE),
+        "predicate": sorted(KT.PREDICATE),
+    }
+
+    # ── 근사표 부분집합 ─────────────────────────────────────────────
+    approx_rows = []
+    for (lang, form, tag), ci in sorted(cx._approx.items()):
+        kept = ko_kept if lang == "ko" else en_kept
+        if (form, tag) in kept:
+            approx_rows.append([lang, form, tag, ci])
+
     from sorimun.core import alphabet
+    from sorimun.core import codes as CC
     payload = {
         "codes": codes, "banks": banks, "examples": examples,
         "concepts": concepts,
+        "dict": {"ko": ko_rows, "en": en_rows},
+        "enTagger": en_tagger, "koTags": ko_tags,
         "alphabet": {k: "".join(v) for k, v in alphabet.ALPHABET.items()},
+        "inflect": inflect_rows,
+        "approx": approx_rows,
+        "durations": {
+            "role": CC.DUR_ROLE, "head": CC.DUR_HEAD,
+            "digit": CC.DUR_DIGIT, "close": CC.DUR_CLOSE,
+            "term": CC.DUR_TERM,
+            "scale": {r.value: list(CC.ROLE_DURATION_SCALE[r])
+                      for r in CC.ROLE_DURATION_SCALE},
+            "vel": {"role": CC.VEL_ROLE, "head": CC.VEL_HEAD,
+                    "digit": CC.VEL_DIGIT, "close": CC.VEL_CLOSE,
+                    "term": CC.VEL_TERM, "accent": CC.POLARITY_ACCENT},
+        },
         "meta": {
             "concepts": len(cx),
-            "ko": 286068, "en": 260000,
+            "ko": len(ko_dic), "en": len(en_dic),
+            "koShipped": len(ko_rows), "enShipped": len(en_rows),
+            "inflect": len(inflect_rows),
             "reserved": len(BANKS.all_shapes()),
         },
     }
@@ -168,7 +287,9 @@ def main() -> int:
         + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         + ";\n", encoding="utf-8")
     print(f"→ {OUT.relative_to(ROOT)} ({OUT.stat().st_size:,}B)")
-    print(f"  예제 {len(examples)}개, 개념 {len(concepts):,}개")
+    print(f"  예제 {len(examples)}, 개념 {len(concepts):,}, "
+          f"ko 낱말 {len(ko_rows):,}, en 낱말 {len(en_rows):,}, "
+          f"활용 {len(inflect_rows):,}, 근사 {len(approx_rows):,}")
     return 0
 
 

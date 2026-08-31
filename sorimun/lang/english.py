@@ -100,6 +100,8 @@ class EnglishAnalyzer:
         if w and not w[0].isalnum():
             return ["SYM"]
         closed = E.CLOSED.get(w)
+        if w == "her":
+            return [E.DT, E.PRP]      # her hand / loves her
         if closed and w not in ("there", "that", "as", "since", "like",
                                 "no", "so", "one", "back", "down", "out", "up"):
             return [closed]
@@ -126,6 +128,8 @@ class EnglishAnalyzer:
     def _emission(self, w: str, t: str, first: bool) -> int:
         """이 낱말이 이 품사일 만한 정도."""
         sc = E.PRIOR.get(t, 0)
+        if w == "her" and t == E.PRP:
+            sc += 12         # 한정사 읽기(closed+lex)와 같은 무게를 준다
         if w in E.AUXVERB:
             # be·have·do 는 본동사와 조동사 둘 다 제값으로 놓고, 어느
             # 쪽인지는 이음 점수가 고르게 둔다. 한쪽에만 상을 주면
@@ -228,7 +232,8 @@ class EnglishAnalyzer:
 
         # 문장 끝에 동사가 또 오는 일은 드물다. 앞에 이미 동사가 있고
         # 형용사로도 읽힌다면 형용사로 본다 — "piled up white".
-        if n >= 2 and tags[-1] == E.VB and E.JJ in cands[-1]:
+        if (n >= 2 and tags[-1] == E.VB and E.JJ in cands[-1]
+                and not words[-1].endswith(("ing", "ed"))):
             if any(t == E.VB for t in tags[:-1]):
                 tags[-1] = E.JJ
         return tags

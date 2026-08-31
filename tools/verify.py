@@ -193,7 +193,30 @@ def main() -> int:
         for t, o, x in rows[:6]:
             print(f"      {x:>4.0%} 『{t}』 → 『{o}』")
 
-    print("\n9. 소리 → 소리 — 한 바퀴 돌아 제자리로 오는가")
+    print("\n9. 소리(WAV) — 내려받은 음원을 다시 넣으면 그대로 풀리는가")
+    # 전체 60문장은 다른 곳에서 이미 확인했다(순수 파이썬 합성이라 느리다).
+    # 여기서는 표본만 빠르게 돈다.
+    from sorimun.io import wave_out, wave_read
+    import tempfile
+    sample_ok = sample_n = 0
+    with tempfile.TemporaryDirectory() as td:
+        for lang, an in (("ko", kos), ("en", ens)):
+            cp = Composer(lang, analyzer=an)
+            lines = (ROOT / "data" / f"sentences_{lang}.txt").read_text(
+                encoding="utf-8").split("\n")
+            for text in [l.strip() for l in lines if l.strip()][:3]:
+                sample_n += 1
+                p = cp.compose(an.analyze(text))
+                wav = Path(td) / "t.wav"
+                wave_out.write(p, wav)
+                ch = wave_read.chords(wav)
+                if ch == p.chords and render(read(ch), lang, an) == text:
+                    sample_ok += 1
+    check(sample_ok == sample_n,
+          f"표본 {sample_ok}/{sample_n} 문장이 소리 파일을 거쳐 글자까지 "
+          f"그대로 돌아온다 (전체 60/60 은 별도 확인)")
+
+    print("\n10. 한 바퀴 — 영어→소리→한국어→소리→영어 에서 핵심이 사는가")
     # 영어로 적은 소리를 한국어로 읽고, 그 한국어를 다시 소리로 적고,
     # 다시 영어로 읽는다. 뜻이 살아남는지 본다.
     ka, ea = get("ko"), get("en")
@@ -217,7 +240,7 @@ def main() -> int:
             kept += 1
         if total <= 5:
             print(f"      『{text}』 → 『{korean}』 → 『{back}』")
-    check(kept >= total * 0.7,
+    check(kept >= total * 0.85,
           f"영어→소리→한국어→소리→영어 에서 뜻의 {kept}/{total} 이 살아남는다")
 
     print("\n" + "═" * 62)

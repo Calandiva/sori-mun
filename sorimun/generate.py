@@ -22,6 +22,30 @@ from .lang import inflect_en as INF
 from .lang import tags_en as ET
 
 
+@dataclass(frozen=True)
+class RawWord:
+    """받아 적힌 낱말 — 옮기지 않고 글자 그대로 나른다 (고유명사 등)."""
+
+    text: str
+
+    # Concept 과 같은 낯을 갖춰 생성기가 구별 없이 다루게 한다
+    @property
+    def ko_form(self):
+        return self.text
+
+    @property
+    def ko_tag(self):
+        return "RAW"
+
+    @property
+    def en_form(self):
+        return self.text
+
+    @property
+    def en_tag(self):
+        return "RAW"
+
+
 @dataclass
 class Chunk:
     """머리말 하나와 그것에 붙은 꾸밈말·문법."""
@@ -112,9 +136,11 @@ def korean(items: list[tuple[Role, Concept]], terminator: str = ".",
     if not any(c.role is Role.PREDICATE for c in chunks):
         for c in chunks:
             if c.role is Role.COMPLEMENT and c.head.ko_tag in ("VA", "VV", "XR"):
-                c.role = Role.PREDICATE
-                break
+                c.role = Role.PREDICATE     # "길고 힘들다" — 전부 올린다
 
+    # 서술어가 여럿이면 (길다 + 힘들다) 마지막만 '다' 로 맺고 앞은
+    # '고' 로 잇는다 — "길고 힘들다".
+    preds = [c for c in chunks if c.role is Role.PREDICATE]
     out: list[str] = []
     for role in _ORDER_KO:
         for ch in chunks:
@@ -124,14 +150,35 @@ def korean(items: list[tuple[Role, Concept]], terminator: str = ".",
                 if m.ko_tag != "∅":
                     out.append(_korean_one(m.ko_form, m.ko_tag,
                                            Role.ADNOMINAL, kiwi, mg))
-            out.append(_korean_one(ch.head.ko_form, ch.head.ko_tag,
-                                   role, kiwi, ch.grams))
+            if ch.head.ko_tag == "RAW":
+                out.append(_korean_raw(ch.head.ko_form, role))
+            else:
+                linking = (role is Role.PREDICATE and len(preds) > 1
+                           and ch is not preds[-1])
+                out.append(_korean_one(ch.head.ko_form, ch.head.ko_tag,
+                                       role, kiwi, ch.grams,
+                                       linking=linking))
     text = " ".join(x for x in out if x)
     return (text + terminator) if text else ""
 
 
+def _korean_raw(text: str, role: Role) -> str:
+    """받아 적힌 낱말 — 자리에 맞는 조사만 붙인다."""
+    if role is Role.SUBJECT:
+        return text + ("이" if _has_final(text) else "가")
+    if role is Role.OBJECT:
+        return text + ("을" if _has_final(text) else "를")
+    if role is Role.ADNOMINAL:
+        return text + "의"
+    return text
+
+
+# 주격에서 꼴이 바뀌는 대명사
+_IRREGULAR_SUBJECT = {"나": "내가", "너": "네가", "저": "제가", "누구": "누가"}
+
+
 def _korean_one(form: str, tag: str, role: Role, kiwi,
-                grams: list[str] | None = None) -> str:
+                grams: list[str] | None = None, linking: bool = False) -> str:
     grams = grams or []
     predicate = tag in KT.PREDICATE or tag == "XR"
 
@@ -156,6 +203,8 @@ def _korean_one(form: str, tag: str, role: Role, kiwi,
         if predicate:
             return join([(form, "VA" if tag == "VA" else "VV"), ("음", "ETN")]) \
                 + _particle(form, "이", "가")
+        if form in _IRREGULAR_SUBJECT:
+            return _IRREGULAR_SUBJECT[form]
         return form + _particle(form, "이", "가")
     if role is Role.OBJECT:
         return form + _particle(form, "을", "를")
@@ -168,9 +217,21 @@ def _korean_one(form: str, tag: str, role: Role, kiwi,
             if negate:
                 morphs += [("지", "EC"), ("않", "VX")]
             morphs += pre
-            # 동사의 현재 종결은 'ㄴ다/는다' 다. '부르다' 가 아니라 '부른다'.
-            ending = "ᆫ다" if (base == "VV" and not pre and not negate) else "다"
-            morphs.append((ending, "EF"))
+            if linking:
+                morphs.append(("고", "EC"))    # "길고 힘들다" 의 앞쪽
+            else:
+                # 동사의 현재 종결은 'ㄴ다/는다'. '부르다' 가 아니라 '부른다'.
+                ending = ("ᆫ다" if (base == "VV" and not pre and not negate)
+                          else "다")
+                morphs.append((ending, "EF"))
+            return join(morphs)
+        if tag in ("NNG", "NNP", "XR"):
+            # 명사 개념이 서술어 자리에 오면 하다-동사가 된다 — '사랑한다'.
+            morphs = [(form, "NNG"), ("하", "XSV")]
+            if negate:
+                morphs += [("지", "EC"), ("않", "VX")]
+            morphs += pre
+            morphs.append(("ᆫ다", "EF") if not pre and not negate else ("다", "EF"))
             return join(morphs)
         head = form + _particle(form, "이", "")
         return head + ("었다" if INF.PAST in grams else "다")
@@ -198,6 +259,19 @@ _ORDER_EN = (Role.INDEPENDENT, Role.ADNOMINAL, Role.SUBJECT, Role.PREDICATE,
 
 _BE = "is"
 
+
+_OBJECT_PRP = {"i": "me", "he": "him", "she": "her", "we": "us",
+               "they": "them", "who": "whom"}
+
+
+def _verbable(word: str) -> bool:
+    """이 영어 낱말에 동사 읽기가 있는가."""
+    from .dictionary import Dictionary
+    try:
+        return Dictionary.load("en").get(word, "VB") is not None
+    except Exception:
+        return False
+
 # 영어에서 흔히 관사 없이 쓰는 낱말들. 'the love' 는 어색하다.
 # 관사 없이 쓰는 것은 추상명사에 한한다. 'the water', 'the night' 은
 # 자연스럽지만 'the love' 는 어색하다.
@@ -221,11 +295,17 @@ def english(items: list[tuple[Role, Concept]], terminator: str = ".") -> str:
         "i", "you", "we", "they") and INF.PLURAL not in subj.grams
 
     parts: list[str] = []
+    copula_done = False
     for role in _ORDER_EN:
         for ch in chunks:
             if ch.role is not role:
                 continue
             head, tag, grams = ch.head.en_form, ch.head.en_tag, list(ch.grams)
+            if tag == "RAW":
+                parts.append(head)
+                continue
+            if role is Role.PREDICATE and tag == ET.NN and _verbable(head):
+                tag = ET.VB      # 사랑하다 → loves (love 는 동사이기도 하다)
             if (role is Role.PREDICATE and tag == ET.VB and third_sg
                     and not ({INF.PAST, INF.THIRD, INF.ING, INF.WILL} & set(grams))):
                 grams.append(INF.THIRD)
@@ -234,7 +314,12 @@ def english(items: list[tuple[Role, Concept]], terminator: str = ".") -> str:
             copular = (role is Role.PREDICATE and tag in (ET.JJ, ET.NN)) or (
                 role is Role.COMPLEMENT and not has_verb and tag in (ET.JJ, ET.NN))
             if copular:
-                parts.append("was" if INF.PAST in grams else _BE)
+                # 병렬 — "is long and hard". 계사는 첫 번째만 세운다.
+                if copula_done:
+                    parts.append("and")
+                else:
+                    parts.append("was" if INF.PAST in grams else _BE)
+                    copula_done = True
                 if INF.NOT in grams:
                     parts.append("not")
                 parts.append(head)
@@ -245,6 +330,8 @@ def english(items: list[tuple[Role, Concept]], terminator: str = ".") -> str:
                 parts.append("did not" if INF.PAST in grams else "does not")
                 parts.append(head)
                 continue
+            if role is Role.OBJECT and tag == ET.PRP:
+                head = _OBJECT_PRP.get(head, head)    # loves her, not loves she
             if (role in (Role.SUBJECT, Role.OBJECT, Role.COMPLEMENT)
                     and tag == ET.NN and INF.PLURAL not in grams
                     and head not in _NO_ARTICLE):

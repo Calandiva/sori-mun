@@ -101,12 +101,11 @@ def build(lang: str, rows: list[tuple[str, str, int, int]]) -> dict:
         tier_count[tier] += 1
         qual_count[q.value] += 1
 
-    limit = C.capacity(C.MAX_DIGITS)
+    # 자릿수는 위로 열려 있다 (전단사 32진법). 4자리면 백만이 넘는다.
+    limit = C.capacity(4)
     if max_index >= limit:
         raise RuntimeError(
-            f"{lang}: 칸 하나에 낱말이 너무 많다 — 최대 번호 {max_index:,}, "
-            f"{C.MAX_DIGITS}자리로 담을 수 있는 한계는 {limit:,}"
-        )
+            f"{lang}: 최대 번호 {max_index:,} 가 4자리 한계 {limit:,} 를 넘었다")
 
     path = OUT / f"dictionary_{lang}.tsv.gz"
     with gzip.open(path, "wt", encoding="utf-8", newline="") as fh:
@@ -140,8 +139,7 @@ def main() -> int:
     meta = {
         "판": 2,
         "진법": C.BASE,
-        "최대자릿수": C.MAX_DIGITS,
-        "담을수있는번호": C.capacity(C.MAX_DIGITS),
+        "담을수있는번호_4자리": C.capacity(4),
         "등급경계": list(TIER_BANDS),
         "등급이름": list(TIER_LABEL),
         "등급이름_en": list(TIER_LABEL_EN),

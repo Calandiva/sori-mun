@@ -29,8 +29,11 @@ def cmd_render(args) -> int:
     cp = Composer(lang, tempo=args.tempo, analyzer=an)
 
     outdir = Path(args.out)
-    for i, a in enumerate(an.sentences(body), start=1):
+    sentences = an.sentences(body)
+    pieces = []
+    for a in sentences:
         p = cp.compose(a)
+        pieces.append(p)
         if not args.quiet:
             print(f"\n{T.analysis_table(a)}\n")
             print(T.glyph_table(p))
@@ -38,20 +41,25 @@ def cmd_render(args) -> int:
             print(T.score_table(p))
             print(f"\n  개념으로 적힌 낱말 {p.translatable:.0%} "
                   f"— 이만큼이 다른 말로도 읽힌다")
-        stem = outdir / (f"{args.name}-{i:02d}" if i > 1 or args.file
-                         else args.name)
-        made = []
-        if args.mid:
-            from .io import midi
-            made.append(midi.write(p, stem.with_suffix(".mid")))
-        if args.wav:
-            from .io import wave_out
-            made.append(wave_out.write(p, stem.with_suffix(".wav")))
-        if args.xml:
-            from .io import musicxml
-            made.append(musicxml.write(p, stem.with_suffix(".musicxml")))
-        for m in made:
-            print(f"  → {m}  ({m.stat().st_size:,}B)")
+
+    # 여러 문장은 한 악보로 잇는다. 되읽기가 종결 화음으로 가른다.
+    from .compose import combine
+    whole = combine(pieces) if len(pieces) > 1 else pieces[0]
+    if len(pieces) > 1:
+        print(f"\n  문장 {len(pieces)}개를 한 악보로 이었다")
+    stem = outdir / args.name
+    made = []
+    if args.mid:
+        from .io import midi
+        made.append(midi.write(whole, stem.with_suffix(".mid")))
+    if args.wav:
+        from .io import wave_out
+        made.append(wave_out.write(whole, stem.with_suffix(".wav")))
+    if args.xml:
+        from .io import musicxml
+        made.append(musicxml.write(whole, stem.with_suffix(".musicxml")))
+    for m in made:
+        print(f"  → {m}  ({m.stat().st_size:,}B)")
     return 0
 
 
@@ -60,8 +68,13 @@ def cmd_read(args) -> int:
     from .io import midi_read
 
     if args.file:
-        chords = midi_read.chords(args.file)
-        src = f"{args.file} 에서 화음 {len(chords)}개"
+        if str(args.file).lower().endswith(".wav"):
+            from .io import wave_read
+            chords = wave_read.chords(args.file)
+            src = f"{args.file} (소리) 에서 화음 {len(chords)}개"
+        else:
+            chords = midi_read.chords(args.file)
+            src = f"{args.file} 에서 화음 {len(chords)}개"
     elif args.notes:
         chords = midi_read.parse_notes(args.notes)
         src = f"손으로 넣은 화음 {len(chords)}개"
@@ -70,24 +83,27 @@ def cmd_read(args) -> int:
               "--notes 로 음이름을 적어라.", file=sys.stderr)
         return 1
 
-    r = read(chords)
-    print(f"{src}\n")
-    if not args.quiet:
-        print(T.reading_table(r))
-        print()
+    from .decompose import read_all
+
+    readings = read_all(chords)
+    print(f"{src} — 문장 {len(readings)}개\n")
     targets = args.to or ["ko", "en"]
-    for lang in targets:
-        try:
-            out = render(r, lang, get(lang))
-        except Exception as exc:      # pragma: no cover
-            out = f"(읽어 내지 못했다: {exc})"
-        label = "한국어" if lang == "ko" else "영어"
-        print(f"  {label:<5} 『{out}』")
-    if r.translatable < 0.999:
-        print(f"\n  개념으로 적힌 낱말 {r.translatable:.0%} "
-              f"— 나머지는 적은 말에서만 읽힌다")
-    for w in r.warnings:
-        print(f"  ! {w}")
+    for si, r in enumerate(readings, start=1):
+        if len(readings) > 1:
+            print(f"─ 문장 {si} ─")
+        if not args.quiet:
+            print(T.reading_table(r))
+            print()
+        for lang in targets:
+            try:
+                out = render(r, lang, get(lang))
+            except Exception as exc:      # pragma: no cover
+                out = f"(읽어 내지 못했다: {exc})"
+            label = "한국어" if lang == "ko" else "영어"
+            print(f"  {label:<5} 『{out}』")
+        for w in r.warnings:
+            print(f"  ! {w}")
+        print()
     return 0
 
 
@@ -156,7 +172,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.set_defaults(func=cmd_render)
 
     d = sub.add_parser("read", aliases=["읽기"], help="소리를 글로 되읽는다")
-    d.add_argument("-f", "--file", help="읽을 .mid 파일")
+    d.add_argument("-f", "--file", help="읽을 .mid 또는 .wav 파일")
     d.add_argument("--notes", help='음이름으로 직접 (예: "C3+E3+E4 G3+A3+F4")')
     d.add_argument("--to", nargs="+", choices=["ko", "en"],
                    help="어느 말로 낼지 (기본: 둘 다)")

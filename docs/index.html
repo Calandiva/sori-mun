@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>소리문 — 하나의 소리, 두 개의 말</title>
-<meta name="description" content="한국어와 영어를 같은 소리로 적고, 그 소리를 다시 어느 말로든 읽어 낸다. 부호를 나르는 것은 음높이와 화성뿐이다.">
+<meta name="description" content="문장을 넣으면 음악으로, 음악을 넣으면 한국어와 영어로. 부호를 나르는 것은 음높이와 화성뿐이다.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
@@ -23,26 +23,18 @@ html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   font-weight:300;line-height:1.75;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1020px;margin:0 auto;padding:0 24px}
-section{padding:72px 0;border-top:1px solid var(--line)}
-header{padding:96px 0 60px;text-align:center}
-h1{font-family:var(--serif);font-weight:600;font-size:clamp(3rem,11vw,5.5rem);
+section{padding:64px 0;border-top:1px solid var(--line)}
+header{padding:56px 0 8px;text-align:center}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(2.2rem,7vw,3.4rem);
   margin:0;letter-spacing:.22em;text-indent:.22em;line-height:1.1}
-.roman{color:var(--ink3);font-family:var(--mono);font-size:.78rem;
-  letter-spacing:.42em;text-indent:.42em;margin-top:14px}
-.lede{font-size:clamp(1.05rem,2.4vw,1.28rem);color:var(--ink2);
-  max-width:48ch;margin:32px auto 0}
-.stats{display:flex;flex-wrap:wrap;gap:0;justify-content:center;margin-top:44px}
-.stat{padding:0 24px;border-left:1px solid var(--line)}
-.stat:first-child{border-left:none}
-.stat .n{font-family:var(--mono);font-size:1.4rem;color:var(--accent);display:block}
-.stat .l{font-size:.75rem;color:var(--ink3)}
-h2{font-family:var(--serif);font-weight:600;font-size:1.75rem;margin:0 0 8px}
-h2 .en{font-family:var(--mono);font-size:.66rem;color:var(--ink3);
+.lede{font-size:.98rem;color:var(--ink2);max-width:52ch;margin:14px auto 0}
+h2{font-family:var(--serif);font-weight:600;font-size:1.6rem;margin:0 0 8px}
+h2 .en{font-family:var(--mono);font-size:.64rem;color:var(--ink3);
   letter-spacing:.3em;display:block;font-weight:400;margin-bottom:10px}
-.sub{color:var(--ink2);margin:0 0 32px;max-width:66ch;font-size:.95rem}
+.sub{color:var(--ink2);margin:0 0 28px;max-width:66ch;font-size:.93rem}
 .panel{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
   padding:20px 22px;margin-bottom:18px}
-.panel h3{font-size:.74rem;font-weight:500;color:var(--ink3);margin:0 0 16px;
+.panel h3{font-size:.73rem;font-weight:500;color:var(--ink3);margin:0 0 15px;
   letter-spacing:.18em;text-transform:uppercase}
 .scroll{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:.85rem;white-space:nowrap}
@@ -52,48 +44,52 @@ td{padding:7px 14px 7px 0;border-bottom:1px solid var(--bg3);vertical-align:top}
 td.txt{white-space:normal;min-width:190px}
 .mono{font-family:var(--mono);font-size:.8rem}
 .dim{color:var(--ink3)}
-.picker{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
-.picker button{font-family:var(--sans);font-size:.84rem;font-weight:300;
-  color:var(--ink2);background:var(--bg2);border:1px solid var(--line);
-  border-radius:999px;padding:7px 14px;cursor:pointer;transition:.16s}
-.picker button:hover{border-color:var(--line2);color:var(--ink)}
-.picker button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);
-  color:#1a1207;font-weight:500}
-.flag{font-family:var(--mono);font-size:.68rem;opacity:.65;margin-right:5px}
-.sentence{font-family:var(--serif);font-size:clamp(1.25rem,3.2vw,1.75rem);margin:0 0 8px}
-.exnote{color:var(--ink2);font-size:.9rem;margin:0 0 24px;max-width:66ch}
+textarea{width:100%;min-height:96px;background:var(--bg2);color:var(--ink);
+  border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  font-family:var(--sans);font-size:1.02rem;line-height:1.8;resize:vertical}
+textarea:focus{outline:none;border-color:var(--accent)}
+textarea.notes{font-family:var(--mono);font-size:.8rem;min-height:80px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0 6px}
+.count{font-family:var(--mono);font-size:.74rem;color:var(--ink3);margin-left:auto}
+button.act{font-family:var(--sans);font-size:.88rem;background:var(--bg3);
+  color:var(--ink);border:1px solid var(--line2);border-radius:999px;
+  padding:9px 20px;cursor:pointer;transition:.15s}
+button.act:hover{border-color:var(--accent);color:var(--accent)}
+button.act.primary{background:var(--accent);color:#1a1207;border-color:var(--accent);
+  font-weight:600;font-size:.95rem;padding:10px 26px}
+button.act.primary:hover{filter:brightness(1.1);color:#1a1207}
+.chip{font-family:var(--sans);font-size:.78rem;color:var(--ink3);
+  background:none;border:1px solid var(--line);border-radius:999px;
+  padding:5px 12px;cursor:pointer}
+.chip:hover{color:var(--ink);border-color:var(--line2)}
+.err{color:#e08a8a;font-size:.85rem;font-family:var(--mono)}
 .readings{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:14px;margin-bottom:18px}
-.reading{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
-.reading .tag{font-family:var(--mono);font-size:.66rem;letter-spacing:.2em;
-  color:var(--ink3);display:block;margin-bottom:8px}
-.reading .body{font-family:var(--serif);font-size:1.12rem;line-height:1.6}
+  gap:14px;margin:16px 0}
+.reading{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:15px 18px}
+.reading .tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.2em;
+  color:var(--ink3);display:block;margin-bottom:7px}
+.reading .body{font-family:var(--serif);font-size:1.1rem;line-height:1.65}
 .reading.k{border-left:3px solid var(--ko)} .reading.e{border-left:3px solid var(--en)}
 .rollbox{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
-  padding:18px 20px 14px;margin-bottom:18px}
-.rollhead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
-.play{font-family:var(--sans);font-size:.9rem;font-weight:500;background:var(--accent);
-  color:#1a1207;border:none;border-radius:999px;padding:9px 22px;cursor:pointer}
-.play:hover{filter:brightness(1.1)}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.75rem;color:var(--ink3)}
+  padding:16px 18px 12px;margin:16px 0}
+.rollhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:.74rem;color:var(--ink3)}
 .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
 svg.roll{display:block;width:100%;height:auto;min-width:600px}
-.rollfoot{font-size:.73rem;color:var(--ink3);margin-top:10px}
-textarea{width:100%;min-height:110px;background:var(--bg2);color:var(--ink);
-  border:1px solid var(--line);border-radius:8px;padding:12px 14px;
-  font-family:var(--mono);font-size:.82rem;line-height:1.7;resize:vertical}
-textarea:focus{outline:none;border-color:var(--accent)}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0 18px}
-button.act{font-family:var(--sans);font-size:.86rem;background:var(--bg3);
-  color:var(--ink);border:1px solid var(--line2);border-radius:999px;
-  padding:8px 18px;cursor:pointer}
-button.act:hover{border-color:var(--accent);color:var(--accent)}
-button.act.primary{background:var(--accent);color:#1a1207;border-color:var(--accent);font-weight:500}
-.err{color:#e08a8a;font-size:.85rem;font-family:var(--mono)}
+.rollfoot{font-size:.72rem;color:var(--ink3);margin-top:9px}
+.stats{font-size:.82rem;color:var(--ink2);margin:10px 0 0}
+.stats b{color:var(--accent);font-weight:500}
+.senthead{font-family:var(--serif);font-size:1.05rem;margin:26px 0 10px;color:var(--ink2)}
+.senthead b{color:var(--ink)}
 input[type=search]{font-family:var(--sans);font-size:.92rem;color:var(--ink);
   background:var(--bg2);border:1px solid var(--line);border-radius:7px;
   padding:10px 14px;flex:1;min-width:200px}
 input[type=search]:focus{outline:none;border-color:var(--accent)}
+input[type=file]{display:none}
+label.file{font-family:var(--sans);font-size:.88rem;background:var(--bg3);
+  color:var(--ink);border:1px solid var(--line2);border-radius:999px;
+  padding:9px 20px;cursor:pointer}
+label.file:hover{border-color:var(--accent);color:var(--accent)}
 .hit{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;
   padding:10px 0;border-bottom:1px solid var(--bg3);font-size:.92rem}
 ol.proof{counter-reset:p;list-style:none;padding:0;margin:0}
@@ -107,12 +103,12 @@ ol.proof li::before{content:counter(p);position:absolute;left:0;top:1px;
   white-space:pre;overflow-x:auto;line-height:1.85}
 .caveat{border-left:2px solid var(--line2);padding-left:18px;color:var(--ink2);
   font-size:.9rem;margin-top:26px}
-footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--ink3);font-size:.83rem}
-a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
-a:hover{border-bottom-color:currentColor}
+footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--ink3);font-size:.83rem}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
 footer a{color:var(--ink2)}
-@media(max-width:640px){section{padding:52px 0}.stat{padding:0 14px}
-  .hit{grid-template-columns:1fr auto}}
+audio{width:100%;margin-top:10px}
+@media(max-width:640px){section{padding:48px 0}.hit{grid-template-columns:1fr auto}}
 </style>
 </head>
 <body>
@@ -120,80 +116,87 @@ footer a{color:var(--ink2)}
 <header>
   <div class="wrap">
     <h1>소리문</h1>
-    <div class="roman">SORI-MUN</div>
-    <p class="lede">한국어와 영어를 같은 소리로 적는다. 그 소리는 어느 말의
-      것도 아니어서, 다시 어느 말로든 읽어 낼 수 있다.</p>
-    <div class="stats" id="stats"></div>
+    <p class="lede">문장을 넣으면 음악이 된다. 그 음악은 어느 말의 것도 아니어서,
+      다시 한국어로도 영어로도 읽힌다.</p>
   </div>
 </header>
 
-<section id="listen">
+<section id="write" style="border-top:none;padding-top:36px">
   <div class="wrap">
-    <h2><span class="en">LISTEN</span>보고 듣기</h2>
-    <p class="sub">아래는 파이썬이 실제로 적고 되읽은 결과 그대로다.
-      한국어로 적었든 영어로 적었든, 같은 소리에서 두 말이 나온다.</p>
-    <div class="picker" id="picker"></div>
-    <p class="sentence" id="sentence"></p>
-    <p class="exnote" id="exnote"></p>
-
-    <div class="readings">
-      <div class="reading k"><span class="tag">한국어로 읽으면</span>
-        <div class="body" id="readKo"></div></div>
-      <div class="reading e"><span class="tag">ENGLISH</span>
-        <div class="body" id="readEn"></div></div>
+    <textarea id="src" maxlength="500" spellcheck="false"
+      placeholder="한국어나 영어 문장을 넣어 보세요 (500자까지) — 예: 아름다운 노래가 어두운 밤을 천천히 어루만졌다. The child laughed quietly."></textarea>
+    <div class="row">
+      <button class="act primary" id="go">♪ 음악으로</button>
+      <span class="dim" style="font-size:.8rem" id="exlabel">예문:</span>
+      <span id="chips"></span>
+      <span class="count"><span id="cnt">0</span>/500</span>
     </div>
-
-    <div class="rollbox">
-      <div class="rollhead">
-        <button class="play" id="play">▶ 들어보기</button>
-        <div class="legend">
-          <span><i class="sw" style="background:var(--major)"></i>장 · 긍정</span>
-          <span><i class="sw" style="background:var(--minor)"></i>단 · 부정</span>
-          <span><i class="sw" style="background:var(--neutral)"></i>중성</span>
-          <span><i class="sw" style="background:var(--marker)"></i>자리 · 맺음</span>
-        </div>
+    <div class="err" id="werr"></div>
+    <div id="result" hidden>
+      <p class="stats" id="wstats"></p>
+      <div class="readings">
+        <div class="reading k"><span class="tag">한국어로 읽으면</span>
+          <div class="body" id="wko"></div></div>
+        <div class="reading e"><span class="tag">IN ENGLISH</span>
+          <div class="body" id="wen"></div></div>
       </div>
-      <div class="scroll"><svg class="roll" id="roll"></svg></div>
-      <div class="rollfoot">세로 = 음높이(C3~C5) · 가로 = 차례 · 색 = 화음의 성질
-        · 아래 띠 = 글리프 하나(낱말 하나) · <b>가로 폭은 뜻과 무관하다</b></div>
-    </div>
-
-    <div class="panel">
-      <h3>글리프 — 낱말 하나가 어떻게 적혔는가</h3>
-      <div class="scroll"><table id="tblGlyph"></table></div>
+      <div class="rollbox">
+        <div class="rollhead">
+          <button class="act primary" id="wplay">▶ 들어보기</button>
+          <button class="act" id="wdl">⬇ WAV 내려받기</button>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--major)"></i>장 · 긍정</span>
+            <span><i class="sw" style="background:var(--minor)"></i>단 · 부정</span>
+            <span><i class="sw" style="background:var(--neutral)"></i>중성</span>
+            <span><i class="sw" style="background:var(--marker)"></i>자리 · 맺음</span>
+          </div>
+        </div>
+        <div class="scroll"><svg class="roll" id="wroll"></svg></div>
+        <div class="rollfoot">세로 = 음높이(C3~C5) · 색 = 화음의 성질 · 아래 띠 = 낱말
+          하나 · 가로 폭은 뜻과 무관 — 부호는 음높이와 화성뿐이다.
+          내려받은 WAV 를 아래 「소리 읽기」에 다시 넣으면 글로 정확히 돌아온다.</div>
+      </div>
+      <div id="wsent"></div>
     </div>
   </div>
 </section>
 
-<section id="decode">
+<section id="readback">
   <div class="wrap">
-    <h2><span class="en">READ IT BACK</span>소리를 넣어 보세요</h2>
-    <p class="sub">여기서 도는 되읽기는 파이썬과 같은 코드다(같은 답을 내는지
-      확인해 두었다). 되읽기에는 형태소 분석기가 필요 없다 — 화음 은행과
-      개념표만 있으면 되기 때문이다. 음이름을 고쳐 보아도 좋다.
-      <b>길이는 적지 않는다. 부호를 나르는 것은 음높이와 화성뿐이기 때문이다.</b></p>
-    <textarea id="chordIn" spellcheck="false"></textarea>
+    <h2><span class="en">READ IT BACK</span>소리 읽기</h2>
+    <p class="sub">위에서 내려받은 WAV 를 넣으면 — 또는 음이름을 적으면 —
+      한국어와 영어로 읽어 낸다. 판독은 음높이와 화성만 본다. 길이는 보지 않는다.</p>
+    <div class="row">
+      <label class="file">🎵 소리 파일 넣기 (.wav)
+        <input type="file" id="afile" accept="audio/*"></label>
+      <span class="dim" style="font-size:.82rem">또는 음이름으로:</span>
+    </div>
+    <textarea id="chordIn" class="notes" spellcheck="false"
+      placeholder="C3+E3+E4  G3+A3+F4  … (화음은 + 로, 사이는 빈칸으로)"></textarea>
     <div class="row">
       <button class="act primary" id="doRead">읽기</button>
-      <button class="act" id="loadEx">지금 예제 넣기</button>
-      <span class="err" id="readErr"></span>
+      <span class="err" id="rerr"></span>
     </div>
-    <div class="readings">
-      <div class="reading k"><span class="tag">한국어로</span>
-        <div class="body" id="outKo">—</div></div>
-      <div class="reading e"><span class="tag">IN ENGLISH</span>
-        <div class="body" id="outEn">—</div></div>
+    <div id="rout" hidden>
+      <div class="readings">
+        <div class="reading k"><span class="tag">한국어로</span>
+          <div class="body" id="rko"></div></div>
+        <div class="reading e"><span class="tag">IN ENGLISH</span>
+          <div class="body" id="ren"></div></div>
+      </div>
+      <div class="panel"><h3>되찾은 것</h3>
+        <div class="scroll"><table id="tblRead"></table></div></div>
     </div>
-    <div class="panel"><h3>되찾은 것</h3>
-      <div class="scroll"><table id="tblRead"></table></div></div>
   </div>
 </section>
 
 <section id="rules">
   <div class="wrap">
     <h2><span class="en">RULES</span>규칙</h2>
-    <p class="sub">낱말 하나가 글리프 하나로 적힌다. 자리마다 쓰는 화음
-      은행이 서로소이므로, 화음 하나만 들어도 그것이 무슨 자리인지 안다.</p>
+    <p class="sub">낱말 하나가 글리프 하나로 적힌다 — [역할 화음][머리 화음][자릿
+      화음 × k][맺음 화음]. 자리마다 쓰는 화음 은행이 서로소이므로 화음 하나만
+      들어도 무슨 자리인지 안다. 부호를 나르는 것은 음높이와 화성뿐이라,
+      연주하는 사람이 길이를 흔들어도 뜻은 그대로다.</p>
     <div class="panel"><h3>글리프의 짜임</h3>
       <div class="scroll"><table id="tblParts"></table></div></div>
     <div class="panel"><h3>문장 성분 — 여덟 자리를 두 말이 함께 쓴다</h3>
@@ -219,20 +222,21 @@ footer a{color:var(--ink2)}
     <ol class="proof">
       <li>자리마다 쓰는 화음 은행이 <b>서로소</b>다. 화음 하나만 보아도 그것이
         역할인지 의미인지 자릿수인지 맺음인지 안다.</li>
-      <li>역할 화음이 먼저 오므로 음역대 바닥을 알게 되고, 그래야 자릿 화음의
-        근음에서 자릿값을 뽑을 수 있다.</li>
       <li>맺음 화음이 글리프의 끝을 말한다. <b>길이를 재지 않아도</b> 끊긴다.</li>
-      <li>되읽기가 (자리·갈래·말·등급·성질·번호·맺음)을 <b>남김없이</b> 되찾는다.
-        되찾기가 적기의 왼쪽 역이므로, 서로 다른 낱말이 같은 소리를 가질 수 없다.</li>
-      <li>사전에 없는 말은 글자를 하나씩 받아 적는다. 그래서 어떤 문장이든
-        빠짐없이 적히고 빠짐없이 돌아온다.</li>
+      <li>되읽기가 (자리·대문자·갈래·말·등급·성질·번호·맺음)을 <b>남김없이</b>
+        되찾는다. 서로 다른 낱말이 같은 소리를 가질 수 없다.</li>
+      <li>사전에 없는 말은 글자를 하나씩 받아 적는다. 어떤 문장이든 빠짐없이
+        적히고 빠짐없이 돌아온다.</li>
+      <li>두 말에 다 있는 낱말은 <b>개념</b>으로, 한쪽에만 있는 낱말은 <b>가장
+        가까운 개념</b>으로 이어진다(어루만지다 ≈ touch). 그래서 영어→소리→
+        한국어→소리→영어 를 돌아도 핵심 낱말이 살아남는다.</li>
     </ol>
     <div class="verify" id="verifyOut"></div>
-    <p class="caveat">정직하게 — 개념표는 7,892개다. 두 말에 다 있는 낱말만
-      다른 말로 옮겨진다. 그 밖의 낱말(조사·어미, 관사·전치사, 개념표에 없는 말)은
-      적은 말로만 읽히고, 얼마나 옮겨졌는지가 늘 함께 표시된다. 문장 성분 판별과
-      영어 품사 붙이기는 규칙 어림이지 완전한 구문분석이 아니다. 다만 결정적이므로
-      같은 문장은 언제나 같은 소리가 되고, 같은 소리는 언제나 같은 뜻으로 돌아온다.</p>
+    <p class="caveat">정직하게 — 문장 성분 판별과 품사 붙이기는 규칙 어림이지
+      완전한 구문분석이 아니다. 비교급·관계절·복문은 자리로 환원되며 단순해진다.
+      브라우저의 한국어 가르기는 사전 앞머리 맞추기라 파이썬(형태소 분석기)보다
+      거칠고, 갈리지 않는 어절은 글자로 받아 적는다 — 소리는 길어지지만 정확성은
+      잃지 않는다. 소리 판독은 이 페이지가 만드는 음원에 맞춰져 있다.</p>
   </div>
 </section>
 
@@ -243,16 +247,17 @@ footer a{color:var(--ink2)}
       · <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/DATA.md">자료 출처</a></p>
     <p class="dim">mecab-ko-dic (Apache-2.0) · FrequencyWords (CC-BY-SA) ·
       KNU 한국어 감성사전 · Moby POS (public domain) · VADER (MIT) · AFINN ·
-      MUSE 대역쌍 · 형태소 분석 kiwipiepy. 코드는 MIT.</p>
+      MUSE 대역쌍 · kiwipiepy. 코드는 MIT.</p>
   </div>
 </footer>
 
 <script src="data.js"></script>
 <script src="decoder.js"></script>
+<script src="encoder.js"></script>
 <script>
 (function(){
 "use strict";
-const D=window.SORIMUN, K=D.codes, R=window.SoriRead;
+const D=window.SORIMUN, K=D.codes, R=window.SoriRead, W=window.SoriWrite;
 const $=s=>document.querySelector(s);
 const el=(t,a,c)=>{const n=document.createElement(t);
   if(a)for(const k in a)n.setAttribute(k,a[k]);
@@ -260,182 +265,278 @@ const el=(t,a,c)=>{const n=document.createElement(t);
 const NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 const nm=m=>NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);
 const COLOR={major:"#e9b44c",minor:"#9b8ec4",neutral:"#5f8fa6",marker:"#4a5a6d"};
+const Q_NAME=["major","minor","neutral"];
+const TIERL=K.tierLabel;
 
-[[D.meta.concepts.toLocaleString(),"개념 (두 말 공통)"],
- ["546,068","낱말 (한·영 합계)"],["2옥타브","C3 ~ C5"],
- [String(D.meta.reserved),"예약 화음"],["155","시험"]].forEach(([n,l])=>{
-  const d=el("div",{class:"stat"});
-  d.appendChild(el("span",{class:"n"},n));d.appendChild(el("span",{class:"l"},l));
-  $("#stats").appendChild(d);});
-
-/* ── 소리 ── */
-let ctx=null,wave=null,stop=null;
-function audio(){ if(ctx)return ctx;
-  ctx=new (window.AudioContext||window.webkitAudioContext)();
-  const g=[0,1,.42,.2,.11,0,.05];
-  wave=ctx.createPeriodicWave(new Float32Array(g.length),new Float32Array(g));
-  return ctx;}
-const freq=m=>440*Math.pow(2,(m-69)/12);
-function playNotes(notes,tempo,tick){
+/* ── 소리 재생 ── */
+let actx=null,playing=null;
+function audio(){return actx||(actx=new (window.AudioContext||window.webkitAudioContext)());}
+function playPcm(pcm,onEnd){
   const c=audio(); if(c.state==="suspended")c.resume();
-  const unit=60/tempo/4,t0=c.currentTime+.08,live=[];
-  for(const n of notes){const amp=Math.pow(n.v/127,1.6)*.2/n.p.length;
-    for(const p of n.p){const o=c.createOscillator();o.setPeriodicWave(wave);
-      o.frequency.value=freq(p);const g=c.createGain();
-      const at=t0+n.s*unit,hold=n.d*unit;
-      g.gain.setValueAtTime(0,at);g.gain.linearRampToValueAtTime(amp,at+.012);
-      g.gain.linearRampToValueAtTime(amp*.65,at+Math.max(.02,hold));
-      g.gain.exponentialRampToValueAtTime(.0001,at+hold+.28);
-      o.connect(g);g.connect(c.destination);o.start(at);o.stop(at+hold+.3);
-      live.push(o);}}
-  const total=Math.max(...notes.map(n=>n.s+n.d))*unit;let raf=null;
-  if(tick){const step=()=>{const e=c.currentTime-t0;tick(Math.max(0,e)/unit);
-    if(e<total+.3)raf=requestAnimationFrame(step);else tick(null);};
-    raf=requestAnimationFrame(step);}
-  return ()=>{live.forEach(o=>{try{o.stop()}catch(e){}});
-    if(raf)cancelAnimationFrame(raf);if(tick)tick(null);};}
+  const buf=c.createBuffer(1,pcm.length,W.SR);
+  const ch=buf.getChannelData(0);
+  for(let i=0;i<pcm.length;i++)ch[i]=pcm[i]/32768;
+  const srcN=c.createBufferSource(); srcN.buffer=buf;
+  srcN.connect(c.destination); srcN.onended=onEnd; srcN.start();
+  return srcN;
+}
 
 /* ── 피아노롤 ── */
 const NS="http://www.w3.org/2000/svg";
 const sv=(t,a)=>{const n=document.createElementNS(NS,t);
   for(const k in a)n.setAttribute(k,a[k]);return n;};
-let head=null,geom=null;
-function drawRoll(ex){
-  const s=$("#roll");s.textContent="";
+function drawRoll(svgEl,notes,glyphMeta){
+  svgEl.textContent="";
   const PL=44,PR=14,PT=12,LANE=30,H=290;
-  const total=Math.max(...ex.notes.map(n=>n.s+n.d))+2;
-  const W=Math.max(720,total*7+PL+PR);
+  const total=Math.max(...notes.map(n=>n.s+n.d))+2;
+  const Wd=Math.max(700,total*6+PL+PR);
   const rows=K.highest-K.lowest, rh=(H-PT-LANE-14)/rows;
-  const x=u=>PL+u*(W-PL-PR)/total, y=p=>PT+(K.highest-p)*rh;
-  s.setAttribute("viewBox",`0 0 ${W} ${H}`);
-  s.setAttribute("preserveAspectRatio","xMinYMid meet");geom={x};
+  const x=u=>PL+u*(Wd-PL-PR)/total, y=p=>PT+(K.highest-p)*rh;
+  svgEl.setAttribute("viewBox",`0 0 ${Wd} ${H}`);
+  svgEl.setAttribute("preserveAspectRatio","xMinYMid meet");
   for(let p=K.lowest;p<=K.highest;p++){
     if(p%12!==0&&p%12!==7)continue;const isC=p%12===0;
-    s.appendChild(sv("line",{x1:PL,x2:W-PR,y1:y(p),y2:y(p),
+    svgEl.appendChild(sv("line",{x1:PL,x2:Wd-PR,y1:y(p),y2:y(p),
       stroke:isC?"#374252":"#222a34","stroke-width":isC?1:.5}));
     if(isC){const t=sv("text",{x:PL-9,y:y(p)+4,fill:"#67788c","font-size":"10.5",
       "text-anchor":"end","font-family":"ui-monospace,monospace"});
-      t.textContent=nm(p);s.appendChild(t);}}
-  const qOf=new Map();
-  ex.glyphs.forEach((g,i)=>qOf.set(i,g.kind==="글자"?"neutral":g.quality));
-  for(const n of ex.notes){
+      t.textContent=nm(p);svgEl.appendChild(t);}}
+  for(const n of notes){
     let c=COLOR.marker;
-    if(n.slot==="의미"||n.slot==="자리") c=COLOR[qOf.get(n.g)]||COLOR.neutral;
+    if(n.slot==="의미"||n.slot==="자리"){
+      const meta=glyphMeta.get(n.g);
+      c=COLOR[(meta&&meta.q)||"neutral"];
+    }
     for(const p of n.p){
       const r=sv("rect",{x:x(n.s),y:y(p)-rh*.42,
         width:Math.max(3,x(n.s+n.d)-x(n.s)-1),height:Math.max(3,rh*.84),rx:2,
         fill:c,"fill-opacity":n.slot==="의미"?.95:.8});
       const ti=document.createElementNS(NS,"title");
       ti.textContent=`${n.src}  ${n.slot}  ${n.p.map(nm).join("+")}`;
-      r.appendChild(ti);s.appendChild(r);}}
+      r.appendChild(ti);svgEl.appendChild(r);}}
   const laneY=H-LANE+4;
   const span=new Map();
-  for(const n of ex.notes){if(n.g<0)continue;
-    const v=span.get(n.g);if(!v)span.set(n.g,{a:n.s,b:n.s+n.d});
+  for(const n of notes){if(n.g==null||n.g<0)continue;
+    const v=span.get(n.g);if(!v)span.set(n.g,{a:n.s,b:n.s+n.d,src:n.src,role:n.role});
     else{v.a=Math.min(v.a,n.s);v.b=Math.max(v.b,n.s+n.d);}}
-  ex.glyphs.forEach((g,i)=>{const v=span.get(i);if(!v)return;
-    const col=g.kind==="개념"?"#e9b44c":g.kind==="낱말"?"#5f8fa6":"#67788c";
-    s.appendChild(sv("rect",{x:x(v.a),y:laneY,width:Math.max(3,x(v.b)-x(v.a)-1.5),
+  for(const [g,v] of span){
+    const meta=glyphMeta.get(g);
+    const col=meta?(meta.kind==="개념"?"#e9b44c":meta.kind==="낱말"?"#5f8fa6":"#67788c"):"#4a5a6d";
+    svgEl.appendChild(sv("rect",{x:x(v.a),y:laneY,width:Math.max(3,x(v.b)-x(v.a)-1.5),
       height:13,rx:3,fill:col,"fill-opacity":.26,stroke:col,"stroke-opacity":.5}));
-    if(x(v.b)-x(v.a)>36){const t=sv("text",{x:x(v.a)+4,y:laneY+10,
-      fill:"#9fb0c4","font-size":"9"});t.textContent=g.role;s.appendChild(t);}});
-  head=sv("line",{x1:0,x2:0,y1:PT-4,y2:H-LANE,stroke:"#e9b44c","stroke-width":1.4,opacity:0});
-  s.appendChild(head);}
+    if(x(v.b)-x(v.a)>34){const t=sv("text",{x:x(v.a)+4,y:laneY+10,
+      fill:"#9fb0c4","font-size":"9"});t.textContent=v.role;svgEl.appendChild(t);}}
+}
 
-/* ── 예제 ── */
-let idx=0;
-function show(i){idx=i;const ex=D.examples[i];
-  document.querySelectorAll("#picker button").forEach((b,j)=>
-    b.setAttribute("aria-pressed",j===i?"true":"false"));
-  $("#sentence").textContent=`『${ex.text}』`;
-  $("#exnote").textContent=ex.note;
-  $("#readKo").textContent=ex.ko||"—";
-  $("#readEn").textContent=ex.en||"—";
-  const t=$("#tblGlyph");t.textContent="";
-  let tr=el("tr");["낱말","자리","갈래","성격","화음"].forEach(h=>tr.appendChild(el("th",null,h)));
-  t.appendChild(tr);
-  const cnt=new Map();
-  for(const n of ex.notes){if(n.g>=0)cnt.set(n.g,(cnt.get(n.g)||0)+1);}
-  ex.glyphs.forEach((g,gi)=>{tr=el("tr");
-    tr.appendChild(el("td",{class:"mono"},g.label));
-    tr.appendChild(el("td",null,g.role));
-    tr.appendChild(el("td",{class:"dim"},
-      g.kind==="개념"?"개념 — 두 말 공통":g.kind==="낱말"?`${g.lang} 전용`:"글자"));
-    tr.appendChild(el("td",{class:"dim"},
-      g.kind==="글자"?"받아적기":`${g.tier}등급 ${K.tierLabel[g.tier]} · ${g.quality}`));
-    tr.appendChild(el("td",{class:"mono dim"},(cnt.get(gi)||0)+"개"));
-    t.appendChild(tr);});
-  drawRoll(ex);stopPlay();
-  $("#chordIn").value=ex.notes.map(n=>n.p.map(nm).join("+")).join(" ");}
-D.examples.forEach((ex,i)=>{
-  const b=el("button",{type:"button","aria-pressed":"false"});
-  b.appendChild(el("span",{class:"flag"},ex.lang.toUpperCase()));
-  b.appendChild(document.createTextNode(
-    ex.text.length>20?ex.text.slice(0,19)+"…":ex.text));
-  b.addEventListener("click",()=>show(i));$("#picker").appendChild(b);});
-function stopPlay(){if(stop)stop();stop=null;$("#play").textContent="▶ 들어보기";
-  if(head)head.setAttribute("opacity",0);}
-$("#play").addEventListener("click",()=>{
-  if(stop){stopPlay();return;}
-  const ex=D.examples[idx];$("#play").textContent="■ 멈추기";
-  stop=playNotes(ex.notes,ex.tempo,u=>{if(u==null){stopPlay();return;}
-    if(head&&geom){head.setAttribute("opacity",.9);
-      const X=geom.x(u);head.setAttribute("x1",X);head.setAttribute("x2",X);}});});
+/* ── 변환기 ── */
+let lastPcm=null,lastBlobUrl=null;
+$("#src").addEventListener("input",()=>{$("#cnt").textContent=$("#src").value.length;});
+// 예문 칩
+const EX=["아름다운 노래가 어두운 밤을 천천히 어루만졌다.",
+  "The beautiful song gently touched the dark night.",
+  "봄이 왔다. 아이가 조용히 웃었다.",
+  "Love is stronger than death.","바람이 꽃을 흔들었다. 비가 조용히 내린다."];
+for(const t of EX){
+  const b=el("button",{class:"chip",type:"button"},
+    t.length>22?t.slice(0,21)+"…":t);
+  b.addEventListener("click",()=>{$("#src").value=t;
+    $("#cnt").textContent=t.length;convert(false);});
+  $("#chips").appendChild(b);
+}
+function convert(scroll){
+  const text=$("#src").value.trim();
+  $("#werr").textContent="";
+  if(!text){$("#werr").textContent="문장을 넣어 주세요.";return;}
+  if(text.length>500){$("#werr").textContent="500자까지입니다.";return;}
+  const lang=W.detect(text);
+  let p;
+  try{p=W.compose(text,lang);}
+  catch(e){$("#werr").textContent="옮기지 못했다: "+e.message;return;}
+  $("#result").hidden=false;
 
-/* ── 되읽기 ── */
-function parseNotes(text){
-  const alias={DB:"C#",EB:"D#",GB:"F#",AB:"G#",BB:"A#"};
-  const out=[];
-  for(const tok of text.replace(/,/g," ").split(/\s+/)){
-    if(!tok)continue;const ps=[];
-    for(const part of tok.split("+")){
-      const s=part.trim();if(!s)continue;
-      if(/^\d+$/.test(s)){ps.push(+s);continue;}
-      const body=s.slice(0,-1).toUpperCase(),oct=s.slice(-1);
-      const b=alias[body]||body;const k=NAMES.indexOf(b);
-      if(k<0||!/^\d$/.test(oct))throw new Error(`음이름을 알 수 없습니다: ${s}`);
-      ps.push(k+(+oct+1)*12);}
-    if(ps.length)out.push(ps.sort((a,b)=>a-b));}
-  return out;}
-function doRead(){
-  $("#readErr").textContent="";
-  let chords;
-  try{chords=parseNotes($("#chordIn").value);}
-  catch(e){$("#readErr").textContent=e.message;return;}
-  if(!chords.length){$("#readErr").textContent="화음을 넣어 주세요.";return;}
-  const r=R.read(chords);
-  $("#outKo").textContent=R.toKorean(r.items,r.terminator)||"—";
-  $("#outEn").textContent=R.toEnglish(r.items,r.terminator)||"—";
-  if(r.warnings.length)$("#readErr").textContent=r.warnings[0];
+  // 되읽어 두 말로
+  const readings=R.readAll(p.chords);
+  const same=readings.map(r=>R.toSame(r.items,r.terminator,lang)).join(" ");
+  const other=lang==="ko"?"en":"ko";
+  const cross=readings.map(r=>{
+    const items=R.crossItems(r.items);
+    return other==="ko"?R.toKorean(items,r.terminator):R.toEnglish(items,r.terminator);
+  }).join(" ");
+  $("#wko").textContent=lang==="ko"?same:cross;
+  $("#wen").textContent=lang==="en"?same:cross;
+
+  const nGlyphs=p.sentences.reduce((a,s)=>a+s.glyphs.length,0);
+  const spelled=p.sentences.reduce((a,s)=>a+s.analysis.filter(x=>x.spelled).length,0);
+  $("#wstats").innerHTML=
+    `문장 <b>${p.sentences.length}</b>개 · 글리프 <b>${nGlyphs}</b>개 · `+
+    `화음 <b>${p.chords.length}</b>개 · 개념으로 적힌 낱말 `+
+    `<b>${Math.round(p.translatable*100)}%</b>`+
+    (spelled?` · 받아 적은 어절 ${spelled}개`:"");
+
+  // 글리프 메타 (피아노롤 색)
+  const glyphMeta=new Map();
+  let gi=0;
+  for(const s of p.sentences) for(const g of s.glyphs)
+    glyphMeta.set(gi++,{kind:["개념","낱말","글자"][g.kind],q:Q_NAME[g.qi]});
+  drawRoll($("#wroll"),p.notes,glyphMeta);
+
+  // 문장별 분석표
+  const box=$("#wsent");box.textContent="";
+  p.sentences.forEach((s,si)=>{
+    const head=el("p",{class:"senthead"});
+    head.innerHTML=`문장 ${si+1} — 핵심 성분: <b>${
+      [...new Set(s.analysis.map(a=>a.role).filter(r=>r!=="표지"))].join(" · ")||"—"}</b>`;
+    box.appendChild(head);
+    const panel=el("div",{class:"panel"});
+    panel.appendChild(el("h3",null,"어절과 규칙"));
+    const sc=el("div",{class:"scroll"});
+    const t=el("table");
+    let tr=el("tr");
+    ["어절","문장 성분","형태소","어떻게 적혔는가"].forEach(h=>tr.appendChild(el("th",null,h)));
+    t.appendChild(tr);
+    for(const a of s.analysis){
+      tr=el("tr");
+      tr.appendChild(el("td",null,a.surface));
+      tr.appendChild(el("td",null,a.role));
+      tr.appendChild(el("td",{class:"mono dim"},
+        a.morphs.map(m=>m[0]+"/"+m[1]).join("  ")));
+      let how;
+      if(a.spelled) how="받아적기 — 글자 하나씩 (정확히 돌아온다)";
+      else{
+        const parts=[];
+        for(const [f,t2] of a.morphs){
+          if(t2==="SYM"){parts.push(`${f} 받아적기`);continue;}
+          if(W.isConcept(lang,f,t2)) parts.push(`${f} → 개념 (두 말 다)`);
+          else if(W.inDict(lang,f,t2)){
+            const ci=W.approxOf(lang,f,t2);
+            parts.push(ci!=null
+              ?`${f} → ${lang} 전용 ≈ ${D.concepts[ci][lang==="ko"?2:0]}`
+              :`${f} → ${lang} 전용`);
+          }else parts.push(`${f} 받아적기`);
+        }
+        how=parts.join(" · ");
+      }
+      tr.appendChild(el("td",{class:"dim txt"},how));
+      t.appendChild(tr);
+    }
+    sc.appendChild(t);panel.appendChild(sc);box.appendChild(panel);
+  });
+
+  // 소리 준비
+  lastPcm=W.synth(p.notes,72);
+  if(lastBlobUrl)URL.revokeObjectURL(lastBlobUrl);
+  lastBlobUrl=URL.createObjectURL(W.wavBlob(lastPcm));
+  if(scroll)$("#result").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+$("#go").addEventListener("click",()=>convert(true));
+$("#wplay").addEventListener("click",()=>{
+  if(playing){try{playing.stop()}catch(e){} playing=null;
+    $("#wplay").textContent="▶ 들어보기";return;}
+  if(!lastPcm)return;
+  $("#wplay").textContent="■ 멈추기";
+  playing=playPcm(lastPcm,()=>{playing=null;$("#wplay").textContent="▶ 들어보기";});
+});
+$("#wdl").addEventListener("click",()=>{
+  if(!lastBlobUrl)return;
+  const a=document.createElement("a");
+  a.href=lastBlobUrl;a.download="sorimun.wav";a.click();
+});
+
+/* ── 소리 읽기 ── */
+function showReading(chords){
+  $("#rerr").textContent="";
+  if(!chords.length){$("#rerr").textContent="화음을 찾지 못했다.";return;}
+  const readings=R.readAll(chords);
+  $("#rout").hidden=false;
+  const langs=new Set();
+  for(const r of readings)for(const it of r.items)if(it.lang)langs.add(it.lang);
+  const src=langs.size===1?[...langs][0]:null;
+  const outKo=readings.map(r=>src==="ko"?R.toSame(r.items,r.terminator,"ko")
+    :R.toKorean(R.crossItems(r.items),r.terminator)).join(" ");
+  const outEn=readings.map(r=>src==="en"?R.toSame(r.items,r.terminator,"en")
+    :R.toEnglish(R.crossItems(r.items),r.terminator)).join(" ");
+  $("#rko").textContent=outKo||"—";
+  $("#ren").textContent=outEn||"—";
   const t=$("#tblRead");t.textContent="";
-  let tr=el("tr");["되찾은 것","자리","갈래"].forEach(h=>tr.appendChild(el("th",null,h)));
+  let tr=el("tr");
+  ["되찾은 것","자리","갈래"].forEach(h=>tr.appendChild(el("th",null,h)));
   t.appendChild(tr);
-  for(const it of r.items){tr=el("tr");
-    if(it.kind==="개념"){const c=it.c;
-      tr.appendChild(el("td",null,`${c[0]} ↔ ${c[2]}`));
-      tr.appendChild(el("td",null,K.roles[it.role]));
-      tr.appendChild(el("td",{class:"dim"},"개념 — 두 말 다"));}
-    else if(it.kind==="글자"){
-      tr.appendChild(el("td",{class:"mono"},it.form));
-      tr.appendChild(el("td",null,K.roles[it.role]));
-      tr.appendChild(el("td",{class:"dim"},`글자 (${it.lang})`));}
-    else{
-      tr.appendChild(el("td",{class:"dim"},`${it.lang} 사전 ${it.tier}등급 #${it.index}`));
-      tr.appendChild(el("td",null,K.roles[it.role]));
-      tr.appendChild(el("td",{class:"dim"},`${it.lang} 전용 — 다른 말로는 옮겨지지 않는다`));}
-    t.appendChild(tr);}}
-$("#doRead").addEventListener("click",doRead);
-$("#loadEx").addEventListener("click",()=>{
-  $("#chordIn").value=D.examples[idx].notes.map(n=>n.p.map(nm).join("+")).join(" ");
-  doRead();});
+  readings.forEach((r,si)=>{
+    if(readings.length>1){
+      tr=el("tr");
+      const td=el("td",{class:"dim",colspan:"3"},`— 문장 ${si+1} —`);
+      tr.appendChild(td);t.appendChild(tr);
+    }
+    for(const it of r.items){
+      tr=el("tr");
+      if(it.kind==="개념"){
+        tr.appendChild(el("td",null,`${it.c[0]} ↔ ${it.c[2]}`));
+        tr.appendChild(el("td",null,K.roles[it.role]));
+        tr.appendChild(el("td",{class:"dim"},"개념 — 두 말 다"));
+      }else if(it.kind==="글자"){
+        tr.appendChild(el("td",{class:"mono"},it.form));
+        tr.appendChild(el("td",null,K.roles[it.role]));
+        tr.appendChild(el("td",{class:"dim"},`받아적기 (${it.lang})`));
+      }else{
+        const f=W.lookupRev(it.lang,it.tier,it.quality,it.index);
+        const ci=f?W.approxOf(it.lang,f[0],f[1]):null;
+        tr.appendChild(el("td",{class:"mono"},f?f[0]+"/"+f[1]:`#${it.index}`));
+        tr.appendChild(el("td",null,K.roles[it.role]));
+        tr.appendChild(el("td",{class:"dim"},
+          `${it.lang} 전용`+(ci!=null?` ≈ ${D.concepts[ci][0]}↔${D.concepts[ci][2]}`:"")));
+      }
+      t.appendChild(tr);
+    }
+    for(const w of r.warnings){
+      tr=el("tr");
+      tr.appendChild(el("td",{class:"err",colspan:"3"},"! "+w));
+      t.appendChild(tr);
+    }
+  });
+}
+$("#doRead").addEventListener("click",()=>{
+  const txt=$("#chordIn").value.trim();
+  if(!txt){$("#rerr").textContent="음이름을 넣거나 파일을 골라 주세요.";return;}
+  try{
+    const chords=[];
+    const alias={DB:"C#",EB:"D#",GB:"F#",AB:"G#",BB:"A#"};
+    for(const tok of txt.replace(/,/g," ").split(/\s+/)){
+      if(!tok)continue;const ps=[];
+      for(const part of tok.split("+")){
+        const s2=part.trim();if(!s2)continue;
+        if(/^\d+$/.test(s2)){ps.push(+s2);continue;}
+        const body=s2.slice(0,-1).toUpperCase(),oct=s2.slice(-1);
+        const b=alias[body]||body;const k=NAMES.indexOf(b);
+        if(k<0||!/^\d$/.test(oct))throw new Error("음이름을 알 수 없습니다: "+s2);
+        ps.push(k+(+oct+1)*12);}
+      if(ps.length)chords.push(ps.sort((a,b)=>a-b));}
+    showReading(chords);
+  }catch(e){$("#rerr").textContent=e.message;}
+});
+$("#afile").addEventListener("change",async ev=>{
+  const f=ev.target.files[0];
+  if(!f)return;
+  $("#rerr").textContent="읽는 중 …";
+  try{
+    const buf=await f.arrayBuffer();
+    const c=audio();
+    const ab=await c.decodeAudioData(buf);
+    const x=ab.getChannelData(0);
+    const chords=R.chordsFromSamples(x,ab.sampleRate);
+    $("#chordIn").value=chords.map(ch=>ch.map(nm).join("+")).join(" ");
+    showReading(chords);
+    $("#rerr").textContent="";
+  }catch(e){$("#rerr").textContent="소리를 읽지 못했다: "+e.message;}
+  ev.target.value="";
+});
 
 /* ── 규칙표 ── */
 (function(){const t=$("#tblParts");let tr=el("tr");
  ["자리","무엇을 담는가","어떻게"].forEach(h=>tr.appendChild(el("th",null,h)));t.appendChild(tr);
  [["역할 화음","문장 성분","모양이 자리를, 근음이 그 자리의 음역대를 말한다"],
   ["머리 화음","개념 / 언어 전용 / 받아적기","개념이면 (등급, 성질)까지 함께 소리 낸다"],
-  ["자릿 화음","번호","근음이 바닥에서 얼마나 올라갔는가 × 화음 모양 = 한 자리 (32진법)"],
-  ["맺음 화음","글리프의 끝","두 가지가 있어 어절이 이어지는지 끊기는지도 말한다"],
+  ["자릿 화음","번호","근음 어긋남 × 화음 모양 = 한 자리 (32진법)"],
+  ["맺음 화음","글리프의 끝","어절이 이어지는지 끊기는지도 말한다"],
   ["종결 화음","문장의 끝",". ? ! … 네 가지"]].forEach(r=>{
    tr=el("tr");tr.appendChild(el("td",null,r[0]));
    tr.appendChild(el("td",null,r[1]));tr.appendChild(el("td",{class:"dim txt"},r[2]));
@@ -454,7 +555,7 @@ $("#loadEx").addEventListener("click",()=>{
  t.appendChild(tr);
  for(let i=0;i<6;i++){tr=el("tr");
   tr.appendChild(el("td",{class:"mono"},String(i)));
-  tr.appendChild(el("td",null,K.tierLabel[i]));
+  tr.appendChild(el("td",null,TIERL[i]));
   ["major","minor","neutral"].forEach(q=>{
     const td=el("td",{class:"mono"},"("+D.banks.meaning[i+"/"+q].join(",")+")");
     td.style.color=COLOR[q];tr.appendChild(td);});
@@ -462,8 +563,9 @@ $("#loadEx").addEventListener("click",()=>{
 
 /* ── 개념 찾기 ── */
 $("#cxSub").textContent=`개념 ${D.meta.concepts.toLocaleString()}개. `+
-  `소리에는 이 번호만 들어가고 어느 말인지는 들어가지 않는다. `+
-  `그래서 영어로 적은 소리를 한국어로 읽어 낼 수 있다.`;
+  `소리에는 이 번호만 들어가고 어느 말인지는 들어가지 않는다. 한쪽에만 있는 `+
+  `낱말도 가장 가까운 개념으로 이어져(근사 ${D.approx.length.toLocaleString()}개) `+
+  `다른 말로 읽힌다.`;
 function hits(){const q=$("#q").value.trim().toLowerCase();const box=$("#hits");
  box.textContent="";
  let rows=D.concepts.map((c,i)=>[c,i]);
@@ -472,11 +574,11 @@ function hits(){const q=$("#q").value.trim().toLowerCase();const box=$("#hits");
  box.appendChild(el("p",{class:"dim",style:"font-size:.82rem"},
    q?`${rows.length.toLocaleString()}개 중 앞의 ${Math.min(30,rows.length)}개`
     :"앞자리 개념 — 가장 흔한 것부터 (이름이 가장 짧게 적힌다)"));
- for(const [c,i] of rows.slice(0,30)){const d=el("div",{class:"hit"});
+ for(const [c] of rows.slice(0,30)){const d=el("div",{class:"hit"});
   d.appendChild(el("div",null,`${c[0]} / ${c[1]}`));
   d.appendChild(el("div",null,`${c[2]} / ${c[3]}`));
   d.appendChild(el("div",{class:"dim",style:"font-size:.8rem"},
-    `${K.tierLabel[c[4]]}${c[5]?"  극성 "+(c[5]>0?"+":"")+c[5]:""}`));
+    `${TIERL[c[4]]}${c[5]?"  극성 "+(c[5]>0?"+":"")+c[5]:""}`));
   box.appendChild(d);}}
 $("#q").addEventListener("input",hits);hits();
 
@@ -487,14 +589,15 @@ $("#verifyOut").textContent=
 ✓ 글리프 19,008가지가 값 그대로 돌아온다
 ✓ 모든 소리가 C3~C5 안 (정확히 2옥타브)
 ✓ 길이·세기를 마구 흔든 180번 모두 같은 뜻으로 읽힌다
-✓ ko 사전 286,068항목이 번호로 되찾아진다
-✓ en 사전 260,000항목이 번호로 되찾아진다
-✓ 개념 7,892개가 번호·한국어·영어 어느 쪽으로도 찾아진다
-✓ ko 문장 30/30 이 글자까지 그대로 돌아온다
-✓ en 문장 30/30 이 글자까지 그대로 돌아온다
-✓ 영어→소리→한국어→소리→영어 에서 뜻의 26/29 이 살아남는다`;
+✓ ko 286,068 / en 260,000 항목이 번호로 되찾아진다
+✓ 개념 7,895 + 근사 6,245 가 두 말을 잇는다
+✓ ko 30/30, en 30/30 문장이 글자까지 그대로 돌아온다
+✓ 60/60 문장이 WAV(소리)를 거쳐 글자까지 그대로 돌아온다
+✓ 영어→소리→한국어→소리→영어 에서 핵심 뜻 29/30 생존
+✓ 브라우저 인코더도 60/60 자체 왕복`;
 
-show(0);doRead();
+// 첫 예문 자동 실행
+$("#src").value=EX[0];$("#cnt").textContent=EX[0].length;convert(false);
 })();
 </script>
 </body>

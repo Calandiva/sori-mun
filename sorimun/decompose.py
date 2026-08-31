@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .concepts import Concept, Concepts
+from .generate import RawWord
 from .core import alphabet, codes as C
 from .core.glyph import DecodeError, Glyph, Kind, decode, read_terminator
 from .core.roles import Role
@@ -59,6 +60,29 @@ class Reading:
         낱말에 붙는다 — 다른 어절의 낱말에 붙으면 뜻이 뒤틀린다."""
         return [(i.role, i.concept, i.group)
                 for i in self.items if i.concept is not None]
+
+    def cross_items(self) -> list:
+        """다른 말로 지을 때 쓸 목록.
+
+        정확한 개념은 그대로, 그 말 전용 낱말은 가장 가까운 개념으로
+        잇고(어루만지다 ≈ touch), 받아 적은 낱말은 글자 그대로 넘긴다
+        (고유명사는 옮기지 않고 그대로 두는 것이 맞다). 그래서 한 바퀴
+        돌아도 핵심 낱말이 살아남는다.
+        """
+        from .core.glyph import Kind
+
+        cx = Concepts.load()
+        out = []
+        for i in self.items:
+            if i.concept is not None:
+                out.append((i.role, i.concept, i.group))
+            elif i.kind is Kind.LETTER:
+                out.append((i.role, RawWord(i.form), i.group))
+            elif i.lang is not None:
+                c = cx.approx(i.lang, i.form, i.tag)
+                if c is not None:
+                    out.append((i.role, c, i.group))
+        return out
 
     @property
     def translatable(self) -> float:
@@ -148,10 +172,11 @@ def render(r: Reading, lang: str, analyzer=None) -> str:
     # 새로 짓는다 — 원문이라 할 것이 없기 때문이다.
     if src is not None and src == lang:
         return _same(r, lang, analyzer)
+    items = r.cross_items()
     if lang == "ko":
         kiwi = getattr(analyzer, "_kiwi", None)
-        return korean(r.concepts, r.terminator, kiwi)
-    return english(r.concepts, r.terminator)
+        return korean(items, r.terminator, kiwi)
+    return english(items, r.terminator)
 
 
 def _same(r: Reading, lang: str, analyzer) -> str:
@@ -173,3 +198,33 @@ def _same(r: Reading, lang: str, analyzer) -> str:
         return " ".join(m[0] for m in morphs) + r.terminator
     text = analyzer.join(morphs, groups)
     return text + r.terminator if text else ""
+
+
+# ── 여러 문장 ────────────────────────────────────────────────────────
+def split_sentences(chords: list[tuple[int, ...]]) -> list[list[tuple[int, ...]]]:
+    """화음 차례를 문장 단위로 가른다.
+
+    종결 화음은 저만의 은행을 쓰므로(은행이 서로소다) 모양만 보고
+    안전하게 가를 수 있다.
+    """
+    out: list[list[tuple[int, ...]]] = []
+    cur: list[tuple[int, ...]] = []
+    for c in chords:
+        cur.append(tuple(c))
+        if read_terminator(c) is not None:
+            out.append(cur)
+            cur = []
+    if cur:
+        out.append(cur)
+    return out
+
+
+def read_all(chords: list[tuple[int, ...]]) -> list[Reading]:
+    """여러 문장을 각각 되읽는다."""
+    return [read(part) for part in split_sentences(chords)]
+
+
+def render_all(chords: list[tuple[int, ...]], lang: str, analyzer=None) -> str:
+    """화음 차례 전체를 목표 언어의 글로 낸다."""
+    parts = [render(r, lang, analyzer) for r in read_all(chords)]
+    return " ".join(p for p in parts if p)

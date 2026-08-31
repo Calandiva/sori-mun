@@ -86,6 +86,8 @@ def main() -> int:
             # 'there' 처럼 두 얼굴을 가진 낱말은 열린 품사도 함께 남긴다
             if word in ("there", "that", "as", "since", "like", "no", "so"):
                 tags |= moby.get(word, set())
+            if word == "her":
+                tags.add(E.PRP)      # her hand / loves her
         else:
             tags = set(moby.get(word, set()))
             # 굴절형의 잃어버린 읽기를 되살린다 (touched 는 동사이기도 하다)

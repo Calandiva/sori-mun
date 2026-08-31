@@ -88,6 +88,9 @@ _fill(CD, "zero one two three four five six seven eight nine ten eleven "
           "twelve thirteen fourteen fifteen sixteen seventeen eighteen "
           "nineteen twenty thirty forty fifty sixty seventy eighty ninety "
           "hundred thousand million billion first second third")
+# 'her' 는 한정사(her hand)이자 목적격 대명사(loves her)다. 두 읽기를
+# 다 주고 비터비가 고르게 한다.
+_AMBIGUOUS_PRP = ("her",)
 CLOSED["to"] = TO
 CLOSED["not"] = NEG
 CLOSED["n't"] = NEG
@@ -140,7 +143,7 @@ _T: dict[str, dict[str, int]] = {
            DT: -4, JJ: -3, PRP: -3},
     NNP:  {VB: 5, IN: 4, MD: 4, CC: 2, NNP: 2, NN: 1, POSS: 3, DT: -4, JJ: -3},
     PRP:  {VB: 6, MD: 5, RB: 2, IN: 2, CC: 1, NN: -5, JJ: -4, DT: -4},
-    VB:   {DT: 5, NN: 3, PRP: 4, IN: 4, RB: 5, JJ: 3, TO: 3, CD: 2,
+    VB:   {DT: 5, NN: 3, PRP: 6, IN: 4, RB: 5, JJ: 3, TO: 3, CD: 2,
            NNP: 3, VB: -3, MD: -2},
     # 계사 뒤는 형용사 자리다 — "is strong", "was dark". 보통 동사와
     # 갈라 두지 않으면 "walked together" 의 together 까지 형용사가 된다.

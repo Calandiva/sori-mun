@@ -170,3 +170,21 @@ class Composer:
                                     role.value, gi))
             cursor += ev.duration + ev.rest_after
         return cursor
+
+
+def combine(pieces: list[Piece]) -> Piece:
+    """여러 문장의 악보를 하나로 잇는다. 문장 사이는 종결 화음이 가른다."""
+    if not pieces:
+        return Piece(lang="ko")
+    out = Piece(lang=pieces[0].lang, tempo=pieces[0].tempo,
+                analysis=pieces[0].analysis)
+    offset = 0
+    for p in pieces:
+        for n in sorted(p.notes, key=lambda x: x.start):
+            out.notes.append(Note(n.pitches, n.start + offset, n.duration,
+                                  n.velocity, n.slot, n.source, n.role,
+                                  n.glyph))
+        out.glyphs.extend(p.glyphs)
+        out.labels.extend(p.labels)
+        offset = out.length + 4
+    return out

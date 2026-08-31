@@ -151,3 +151,10 @@ here	RB	여기	NP
 today	NN	오늘	NNG
 tomorrow	NN	내일	NNG
 yesterday	NN	어제	NNG
+# — 3차: 지시·수·감탄 —
+oh	UH	아	IC
+two	CD	두	MM
+that	DT	그	MM
+this	DT	이	MM
+one	CD	한	MM
+pour	VB	쏟아지	VV

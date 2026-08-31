@@ -15,8 +15,16 @@
        — love 의 으뜸 한국어가 사랑이고, 사랑의 으뜸 영어가 love 일 때만.
          음차(러브)와 굴절형은 빈도에서 밀려 저절로 떨어진다.
 
-내는 것: data/concepts.tsv.gz
-    번호 <TAB> 한국어 <TAB> 품사 <TAB> 영어 <TAB> 품사 <TAB> 빈도 <TAB> 극성
+내는 것
+    data/concepts.tsv.gz   개념 — 서로 으뜸인 짝 (일대일)
+    data/approx.tsv.gz     근사 — 개념이 되지 못한 낱말을 가장 가까운
+                           개념에 잇는다 (다대일, 낱말 → 개념 번호)
+
+근사가 필요한 까닭
+    '어루만지다' 는 개념이 아니다 (touch 의 으뜸 짝은 '만지다' 다).
+    그래도 영어로 읽어 낼 때 touch 라고는 할 수 있어야 한다. 소리에는
+    낱말의 정확한 번호가 적히므로 같은 말로는 그대로 돌아오고, 다른
+    말로 읽을 때만 근사가 쓰인다.
 """
 
 from __future__ import annotations
@@ -36,6 +44,8 @@ from sorimun.lang import tags_en as ET  # noqa: E402
 
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "data" / "concepts.tsv.gz"
+OUT_APPROX = ROOT / "data" / "approx.tsv.gz"
+CURATED_APPROX = ROOT / "data" / "approx_curated.tsv"
 CURATED = ROOT / "data" / "concepts_curated.tsv"
 GRAMMAR = ROOT / "data" / "concepts_grammar.tsv"
 
@@ -202,6 +212,55 @@ def main() -> int:
         w.writerow(["번호", "한국어", "품사", "영어", "품사", "빈도", "극성"])
         for i, (en, en_tag, ko, ko_tag, en_f, ko_f, pol) in enumerate(mutual):
             w.writerow([i, ko, ko_tag, en, en_tag, en_f + ko_f, pol])
+
+    # ── 근사표 ──────────────────────────────────────────────────────
+    # 개념이 되지 못한 낱말을, MUSE 짝을 두 다리 건너 가장 가까운 개념에
+    # 잇는다.  caress → (MUSE) → 만지 → (개념) touch.
+    by_ko_c = {(r[2], r[3]): i for i, r in enumerate(mutual)}
+    by_en_c = {(r[0], r[1]): i for i, r in enumerate(mutual)}
+
+    approx: dict[tuple[str, str, str], tuple[int, int]] = {}  # (말,꼴,품사) → (개념, 점수)
+
+    def offer(lang: str, form: str, tag: str, ci: int, score: int) -> None:
+        k = (lang, form, tag)
+        if k not in approx or score > approx[k][1]:
+            approx[k] = (ci, score)
+
+    for en, en_tag, ko, ko_tag, en_f, ko_f, _pol in ok:
+        ci_ko = by_ko_c.get((ko, ko_tag))
+        ci_en = by_en_c.get((en, en_tag))
+        # 영어 낱말이 개념이 아닌데 한국어 짝이 개념이면 → 잇는다
+        if ci_ko is not None and (en, en_tag) not in by_en_c:
+            offer("en", en, en_tag, ci_ko, ko_f)
+        # 한국어 낱말이 개념이 아닌데 영어 짝이 개념이면 → 잇는다
+        if ci_en is not None and (ko, ko_tag) not in by_ko_c:
+            offer("ko", ko, ko_tag, ci_en, en_f)
+
+    # 손질 근사 — 통계가 놓치는 것을 손으로 잇는다. 형식:
+    #   말 <TAB> 꼴 <TAB> 품사 <TAB> 개념쪽말 <TAB> 개념쪽꼴 <TAB> 개념쪽품사
+    n_cur = 0
+    if CURATED_APPROX.exists():
+        for line in CURATED_APPROX.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            f = line.split("\t")
+            if len(f) != 6:
+                continue
+            lang, form, tag, tl, tf, tt = f
+            ci = by_ko_c.get((tf, tt)) if tl == "ko" else by_en_c.get((tf, tt))
+            if ci is None:
+                print(f"    근사 손질 무시(개념 아님): {line}")
+                continue
+            offer(lang, form, tag, ci, 10**9)
+            n_cur += 1
+
+    with gzip.open(OUT_APPROX, "wt", encoding="utf-8", newline="") as fh:
+        w = csv.writer(fh, delimiter="\t", lineterminator="\n")
+        w.writerow(["말", "표제어", "품사", "개념번호"])
+        for (lang, form, tag), (ci, _s) in sorted(approx.items()):
+            w.writerow([lang, form, tag, ci])
+    print(f"\n근사 {len(approx):,} (손질 {n_cur}) → {OUT_APPROX.relative_to(ROOT)}")
 
     print(f"\n개념 {len(mutual):,} → {OUT.relative_to(ROOT)} "
           f"({OUT.stat().st_size:,}B)")
