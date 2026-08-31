@@ -111,6 +111,10 @@ python -m sorimun 읽기 --notes "G3+D#4+F4 C3+C4 F3+G3+C4 ..." --to ko
 
 자릿 화음도 그 낱말의 성질을 따르므로, 이름을 적는 내내 감정의 색이 이어진다.
 
+**사람이 손으로 하는 법**은 **[docs/HOWTO.md](docs/HOWTO.md)** — 사전과
+나눗셈만 있으면 적고, 연주하고, 되읽을 수 있다. 흔한 낱말의 가락(사랑 =
+B3 E4 D4 G3)은 외울 수 있는 길이다.
+
 전체 규칙은 **[docs/RULES.md](docs/RULES.md)**,
 규칙 하나하나의 언어학·음악학 근거와 한계는 **[docs/THEORY.md](docs/THEORY.md)**.
 `tools/verify_axes.py` 가 두 축의 조화를 상시 검증한다 — 같은 성질 안에서
