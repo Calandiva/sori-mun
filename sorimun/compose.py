@@ -77,6 +77,7 @@ class Note:
     source: str        # '사랑/NNG'
     role: str
     kind: str          # '내용' / '표지'
+    eojeol: int = -1   # 몇 번째 어절에서 나왔는가 (맺음음은 -1)
 
     @property
     def end(self) -> int:
@@ -125,10 +126,10 @@ class Composer:
         cursor = 0
         anchor = 60   # 표지가 매달릴 자리. 앞말의 마지막 근음.
 
-        for e in sentence.eojeols:
+        for i, e in enumerate(sentence.eojeols):
             rule = ROLE_RULES[e.role]
             cursor += rule.rest_before
-            cursor, anchor = self._place_eojeol(score, e, rule, cursor, anchor)
+            cursor, anchor = self._place_eojeol(score, e, rule, cursor, anchor, i)
             cursor += rule.rest_after
 
         self._finish(score, sentence, cursor, anchor)
@@ -136,7 +137,8 @@ class Composer:
 
     # ── 어절 하나 놓기 ──────────────────────────────────────────────
     def _place_eojeol(
-        self, score: Score, e: Eojeol, rule: RoleRule, cursor: int, anchor: int
+        self, score: Score, e: Eojeol, rule: RoleRule, cursor: int,
+        anchor: int, index: int
     ) -> tuple[int, int]:
         for m in e.morphs:
             entry = self.dict.get(m.form, m.tag)
@@ -163,7 +165,7 @@ class Composer:
                     Note(
                         pitches=ps, start=cursor, duration=dur, velocity=vel,
                         source=f"{m.form}/{m.tag}", role=e.role.value,
-                        kind=entry.kind,
+                        kind=entry.kind, eojeol=index,
                     )
                 )
                 cursor += dur + _scale(ev.rest_after, num, den, 0)
