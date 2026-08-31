@@ -1,5 +1,7 @@
 # 소리문 (sori-mun)
 
+### ▶ **[calandiva.github.io/sori-mun](https://calandiva.github.io/sori-mun/)** — 브라우저에서 바로 보고 들어보기
+
 한국어 문장을 음악적 표현으로 옮긴다.
 
 낱말을 소리에 아무렇게나 붙이지 않는다. 문장을 형태소로 풀고, 각
@@ -21,6 +23,12 @@
 ---
 
 ## 해보기
+
+설치 없이 보려면 **[웹페이지](https://calandiva.github.io/sori-mun/)** 로.
+예제 문장의 성분 분석과 악보를 보고, 그 자리에서 소리로 들을 수 있다.
+낱말을 넣어 그 음형을 찾아볼 수도 있다.
+
+직접 돌려보려면:
 
 ```bash
 git clone https://github.com/Calandiva/sori-mun.git
@@ -198,7 +206,8 @@ sorimun/
   compose.py      성분별 배치 규칙, 악보 조립
   io/             MIDI · WAV · MusicXML · 터미널 악보
   cli.py
-tools/            자료 수집과 사전 빌드
+tools/            자료 수집과 사전 빌드 (build_site.py 는 웹페이지 자료)
+docs/             규칙·자료 문서와 GitHub Pages 웹페이지
 tests/            111개
 ```
 
