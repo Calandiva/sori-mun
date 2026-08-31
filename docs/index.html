@@ -21,10 +21,18 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
-  font-weight:300;line-height:1.75;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1020px;margin:0 auto;padding:0 24px}
+  font-weight:300;line-height:1.75;-webkit-font-smoothing:antialiased;
+  font-size:16.5px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
 section{padding:64px 0;border-top:1px solid var(--line)}
-header{padding:56px 0 8px;text-align:center}
+nav.top{position:sticky;top:0;z-index:50;background:rgba(13,16,20,.92);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:22px;padding-top:12px;
+  padding-bottom:12px}
+nav.top b{font-family:var(--serif);letter-spacing:.2em;font-size:1.05rem}
+nav.top a{color:var(--ink2);font-size:.9rem;border:none}
+nav.top a:hover{color:var(--accent);text-decoration:none}
+header{padding:44px 0 8px;text-align:center}
 h1{font-family:var(--serif);font-weight:600;font-size:clamp(2.2rem,7vw,3.4rem);
   margin:0;letter-spacing:.22em;text-indent:.22em;line-height:1.1}
 .lede{font-size:.98rem;color:var(--ink2);max-width:52ch;margin:14px auto 0}
@@ -77,6 +85,38 @@ button.act.primary:hover{filter:brightness(1.1);color:#1a1207}
 .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
 svg.roll{display:block;width:100%;height:auto;min-width:600px}
 .rollfoot{font-size:.72rem;color:var(--ink3);margin-top:9px}
+#tip{position:fixed;pointer-events:none;background:#1b222bee;color:var(--ink);
+  border:1px solid var(--line2);border-radius:7px;padding:8px 11px;
+  font-size:.78rem;line-height:1.55;max-width:280px;z-index:200;display:none}
+#tip b{color:var(--accent)}
+#wordChips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.wchip{font-family:var(--sans);font-size:.82rem;color:var(--ink2);
+  background:var(--bg3);border:1px solid var(--line);border-radius:999px;
+  padding:4px 12px;cursor:pointer;transition:.14s}
+.wchip:hover{border-color:var(--line2);color:var(--ink)}
+.wchip.sel{background:var(--accent);border-color:var(--accent);color:#1a1207;
+  font-weight:500}
+.fxbar{display:flex;gap:12px;align-items:center;font-size:.78rem;color:var(--ink3)}
+.fxbar label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.fxbar input{accent-color:var(--accent)}
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.howcard{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
+  padding:18px 20px}
+.howcard h4{margin:0 0 10px;font-size:1rem;font-weight:500}
+.howcard h4 .n{display:inline-grid;place-items:center;width:24px;height:24px;
+  border-radius:50%;border:1px solid var(--accent);color:var(--accent);
+  font-family:var(--mono);font-size:.76rem;margin-right:8px}
+.howcard p{margin:0;color:var(--ink2);font-size:.88rem}
+.howcard .mono{display:block;margin-top:8px;color:var(--ink3);font-size:.74rem}
+.excard{background:var(--bg2);border-left:3px solid var(--accent);
+  border-radius:8px;padding:14px 18px;margin:10px 0;font-size:.9rem}
+.excard b{font-family:var(--serif);font-size:1.02rem}
+.excard .mono{color:var(--ink2)}
+.cntoggles{display:flex;gap:12px;font-size:.74rem;color:#5b6b7f}
+.cntoggles label{display:flex;gap:4px;align-items:center;cursor:pointer}
+#cnStage{display:flex;gap:14px;align-items:flex-start;max-width:1100px;
+  margin:6px auto;width:100%}
+#cnOrbit{flex:0 0 160px}
 .stats{font-size:.82rem;color:var(--ink2);margin:10px 0 0}
 .stats b{color:var(--accent);font-weight:500}
 .senthead{font-family:var(--serif);font-size:1.05rem;margin:26px 0 10px;color:var(--ink2)}
@@ -156,16 +196,84 @@ audio{width:100%;margin-top:10px}
 </head>
 <body>
 
+<nav class="top">
+  <div class="wrap">
+    <b>소리문</b>
+    <a href="#guide">설명</a>
+    <a href="#write">생성</a>
+    <a href="#readback">입력</a>
+    <a href="#dict">사전</a>
+    <a href="#theory">이론</a>
+  </div>
+</nav>
 <header>
   <div class="wrap">
     <h1>소리문</h1>
     <p class="lede">문장을 넣으면 음악이 된다. 그 음악은 어느 말의 것도 아니어서,
-      다시 한국어로도 영어로도 읽힌다.</p>
+      다시 한국어로도 영어로도 읽힌다. 그리고 이 부호는 <b>사람이 손으로도
+      할 수 있다</b> — 필요한 것은 사전과 나눗셈뿐이다.</p>
   </div>
 </header>
 
-<section id="write" style="border-top:none;padding-top:36px">
+<section id="guide" style="border-top:none">
   <div class="wrap">
+    <h2><span class="en">HOW A HUMAN DOES IT</span>설명 — 사람이 하는 법</h2>
+    <p class="sub">다섯 걸음이면 낱말 하나가 멜로디가 된다. 기계와 똑같은
+      절차이며, 전부 이 순서대로다. 상세한 절차와 되읽는 법은
+      <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/HOWTO.md">HOWTO.md</a>.</p>
+    <div class="howto">
+      <div class="howcard"><h4><span class="n">1</span>자리를 정한다</h4>
+        <p>한국어는 조사가 말한다 — 이/가=주어, 을/를=목적어. 영어는
+        어순이 말한다. 그 자리의 <b>저음 화음</b>을 짚는다.</p>
+        <span class="mono">주어 D#3+F#3+A3 · 목적어 F3+C#4+D4 · 서술어 C3+F3 …</span></div>
+      <div class="howcard"><h4><span class="n">2</span>사전에서 찾는다</h4>
+        <p>낱말의 칸(등급×성질)과 번호를 얻는다. ≡ 이면 두 말 공통
+        개념 — 갈래 화음 없이 바로 멜로디로. 전용이면 언어 화음을 먼저.</p>
+        <span class="mono">사랑/NNG → 개념 #50 · 0등급 · 장</span></div>
+      <div class="howcard"><h4><span class="n">3</span>서명 두 음</h4>
+        <p>기준음 G3 위 <b>3도가 감정</b>이다(장3도=장, 단3도=단,
+        삼전음=중성). 거기서 뛰는 <b>도약이 익숙함</b>이다 — 0등급
+        완전4도부터 5등급 단2도까지.</p>
+        <span class="mono">장·0등급: B3 → E4</span></div>
+      <div class="howcard"><h4><span class="n">4</span>번호를 계단으로</h4>
+        <p>번호+1 을 진법(장·단 10, 중성 9)으로 풀고 각 자리에서 1을
+        뺀다. 각 자릿수를 그 성질의 <b>음계 계단</b>으로 짚는다 —
+        긍정어는 장음계를, 부정어는 단음계를 거닌다.</p>
+        <span class="mono">50+1=51=5×10+1 → [4,0] → D4 G3</span></div>
+      <div class="howcard"><h4><span class="n">5</span>맺음 화음</h4>
+        <p>어절이 이어지면 C3+C4+G4, 끝나면 C3+C#3. 문장 끝엔 종결
+        화음(. C3+F4 / ? C3+D#4+F4 / ! C3+C#3+G#3).</p></div>
+      <div class="howcard"><h4><span class="n">↺</span>되읽기</h4>
+        <p><b>화음이면 구조, 홑음이면 이름.</b> 첫 홑음에서 성질을,
+        도약에서 등급을, 나머지 계단에서 번호를 읽어 사전 그 칸을
+        찾는다. 절대음감은 필요 없다 — 전부 G3 기준의 상대 음정이다.</p></div>
+    </div>
+    <h3 style="font-family:var(--serif);font-weight:600;font-size:1.15rem;margin:34px 0 8px">
+      풀이 예 — 네 사분면을 손으로</h3>
+    <div class="excard"><b>사랑</b> <span class="dim">(흔함×장, 개념 #50)</span><br>
+      <span class="mono">서명 B3 E4(+5 완전4도, 익숙) · 51=5×10+1→[4,0] → D4 G3</span><br>
+      멜로디 <b class="mono">B3 E4 D4 G3</b> — 4음, 장음계.
+      <b>love 도 같은 개념 #50 이라 멜로디가 똑같다.</b></div>
+    <div class="excard" style="border-color:var(--minor)"><b>죽음</b>
+      <span class="dim">(흔함×단, 개념 #197)</span><br>
+      <span class="mono">서명 A#3 D#4 · 198→[0,8,7] → G3 A4 G4</span><br>
+      멜로디 <b class="mono">A#3 D#4 G3 A4 G4</b> — 처음부터 끝까지 단조로 걷는다.</div>
+    <div class="excard" style="border-color:var(--neutral)"><b>밤 ↔ night</b>
+      <span class="dim">(흔함×중성, 개념 #75)</span><br>
+      <span class="mono">서명 C#4 F#4 · 76=8×9+4→[7,3] → A4 C#4</span><br>
+      멜로디 <b class="mono">C#4 F#4 A4 C#4</b> — 온음계라 어느 조성에도 기울지 않는다.</div>
+    <div class="excard" style="border-color:var(--neutral)"><b>어루만지</b>
+      <span class="dim">(생소한 ko 전용, 3등급 #13132)</span><br>
+      <span class="mono">언어 화음 C3+C4 먼저 · 서명 C#4 B4(+10 단7도 — 거친 도약)
+      · 13133→[0,7,8,0,1]</span><br>
+      멜로디 <b class="mono">C#4 B4 G3 A4 B4 G3 A3</b> — 7음, 길고 튄다.
+      영어로 읽을 땐 ≈ touch.</div>
+  </div>
+</section>
+
+<section id="write">
+  <div class="wrap">
+    <h2><span class="en">WRITE</span>생성 — 글을 음악으로</h2>
     <textarea id="src" maxlength="500" spellcheck="false"
       placeholder="한국어나 영어 문장을 넣어 보세요 (500자까지) — 예: 아름다운 노래가 어두운 밤을 천천히 어루만졌다. The child laughed quietly."></textarea>
     <div class="row">
@@ -192,6 +300,12 @@ audio{width:100%;margin-top:10px}
             <span class="mono" id="wtempoV">♩=72</span></label>
           <button class="act" id="wdl">⬇ WAV 내려받기</button>
           <button class="act" id="wcine">◈ 시각화</button>
+          <span class="fxbar">
+            <label><input type="checkbox" id="fxSpace" checked>공간</label>
+            <label><input type="checkbox" id="fxEcho">메아리</label>
+            <label><input type="checkbox" id="fxLoop">루퍼</label>
+            <span class="dim">(재생만 — 내려받는 WAV 는 마른 소리)</span>
+          </span>
           <div class="legend">
             <span><i class="sw" style="background:var(--major)"></i>장 · 긍정</span>
             <span><i class="sw" style="background:var(--minor)"></i>단 · 부정</span>
@@ -199,7 +313,8 @@ audio{width:100%;margin-top:10px}
             <span><i class="sw" style="background:var(--marker)"></i>구조 화음 (저음)</span>
           </div>
         </div>
-        <div class="scroll"><svg class="roll" id="wroll"></svg></div>
+        <div id="wordChips"></div>
+      <div class="scroll"><svg class="roll" id="wroll"></svg></div>
         <div class="rollfoot">세로 = 음높이(C3~C5) · 홑음 = 낱말의 멜로디(색은 성질) · 회색 화음 = 구조(저음)
           · 아래 띠 = 낱말 하나 · 가로 폭은 뜻과 무관 — 부호는 음높이와 화성뿐이다.
           내려받은 WAV 를 아래 「소리 읽기」에 다시 넣으면 글로 정확히 돌아온다.</div>
@@ -211,7 +326,7 @@ audio{width:100%;margin-top:10px}
 
 <section id="readback">
   <div class="wrap">
-    <h2><span class="en">READ IT BACK</span>소리 읽기</h2>
+    <h2><span class="en">READ</span>입력 — 소리를 글로</h2>
     <p class="sub">위에서 내려받은 WAV 를 넣으면 — 또는 음이름을 적으면 —
       한국어와 영어로 읽어 낸다. 판독은 음높이와 화성만 본다. 길이는 보지 않는다.</p>
     <div class="row">
@@ -294,7 +409,7 @@ audio{width:100%;margin-top:10px}
 
 <section id="dict">
   <div class="wrap">
-    <h2><span class="en">FULL DICTIONARY</span>사전 — 전부 찾아진다</h2>
+    <h2><span class="en">DICTIONARY</span>사전 — 전부 찾고, 미리 듣는다</h2>
     <p class="sub">한국어 286,068 + 영어 260,000 항목 전체. 낱말을 넣으면
       등급·성질·개념 이음을 보이고, ♪ 단추가 그 낱말의 글리프를 화음
       차례로 들려준다. (처음 한 번만 사전을 내려받는다 — 5MB쯤)</p>
@@ -350,13 +465,22 @@ audio{width:100%;margin-top:10px}
   </div>
 </footer>
 
+<div id="tip"></div>
+
 <div id="cinema" hidden>
   <div class="cnbar">
     <div id="cnWords"></div>
+    <span class="cntoggles">
+      <label><input type="checkbox" id="cnTrail" checked>잔상</label>
+      <label><input type="checkbox" id="cnOrbitT" checked>궤도</label>
+    </span>
     <span id="cnClock"></span>
     <button class="cnclose" id="cnClose">✕ 닫기</button>
   </div>
-  <svg id="cnAsm" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="cnStage">
+    <svg id="cnAsm" xmlns="http://www.w3.org/2000/svg" style="flex:1"></svg>
+    <svg id="cnOrbit" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
   <svg id="cnRoll" xmlns="http://www.w3.org/2000/svg"
        preserveAspectRatio="xMidYMid meet"></svg>
   <div class="cnfoot">낱말을 해체하고 — 개념 번호로 바꾸고 — 서명과 음계로 풀어 —
@@ -398,6 +522,20 @@ function playPcm(pcm,onEnd){
 const NS="http://www.w3.org/2000/svg";
 const sv=(t,a)=>{const n=document.createElementNS(NS,t);
   for(const k in a)n.setAttribute(k,a[k]);return n;};
+const SLOT_HELP={
+  "역할":"저음 화음 · 문장 성분 — 화음 모양이 자리를 말한다",
+  "언어":"저음 화음 · 이 말에만 있는 낱말이 온다는 표시",
+  "받아적기":"저음 화음 · 사전 밖이라 글자를 하나씩 적는다",
+  "서명":"멜로디 서명 — 첫 음의 3도가 감정을, 둘째 음의 도약이 익숙함을",
+  "이름":"멜로디 자릿음 — 그 성질의 음계 계단이 진법 한 자리",
+  "맺음":"저음 화음 · 글리프의 끝, 어절 경계",
+  "종결":"저음 화음 · 문장의 끝"};
+let selGlyphWord=null;   // 선택된 낱말 (si/w)
+const tip=document.getElementById("tip");
+function showTip(ev,html){tip.innerHTML=html;tip.style.display="block";
+  const x=Math.min(ev.clientX+14,innerWidth-300),y=Math.min(ev.clientY+14,innerHeight-90);
+  tip.style.left=x+"px";tip.style.top=y+"px";}
+function hideTip(){tip.style.display="none";}
 function drawRoll(svgEl,notes,glyphMeta){
   svgEl.textContent="";
   const PL=44,PR=14,PT=12,LANE=30,H=290;
@@ -420,13 +558,21 @@ function drawRoll(svgEl,notes,glyphMeta){
       const meta=glyphMeta.get(n.g);
       c=COLOR[(meta&&meta.q)||"neutral"];
     }
+    const dimmed = selGlyphWord!==null &&
+      !(n.si===selGlyphWord[0] && n.w===selGlyphWord[1]);
     for(const p of n.p){
+      const baseOp=n.slot==="서명"?1:n.slot==="이름"?.92:.55;
       const r=sv("rect",{x:x(n.s),y:y(p)-rh*.42,
         width:Math.max(3,x(n.s+n.d)-x(n.s)-1),height:Math.max(3,rh*.84),rx:2,
-        fill:c,"fill-opacity":n.slot==="서명"?1:n.slot==="이름"?.92:.55});
-      const ti=document.createElementNS(NS,"title");
-      ti.textContent=`${n.src}  ${n.slot}  ${n.p.map(nm).join("+")}`;
-      r.appendChild(ti);svgEl.appendChild(r);}}
+        fill:c,"fill-opacity":dimmed?baseOp*.16:baseOp,
+        style:"cursor:crosshair"});
+      r.addEventListener("mousemove",ev=>showTip(ev,
+        `<b>${n.slot}</b> — ${SLOT_HELP[n.slot]||""}<br>`+
+        `${n.src} · ${n.role}<br>`+
+        `<span class="mono">${n.p.map(nm).join(" + ")}</span>`+
+        (n.p.length===1?" (홑음 = 멜로디)":" (화음 = 구조)")));
+      r.addEventListener("mouseleave",hideTip);
+      svgEl.appendChild(r);}}
   const laneY=H-LANE+4;
   const span=new Map();
   for(const n of notes){if(n.g==null||n.g<0)continue;
@@ -485,6 +631,34 @@ function convert(scroll){
     `화음 <b>${p.chords.length}</b>개 · 개념으로 적힌 낱말 `+
     `<b>${Math.round(p.translatable*100)}%</b>`+
     (spelled?` · 받아 적은 어절 ${spelled}개`:"");
+
+  // 낱말 칩 — 누르면 그 낱말의 소리만 밝게 남는다
+  selGlyphWord=null;
+  const chipsBox=$("#wordChips");chipsBox.textContent="";
+  p.sentences.forEach((sn,si)=>{
+    sn.analysis.forEach((a,wi)=>{
+      const b=el("button",{class:"wchip",type:"button"},a.surface);
+      b.title=a.role+" — 누르면 이 낱말의 소리만 밝게";
+      b.addEventListener("click",()=>{
+        const same=selGlyphWord&&selGlyphWord[0]===si&&selGlyphWord[1]===wi;
+        selGlyphWord=same?null:[si,wi];
+        document.querySelectorAll(".wchip").forEach(x=>x.classList.remove("sel"));
+        if(!same)b.classList.add("sel");
+        drawRoll($("#wroll"),p.notes,glyphMeta);
+        // 그 낱말만 들려주기
+        if(!same){
+          const mine=p.notes.filter(n=>n.si===si&&n.w===wi);
+          if(mine.length){
+            const base=mine[0].s;
+            const shifted=mine.map(n=>({...n,s:n.s-base}));
+            const pcm=W.synth(shifted,curTempo);
+            ST.playBuffer(pcm,W.SR,null);
+          }
+        }
+      });
+      chipsBox.appendChild(b);
+    });
+  });
 
   // 글리프 메타 (피아노롤 색)
   const glyphMeta=new Map();
@@ -549,6 +723,12 @@ $("#wplay").addEventListener("click",()=>{
   if(!lastPcm)return;
   $("#wplay").textContent="■ 멈추기";
   playing=playPcm(lastPcm,()=>{playing=null;$("#wplay").textContent="▶ 들어보기";});
+});
+["fxSpace","fxEcho","fxLoop"].forEach(id=>{
+  $("#"+id).addEventListener("change",()=>{
+    window.__fx={space:$("#fxSpace").checked,echo:$("#fxEcho").checked,
+                 loop:$("#fxLoop").checked};
+  });
 });
 $("#wtempo").addEventListener("input",()=>{
   curTempo=+$("#wtempo").value;
@@ -682,6 +862,11 @@ $("#wcine").addEventListener("click",()=>{
   if(window.__lastPiece) ST.openCinema(window.__lastPiece,curTempo);
 });
 $("#cnClose").addEventListener("click",()=>ST.closeCinema());
+$("#cnTrail").addEventListener("change",e=>window.__cnTrailOn=e.target.checked);
+$("#cnOrbitT").addEventListener("change",e=>{
+  window.__cnOrbitOn=e.target.checked;
+  $("#cnOrbit").style.visibility=e.target.checked?"visible":"hidden";
+});
 
 /* ── 규칙표 ── */
 (function(){const t=$("#tblParts");let tr=el("tr");

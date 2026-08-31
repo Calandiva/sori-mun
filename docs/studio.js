@@ -44,6 +44,58 @@
     }
   }
   const clampRoot = (v, root) => Math.min(root, K.highest - v[v.length - 1]);
+
+  /* ── 이펙터 — 재생에만 얹는다. 내려받는 WAV 는 언제나 마른 소리다. ──
+     공간계 위주의 단순한 세팅: 홑음 멜로디도 아름답게 울리도록. */
+  window.__fx = { space: true, echo: false, loop: false };
+  let _impulse = null;
+  function impulse(c) {
+    if (_impulse) return _impulse;
+    const n = c.sampleRate * 2.6;
+    const b = c.createBuffer(2, n, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = b.getChannelData(ch);
+      for (let i = 0; i < n; i++)
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6);
+    }
+    _impulse = b;
+    return b;
+  }
+  function fxInput(c) {
+    // 설정에 맞는 입력 노드를 만든다. destination 까지 이어져 있다.
+    const inp = c.createGain(), out = c.createGain();
+    const dry = c.createGain();
+    dry.gain.value = 1;
+    inp.connect(dry); dry.connect(out);
+    if (window.__fx.echo) {
+      const d = c.createDelay(1.5); d.delayTime.value = .34;
+      const fb = c.createGain(); fb.gain.value = .36;
+      const wet = c.createGain(); wet.gain.value = .30;
+      inp.connect(d); d.connect(fb); fb.connect(d); d.connect(wet);
+      wet.connect(out);
+    }
+    if (window.__fx.space) {
+      const cv = c.createConvolver(); cv.buffer = impulse(c);
+      const wet = c.createGain(); wet.gain.value = .45;
+      inp.connect(cv); cv.connect(wet); wet.connect(out);
+    }
+    out.connect(c.destination);
+    return { input: inp, analyserTap: out };
+  }
+  function playBuffer(pcm, sr, onEnd) {
+    const c = audio();
+    const buf = c.createBuffer(1, pcm.length, sr);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = !!window.__fx.loop;      // 루퍼
+    const fx = fxInput(c);
+    src.connect(fx.input);
+    if (!src.loop) src.onended = onEnd;
+    src.start();
+    return { src, tap: fx.analyserTap, ctx: c };
+  }
   const at = (v, root) => v.map(x => root + x);
 
   /* ══ 1. 이론 — 수치와 소리로 ══ */
@@ -204,17 +256,19 @@
         isC ? `≡ ${D.concepts[ci][0]}↔${D.concepts[ci][2]}`
         : ci != null ? `≈ ${D.concepts[ci][0]}↔${D.concepts[ci][2]}`
         : lang + " 전용"));
-      const b = el("button", { class: "chip", type: "button" }, "♪ 글리프");
+      const b = el("button", { class: "chip", type: "button" }, "♪ 미리보기");
       b.addEventListener("click", () => {
-        // 주어 자리에 놓았을 때의 글리프를 차례로 들려준다
+        // 주어 자리에 놓았을 때의 글리프 — 구조 화음은 낮고 길게,
+        // 멜로디는 또렷하게.
         const qi = { major:0, minor:1, neutral:2 }[qual];
         const ev = W.encodeGlyph(3, isC ? 0 : 1, isC ? null : lang,
                                  +tier, qi, isC ? ci : +idx, 1, 0, +pol);
         let t = 0;
         for (const e of ev) {
-          setTimeout(((ps, d) => () => playChord(ps, Math.max(.25, d * .09)))
-                     (e.p, e.d), t);
-          t += Math.max(250, e.d * 90);
+          const mel = e.p.length === 1;
+          setTimeout(((ps, dd) => () =>
+            playChord(ps, dd, mel ? 100 : 66))(e.p, mel ? .34 : .5), t);
+          t += mel ? 300 : 420;
         }
       });
       row.appendChild(b);
@@ -565,14 +619,55 @@
     }
     drawAsm(null);
 
-    // 재생 + 동기
+    // 궤도 — 12음 시계 (실험 레이어, 켜고 끌 수 있다)
+    const orbit = $("#cnOrbit");
+    orbit.textContent = "";
+    const OC = 80;
+    orbit.setAttribute("viewBox", "0 0 160 160");
+    const orbDots = [];
+    for (let pc = 0; pc < 12; pc++) {
+      const a = pc / 12 * 2 * Math.PI - Math.PI / 2;
+      const x = OC + 62 * Math.cos(a), y = OC + 62 * Math.sin(a);
+      orbit.appendChild(sv("circle", { cx: x, cy: y, r: 2,
+        fill: "#2c3745" }));
+      const t = sv("text", { x: OC + 74 * Math.cos(a),
+        y: OC + 74 * Math.sin(a) + 3, fill: "#43536a", "font-size": "8",
+        "text-anchor": "middle", "font-family": "ui-monospace,monospace" });
+      t.textContent = NAMES[pc]; orbit.appendChild(t);
+      orbDots[pc] = { x, y };
+    }
+    const orbTrail = [];   // {pc, el, age}
+    function orbitHit(pitches, col) {
+      if (!window.__cnOrbitOn) return;
+      for (const p of pitches) {
+        const pc = ((p % 12) + 12) % 12;
+        const { x, y } = orbDots[pc];
+        if (orbTrail.length > 1) {
+          const prev = orbTrail[orbTrail.length - 1];
+          const ln = sv("line", { x1: prev.x, y1: prev.y, x2: x, y2: y,
+            stroke: col, "stroke-width": .8, "stroke-opacity": .5 });
+          orbit.appendChild(ln); orbTrail.push({ x, y, el: ln, age: 0 });
+        } else orbTrail.push({ x, y, el: null, age: 0 });
+        const c2 = sv("circle", { cx: x, cy: y, r: 5, fill: col,
+          "fill-opacity": .9 });
+        orbit.appendChild(c2); orbTrail.push({ x, y, el: c2, age: 0 });
+        while (orbTrail.length > 26) {
+          const old = orbTrail.shift();
+          if (old.el) old.el.remove();
+        }
+      }
+    }
+
+    // 재생 + 동기 — 이펙터를 거친다 (내려받는 WAV 는 마른 소리 그대로)
     const pcm = W.synth(piece.notes, tempo);
     const c = audio();
     const buf = c.createBuffer(1, pcm.length, W.SR);
     const chd = buf.getChannelData(0);
     for (let i = 0; i < pcm.length; i++) chd[i] = pcm[i] / 32768;
     const srcN = c.createBufferSource();
-    srcN.buffer = buf; srcN.connect(c.destination);
+    srcN.buffer = buf;
+    const fx = fxInput(c);
+    srcN.connect(fx.input);
     const t0 = c.currentTime + .15;
     srcN.start(t0);
     cine.srcNode = srcN;
@@ -594,6 +689,13 @@
         const frac = Math.max(0, Math.min(1, (t - st) / du));
         drawAsm(n, frac);          // 매 프레임 — 크기·서술이 살아 움직인다
         if (i !== cur) {
+          const isMel = n.slot === "서명" || n.slot === "이름";
+          orbitHit(n.p, isMel
+            ? COLOR[Q_NAME[n.qi] || "neutral"] : "#4a5a6d");
+          // 잔상 — 지나간 멜로디는 제 색으로 남는다
+          if (window.__cnTrailOn)
+            for (const r of rects)
+              if (r.i < i) r.el.setAttribute("fill-opacity", .5);
           cur = i;
           for (const r of rects)
             r.el.setAttribute("fill-opacity",
@@ -615,7 +717,11 @@
     document.body.style.overflow = "";
   }
 
+  window.__cnTrailOn = true;
+  window.__cnOrbitOn = true;
+
   window.SoriStudio = { renderTheory, searchFull, refreshPiano,
-                        openCinema, closeCinema, playChord,
+                        openCinema, closeCinema, playChord, playMelody,
+                        playBuffer, fxInput,
                         expectation, candidates };
 })();
