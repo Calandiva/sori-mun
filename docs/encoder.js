@@ -64,10 +64,10 @@
   const SYL = /^[가-힣]/;
 
   /* ══ 글리프 적기 (glyph.py encode 의 포팅) ══ */
-  function digitsOf(index) {
+  function digitsOf(index, base) {
     const out = []; let m = index + 1;
-    while (m > 0) { const r = m % K.base || K.base; out.push(r - 1);
-      m = (m - r) / K.base; }
+    while (m > 0) { const r = m % base || base; out.push(r - 1);
+      m = (m - r) / base; }
     return out.reverse();
   }
   function scaled(d, roleIdx) {
@@ -85,30 +85,32 @@
   // kind: 0=개념 1=낱말 2=글자
   function encodeGlyph(roleIdx, kind, lang, tier, qi, index, close, flag, pol) {
     const accent = DUR.vel.accent * Math.abs(pol || 0);
-    const q = Q_NAME[qi];
+    let q = Q_NAME[qi], t = tier;
+    if (kind === 2) { q = "neutral"; t = 0; }   // 글자의 고정 서명
     const ev = [];
     const put = (voicing, root, d, v, slot, rest) =>
       ev.push({ p: chordAt(voicing, root), d: scaled(d, roleIdx),
                 v: Math.min(127, v), slot, rest: rest || 0 });
+    const single = (p, d, v, slot) =>
+      ev.push({ p: [p], d: scaled(d, roleIdx), v: Math.min(127, v),
+                slot, rest: 0 });
 
     put(B.role[roleIdx], K.rolePitch[roleIdx] + K.flagOffsets[flag ? 1 : 0],
         DUR.role, DUR.vel.role + accent, "역할");
     if (kind === 1)
       put(B.language[lang], clampRoot(B.language[lang], 48),
-          DUR.role, DUR.vel.head + accent, "언어");
+          DUR.head, DUR.vel.head, "언어");
     if (kind === 2)
       put(B.letter[lang], clampRoot(B.letter[lang], 48),
           DUR.head, DUR.vel.head, "받아적기");
-    else
-      put(B.meaning[tier + "/" + q], clampRoot(B.meaning[tier + "/" + q], 48),
-          DUR.head, DUR.vel.head + accent, "의미");
 
-    const band = K.band[roleIdx], shapes = B.digit[q];
-    for (const d of digitsOf(index)) {
-      const offI = Math.floor(d / shapes.length), shI = d % shapes.length;
-      put(shapes[shI], band + K.digitOffsets[offI],
-          DUR.digit, DUR.vel.digit + accent, "자리");
-    }
+    const sig1 = K.melBase + K.qualitySig[q];
+    single(sig1, DUR.sig, DUR.vel.sig + accent, "서명");
+    single(sig1 + K.tierLeap[t], DUR.sig, DUR.vel.sig + accent, "서명");
+    const scale = K.scale[q], base = scale.length;
+    for (const d of digitsOf(index, base))
+      single(K.melBase + scale[d], DUR.digit, DUR.vel.digit + accent, "이름");
+
     put(B.close[close], clampRoot(B.close[close], 48),
         DUR.close, DUR.vel.close, "맺음",
         close === 1 ? 3 : 1);
@@ -837,6 +839,10 @@
     return new Blob([b], { type: "audio/wav" });
   }
 
+  function entryOf(lang, form, tag) {
+    const e = (lang === "ko" ? KO : EN).get(form + "|" + tag);
+    return e || null;
+  }
   function lookupRev(lang, tier, quality, index) {
     const rev = lang === "ko" ? KO_REV : EN_REV;
     const v = rev.get(tier + "/" + quality + "/" + index);
@@ -857,6 +863,7 @@
 
   window.SoriWrite = { compose, analyzeKo, analyzeEn, joinKo, joinEn,
                        synth, wavBlob, schedule, SR, lookupRev, approxOf,
-                       isConcept, inDict, encodeGlyph, terminatorEvent,
+                       isConcept, inDict, entryOf, encodeGlyph,
+                       terminatorEvent,
                        detect: t => /[가-힣ᄀ-ᇿ]/.test(t) ? "ko" : "en" };
 })();

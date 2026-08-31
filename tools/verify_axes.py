@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """두 축의 조화 검증 — 언어적으로, 음악적으로.
 
-주장 1 (음악):  같은 성질 안에서 등급이 오를수록 불협화도가 단조 증가한다.
-                '흔함 = 익숙한 화음' 이 실제 음향으로 성립하는가.
-주장 2 (음악):  장/단/중성 화음이 음악 이론대로 판별된다.
-                장은 장3도 관계, 단은 단3도 관계, 중성은 3도 없음.
+주장 1 (음악):  등급이 오를수록 서명 도약의 거칢이 단조 증가한다.
+                '흔함 = 부드러운 가락, 드묾 = 튀는 가락' 이 성립하는가.
+주장 2 (음악):  장/단/중성이 멜로디에서 음악 이론대로 갈린다.
+                서명1 이 3도의 성질을, 자릿음이 그 성질의 음계를 쓴다.
 주장 3 (직교):  네 사분면(흔함×장, 흔함×단, 드묾×장, 드묾×단)이 모두
                 실제 낱말로 채워져 있고, 각각 다른 화음을 받는다.
 주장 4 (언어):  등급이 실제 말뭉치 빈도와 단조 대응한다 (지프 법칙).
@@ -39,60 +39,35 @@ def check(ok, label, detail=""):
 
 def main() -> int:
     print("═" * 66)
-    print("주장 1 — 같은 성질 안에서 등급↑ = 불협화도↑ (익숙함의 축)")
-    mono_ok = True
-    for q in Quality:
-        ds = [dissonance(BANKS.meaning[(t, q)].voicing) for t in range(6)]
-        mono = all(a < b for a, b in zip(ds, ds[1:]))
-        mono_ok &= mono
-        row = " → ".join(f"{d:.3f}" for d in ds)
-        print(f"    {q.value:<8} {row}   {'단조증가 ✓' if mono else '단조 아님 ✗'}")
-    check(mono_ok, "세 성질 모두에서 의미 화음의 불협화도가 등급을 따라 단조 증가")
+    print("주장 1 — 등급↑ = 서명 도약의 거칢↑ (익숙함의 축)")
+    from sorimun.core import codes as CO
+    from sorimun.core.harmony import _IC_ROUGHNESS, _interval_class
+    rough = [_IC_ROUGHNESS[_interval_class(v)] for v in CO.TIER_LEAP]
+    print("    도약(반음):", CO.TIER_LEAP)
+    print("    거칢      :", [round(r, 2) for r in rough])
+    check(all(a < b for a, b in zip(rough, rough[1:])),
+          "여섯 등급의 서명 도약 거칢이 단조 증가한다 "
+          "(완전4도 0.12 → 단2도 1.00)")
+    check(rough[-1] / rough[0] > 4,
+          "0등급과 5등급의 거칢 차이가 4배 이상 — 귀로 또렷이 갈린다")
+    check(all(2 <= len(sh.voicing) <= 3 for sh in BANKS.all_shapes()),
+          "구조 화음은 전부 2~3음 — 홑음 멜로디와 절대 겹치지 않는다")
 
-    spread_ok = True
-    for q in Quality:
-        lo = dissonance(BANKS.meaning[(0, q)].voicing)
-        hi = dissonance(BANKS.meaning[(5, q)].voicing)
-        if hi / max(lo, 1e-9) < 2.0:
-            spread_ok = False
-    check(spread_ok, "0등급과 5등급의 거칢 차이가 2배 이상 — 귀로 구별된다")
-
-    # 자릿 화음도 성질을 지킨다
-    dq_ok = all(quality(sh.voicing) is q
-                for q in Quality for sh in BANKS.digit[q])
-    check(dq_ok, "자릿 화음(이름을 적는 소리)도 제 성질을 지킨다 — "
-                 "긍정어는 이름 내내 장으로 울린다")
-
-    print("\n주장 2 — 장/단/중성이 음악 이론대로 판별되는가")
-    theory = [
-        ((0, 4, 7), Quality.MAJOR, "장3화음"),
-        ((0, 3, 8), Quality.MAJOR, "장3화음 1전위"),
-        ((0, 5, 9), Quality.MAJOR, "장3화음 2전위"),
-        ((0, 3, 7), Quality.MINOR, "단3화음"),
-        ((0, 4, 9), Quality.MINOR, "단3화음 1전위"),
-        ((0, 3, 6), Quality.MINOR, "감3화음(단 계열)"),
-        ((0, 7), Quality.NEUTRAL, "완전5도"),
-        ((0, 5, 10), Quality.NEUTRAL, "4도쌓기"),
-        ((0, 2, 7), Quality.NEUTRAL, "sus2"),
-        ((0, 4, 8), Quality.NEUTRAL, "증3화음(대칭 — 어느 쪽도 아님)"),
-    ]
-    t_ok = True
-    for v, want, name in theory:
-        got = quality(v)
-        if got is not want:
-            t_ok = False
-            print(f"    ✗ {name} {v}: {got.value} ≠ {want.value}")
-    check(t_ok, f"교과서 화음 {len(theory)}개가 전부 제 성질로 판별된다")
-
-    used_ok = True
-    for (t, q), sh in BANKS.meaning.items():
-        if quality(sh.voicing) is not q:
-            used_ok = False
-    for q in Quality:
-        for sh in BANKS.digit[q]:
-            if quality(sh.voicing) is not q:
-                used_ok = False
-    check(used_ok, "실제로 쓰는 화음 전부가 제 성질에 속한다 (전수)")
+    print("\n주장 2 — 장/단/중성이 멜로디에서 음악 이론대로 갈리는가")
+    sig_ok = (CO.QUALITY_SIG[Quality.MAJOR] == 4
+              and CO.QUALITY_SIG[Quality.MINOR] == 3
+              and CO.QUALITY_SIG[Quality.NEUTRAL] == 6)
+    check(sig_ok, "서명1 — 장은 장3도(+4), 단은 단3도(+3), 중성은 삼전음(+6)")
+    maj, mi, neu = (CO.SCALE[Quality.MAJOR], CO.SCALE[Quality.MINOR],
+                    CO.SCALE[Quality.NEUTRAL])
+    check(4 in maj and 11 in maj and 3 not in maj,
+          "장음계 — 장3도와 이끔음을 품고 단3도가 없다")
+    check(3 in mi and 8 in mi and 4 not in mi and 11 not in mi,
+          "자연단음계 — 단3도·단6도를 품고 장3도·이끔음이 없다")
+    check(all(x % 2 == 0 for x in neu),
+          "온음계 — 반음이 없어 어느 조성에도 기울지 않는다")
+    check(all(CO.MEL_BASE + max(sc) <= 72 for sc in CO.SCALE.values()),
+          "세 음계 모두 2옥타브 상한 안에 있다")
 
     print("\n주장 3 — 네 사분면이 실제 낱말로 채워져 있는가")
     quadrants = {
@@ -121,20 +96,24 @@ def main() -> int:
         print(f"    {lang} {quad:<7} {len(entries):>6,}개   예: {ex}")
     check(all_filled, "여덟 사분면(두 말 × 네 조합)이 모두 채워져 있다")
 
-    # 사분면 대표들이 서로 다른 화음을 받는가
+    # 사분면 대표들이 서로 다른 멜로디를 받는가
+    from sorimun.core.glyph import Kind, encode
+    from sorimun.core.roles import ORDER as ROLES
     reps = {}
     for (lang, quad), entries in quadrants.items():
         if lang != "ko" or not entries:
             continue
         e = entries[0]
-        reps[quad] = BANKS.meaning[(e.tier, e.quality)].voicing
-    check(len(set(reps.values())) == len(reps),
-          "네 사분면의 대표 낱말이 서로 다른 의미 화음을 받는다",
-          str(reps))
-    print("    대표 화음:")
-    for quad, v in reps.items():
-        print(f"      {quad:<7} {v}   불협화도 {dissonance(v):.3f} · "
-              f"{quality(v).value}")
+        g = encode(ROLES[3], Kind.WORD, e.tier, e.quality, e.index,
+                   lang="ko", close=1)
+        reps[quad] = (e.form, tuple(g.melody))
+    mels = [m for _f, m in reps.values()]
+    check(len(set(mels)) == len(mels),
+          "네 사분면의 대표 낱말이 서로 다른 멜로디를 받는다")
+    print("    대표 멜로디:")
+    for quad, (form, mel) in reps.items():
+        names = " ".join(pitch.name(p) for p in mel)
+        print(f"      {quad:<7} {form:<6} {names}  ({len(mel)}음)")
 
     print("\n주장 4 — 등급이 실제 빈도와 단조 대응하는가 (지프)")
     for lang in ("ko", "en"):

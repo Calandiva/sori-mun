@@ -42,8 +42,8 @@ def check(ok: bool, label: str, detail: str = "") -> None:
         print(f"  ✗ {label}" + (f"\n      {detail}" if detail else ""))
 
 
-SAMPLE_INDEX = (0, 1, 31, 32, 271, 1055, 1056, 33823, 33824,
-                285_999, 1_082_399)
+SAMPLE_INDEX = (0, 1, 11, 12, 155, 156, 1883, 1884, 22619,
+                22620, 185_930)
 
 
 def glyph_space():
@@ -66,8 +66,8 @@ def main() -> int:
     check(len(set(v)) == len(v), f"예약 화음 {len(v)}개가 모두 다르다")
     check(all(2 <= len(s.voicing) <= 3 for s in BANKS.all_shapes()),
           "모든 화음이 2음 또는 3음이다")
-    check(all(s.span <= 7 for q in BANKS.digit for s in BANKS.digit[q]),
-          "자릿 화음은 폭 7 이하 (근음이 부호를 나를 자리를 남긴다)")
+    check(all(2 <= len(s.voicing) <= 3 for s in BANKS.all_shapes()),
+          "은행 화음은 전부 2~3음 — 홑음(이름 멜로디)과 절대 겹치지 않는다")
 
     print("\n2. 코덱 — 적은 것이 그대로 돌아오는가 (전수)")
     n = bad = 0

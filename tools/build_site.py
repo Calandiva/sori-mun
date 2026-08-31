@@ -121,12 +121,8 @@ def main() -> int:
 
     banks = {
         "role": [list(BANKS.role[i].voicing) for i in range(8)],
-        "meaning": {f"{t}/{q.value}": list(BANKS.meaning[(t, q)].voicing)
-                    for t in range(6) for q in Quality},
         "language": {k: list(v.voicing) for k, v in BANKS.language.items()},
         "letter": {k: list(v.voicing) for k, v in BANKS.letter.items()},
-        "digit": {q.value: [list(s.voicing) for s in v]
-                  for q, v in BANKS.digit.items()},
         "close": [list(s.voicing) for s in BANKS.close],
         "term": [list(s.voicing) for s in BANKS.term],
     }
@@ -135,10 +131,11 @@ def main() -> int:
         "roles": [r.value for r in ROLES],
         "rolesEn": [ENGLISH_NAME[r] for r in ROLES],
         "rolePitch": [C.ROLE_PITCH[r] for r in ROLES],
-        "band": [C.BAND[r] for r in ROLES],
         "flagOffsets": list(C.FLAG_OFFSETS),
-        "digitOffsets": list(C.DIGIT_OFFSETS),
-        "base": C.BASE,
+        "melBase": C.MEL_BASE,
+        "qualitySig": {q.value: v for q, v in C.QUALITY_SIG.items()},
+        "tierLeap": list(C.TIER_LEAP),
+        "scale": {q.value: list(v) for q, v in C.SCALE.items()},
         "terminators": list(C.TERMINATORS),
         "lowest": pitch.LOWEST, "highest": pitch.HIGHEST,
         "tierLabel": list(TIER_LABEL), "tierLabelEn": list(TIER_LABEL_EN),
@@ -254,13 +251,10 @@ def main() -> int:
             approx_rows.append([lang, form, tag, ci])
 
     # ── 이론 수치 — 페이지가 주장을 증거와 함께 보이도록 ────────────
-    from sorimun.core.harmony import dissonance
+    from sorimun.core.harmony import _IC_ROUGHNESS, _interval_class
     theory = {
-        "dissonance": {
-            q.value: [round(dissonance(BANKS.meaning[(t, q)].voicing), 3)
-                      for t in range(6)]
-            for q in Quality
-        },
+        "leapRoughness": [round(_IC_ROUGHNESS[_interval_class(v)], 3)
+                          for v in C.TIER_LEAP],
         # 사분면 대표 낱말 (흔함=0~1등급, 드묾=4~5등급)
         "quadrants": {},
     }
@@ -301,14 +295,15 @@ def main() -> int:
         "approx": approx_rows,
         "theory": theory,
         "durations": {
-            "role": CC.DUR_ROLE, "head": CC.DUR_HEAD,
+            "role": CC.DUR_ROLE, "head": CC.DUR_HEAD, "sig": CC.DUR_SIG,
             "digit": CC.DUR_DIGIT, "close": CC.DUR_CLOSE,
             "term": CC.DUR_TERM,
             "scale": {r.value: list(CC.ROLE_DURATION_SCALE[r])
                       for r in CC.ROLE_DURATION_SCALE},
             "vel": {"role": CC.VEL_ROLE, "head": CC.VEL_HEAD,
-                    "digit": CC.VEL_DIGIT, "close": CC.VEL_CLOSE,
-                    "term": CC.VEL_TERM, "accent": CC.POLARITY_ACCENT},
+                    "sig": CC.VEL_SIG, "digit": CC.VEL_DIGIT,
+                    "close": CC.VEL_CLOSE, "term": CC.VEL_TERM,
+                    "accent": CC.POLARITY_ACCENT},
         },
         "meta": {
             "concepts": len(cx),

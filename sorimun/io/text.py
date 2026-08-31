@@ -10,8 +10,8 @@ from ..core.roles import ENGLISH_NAME, Role
 from ..decompose import Reading
 from ..dictionary import TIER_LABEL
 
-SLOT_MARK = {"역할": "자리", "의미": "성격", "언어": "말", "받아적기": "받아적기",
-             "자리": "이름", "맺음": "맺음", "종결": "종결"}
+SLOT_MARK = {"역할": "자리", "언어": "말", "받아적기": "받아적기",
+             "서명": "성격", "이름": "이름", "맺음": "맺음", "종결": "종결"}
 
 
 def analysis_table(analysis) -> str:
@@ -77,52 +77,41 @@ def reading_table(r: Reading) -> str:
 
 
 def rules_text() -> str:
-    from ..core.banks import BANKS
+    from ..core import codes as C
     from ..core.harmony import Quality
 
     L = []
     L.append("소리문 — 하나의 소리, 두 개의 말\n")
     L.append(f"■ 음역 — {pitch.name(pitch.LOWEST)} ~ {pitch.name(pitch.HIGHEST)}"
              f" (정확히 2옥타브)")
-    L.append("  모든 화음은 2음 또는 3음이다.\n")
+    L.append("  저음의 화음(2~3음)이 구조를, 고음의 홑음 멜로디가 낱말을 나른다.\n")
 
     L.append("■ 글리프 — 낱말 하나가 이렇게 적힌다")
-    L.append("    [역할 화음] [머리 화음] [자릿 화음 × k] [맺음 화음]")
-    L.append("  역할 화음   문장 성분. 모양이 자리를, 근음이 음역대를 말한다.")
-    L.append("  머리 화음   개념(두 말 공통) / 언어 전용 / 글자 받아적기")
-    L.append("  자릿 화음   번호. 근음 어긋남 × 화음 모양 으로 한 자리.")
-    L.append("  맺음 화음   글리프 끝. 어절이 이어지는지 끊기는지도 말한다.\n")
+    L.append("    [역할 화음] ([언어·받아적기 화음]) [이름 멜로디 3~10음] [맺음 화음]")
+    L.append("  화음이면 구조, 홑음이면 이름 — 헷갈릴 길이 없다.\n")
 
-    L.append("■ 부호를 나르는 것은 음높이와 화성뿐이다")
-    L.append("  음가와 쉼표는 표현일 뿐 뜻을 담지 않는다. 연주하는 사람이")
-    L.append("  길이를 흔들어도 뜻은 그대로다.\n")
-
-    L.append("■ 두 축")
-    L.append(f"  협화도 ← 빈도   흔할수록 순한 화음 (등급 0~5)")
-    L.append(f"  장·단  ← 감정   긍정은 장, 부정은 단, 나머지는 중성")
-    L.append(f"  {'등급':<6}{'뜻':<14}{'장':<12}{'단':<12}중성")
-    for t in range(6):
-        row = "  ".join(f"{BANKS.meaning[(t,q)].voicing}" for q in Quality)
-        L.append(f"  {t:<6}{TIER_LABEL[t]:<13}{row}")
+    L.append("■ 이름 멜로디 — 익숙함과 감정을 멜로디가 직접 노래한다")
+    L.append("  서명1  성질   기준음(G3) 위 장3도=장, 단3도=단, 삼전음=중성")
+    L.append("  서명2  등급   서명1에서 뛰는 음정: "
+             + " ".join(f"{t}등급 +{v}반음" for t, v in enumerate(C.TIER_LEAP)))
+    L.append("  자릿음 번호   그 성질의 음계 위 계단 = 전단사 진법 한 자리")
+    for q in Quality:
+        L.append(f"    {q.value:<8} 음계 {C.SCALE[q]}  (진법 {C.base_of(q)})")
     L.append("")
 
-    L.append("■ 문장 성분 — 여덟 자리를 두 말이 함께 쓴다")
-    L.append(f"  {'자리':<7}{'english':<13}{'역할 화음 근음':<15}{'자릿 음역대'}")
+    L.append("■ 문장 성분 — 저음 화음의 자리")
     for role in C.ROLE_PITCH:
         L.append(f"  {role.value:<7}{ENGLISH_NAME[role]:<13}"
-                 f"{pitch.name(C.ROLE_PITCH[role]):<15}"
-                 f"{pitch.name(C.BAND[role])}부터")
+                 f"근음 {pitch.name(C.ROLE_PITCH[role])}")
     L.append("")
 
     L.append("■ 하나의 말")
-    L.append("  두 말에 다 있는 낱말은 '개념' 으로 적힌다. 소리에는 개념 번호만")
-    L.append("  들어가고 어느 말인지는 들어가지 않는다. 그래서 영어로 적은")
-    L.append(f"  소리를 한국어로 읽어 낼 수 있다. 개념 {len(Concepts.load()):,}개.")
-    L.append("  조사·어미와 관사·전치사는 그 말의 것이므로 소리에 담지 않고,")
-    L.append("  읽어 낼 때 자리(문장 성분)를 보고 새로 붙인다.\n")
+    L.append(f"  두 말에 다 있는 낱말은 '개념' 으로 적힌다. 개념 {len(Concepts.load()):,}개.")
+    L.append("  조사·어미와 관사·어순은 소리에 담지 않고 읽어 낼 때 새로 짓는다.\n")
 
     L.append("■ 겹치지 않음")
-    L.append("  되읽기가 (자리·갈래·말·등급·성질·번호·맺음)을 남김없이 되찾는다.")
-    L.append("  되찾기가 적기의 왼쪽 역이므로, 서로 다른 낱말이 같은 소리를")
-    L.append("  가질 수 없다. tools/verify.py 가 전수로 확인한다.")
+    L.append("  되읽기가 (자리·대문자·갈래·말·등급·성질·번호·맺음)을 남김없이")
+    L.append("  되찾는다. tools/verify.py 가 전수로 확인한다.")
     return "\n".join(L)
+
+

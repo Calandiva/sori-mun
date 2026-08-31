@@ -3,82 +3,100 @@
 한 낱말은 글리프 하나로 적힌다. 부호를 나르는 것은 **음높이와 화성뿐**
 이다.
 
-    [역할 화음] [머리 화음] [자릿 화음 × k] [맺음 화음]
+    [역할 화음] ([언어·받아적기 화음]) [이름 멜로디 2~10음] [맺음 화음]
 
-    역할 화음   문장에서 맡은 자리. 모양이 자리를 말하고, 근음이
-                그 자리의 음역대를 그린다.
-    머리 화음   세 갈래 중 하나.
-                  의미 화음     (등급, 성질) — 언어에 매이지 않는 개념
-                  언어 화음     그 언어에만 있는 낱말이 온다는 표시
-                  받아적기 화음 글자를 하나씩 적는다는 표시
-    자릿 화음   번호를 적어 나간다. 근음이 음역대 바닥에서 얼마나
-                올라갔는가와 화음 모양, 이 둘이 한 자릿수를 이룬다.
-    맺음 화음   글리프 끝. 두 가지가 있어 어절이 이어지는지 끊기는지도
-                함께 말한다.
+두 층이 갈린다.
 
-음가와 쉼표는 부호에 쓰이지 않는다. 사람이 연주하면 길이는 흔들리기
-마련이므로, 흔들려도 뜻이 상하지 않아야 한다. 길이는 오로지 표현이다.
+    저음의 화음   구조를 묘사한다 — 문장 성분(역할), 갈래(언어 전용·
+                  받아적기), 글리프와 어절의 경계(맺음), 문장의 끝(종결).
+                  전부 2~3음 화음이고 낮은 음역에 깔린다.
+    홑음의 멜로디 낱말 그 자체다. 높은 음역에서 노래한다.
+
+이름 멜로디의 짜임 — 익숙함과 감정을 멜로디가 직접 나른다.
+
+    서명1 (첫 음)   성질. 기준음 위 장3도(+4)면 장, 단3도(+3)면 단,
+                    삼전음(+6)이면 중성. 조성의 색이 첫 음에 실린다.
+    서명2 (둘째 음) 등급. 서명1에서 뛰는 음정의 거칢이 여섯 단계다 —
+                    완전4도(순함)에서 단2도(거침)까지. 익숙한 낱말은
+                    부드럽게 흐르고 생소한 낱말은 튄다.
+    자릿음 (1~8음)  번호. 그 성질의 음계(장음계·자연단음계·온음계) 위
+                    계단이 전단사 진법의 한 자리씩이다. 그래서 긍정어의
+                    이름은 장음계를, 부정어의 이름은 단음계를 거닐고,
+                    번호가 달라지면 가락이 달라진다.
+
+음가와 쉼표는 부호에 쓰이지 않는다. 길이는 오로지 표현이다.
 """
 
 from __future__ import annotations
 
+from .harmony import Quality
 from .roles import Role
 
-# ── 자리별 음역 ──────────────────────────────────────────────────────
+# ── 구조 화음의 음역 (저음) ──────────────────────────────────────────
+# 역할 화음의 근음. 서술어가 가장 낮고 독립어가 가장 높다.
 ROLE_PITCH: dict[Role, int] = {
-    Role.PREDICATE: 48,     # C3  — 가장 낮게 착지한다
-    Role.ADVERBIAL: 51,
-    Role.MARKER: 53,
-    Role.SUBJECT: 55,       # G3  — 문장을 떠받친다
-    Role.COMPLEMENT: 57,
-    Role.OBJECT: 59,
-    Role.ADNOMINAL: 61,
-    Role.INDEPENDENT: 61,   # C#4 — 가장 높이, 홀로
-}
-
-# 자릿 화음이 놓이는 음역대의 바닥.
-# 바닥 + 최대 어긋남(7) + 자릿 화음 최대 폭(7) ≤ 72 이어야 한다.
-BAND: dict[Role, int] = {
     Role.PREDICATE: 48,
-    Role.ADVERBIAL: 50,
-    Role.MARKER: 51,
-    Role.SUBJECT: 52,
-    Role.COMPLEMENT: 54,
-    Role.OBJECT: 55,
-    Role.ADNOMINAL: 57,
-    Role.INDEPENDENT: 58,
+    Role.ADVERBIAL: 49,
+    Role.MARKER: 50,
+    Role.SUBJECT: 51,
+    Role.COMPLEMENT: 52,
+    Role.OBJECT: 53,
+    Role.ADNOMINAL: 54,
+    Role.INDEPENDENT: 55,
 }
 
-HEAD_PITCH = 48    # 머리·맺음·종결 화음의 근음. 부호를 담지 않는다.
+HEAD_PITCH = 48    # 언어·받아적기·맺음·종결 화음의 근음. 부호를 담지 않는다.
 
-# 역할 화음의 근음에 한 자리를 더 싣는다. 음높이이므로 길이가 흔들려도
-# 살아남는다. 영어의 첫 글자 대문자 여부를 여기에 담는다.
+# 역할 화음의 근음에 한 자리를 더 싣는다 (영어 첫 글자 대문자).
 FLAG_OFFSETS = (0, 1)
 
-# ── 자릿수 ───────────────────────────────────────────────────────────
-DIGIT_OFFSETS = (0, 1, 2, 3, 4, 5, 6, 7)   # 음역대 바닥에서 올라간 반음
-DIGIT_SHAPES_PER_QUALITY = 4
-BASE = len(DIGIT_OFFSETS) * DIGIT_SHAPES_PER_QUALITY   # 8 × 4 = 32
+# ── 이름 멜로디 (고음) ───────────────────────────────────────────────
+MEL_BASE = 55                      # 멜로디의 기준음 (G3)
+MEL_TOP = 72                       # 상한 C5 — 기준음 + 17 이내
+
+# 서명1 — 성질. 기준음에서 몇 반음 위인가.
+QUALITY_SIG: dict[Quality, int] = {
+    Quality.MAJOR: 4,      # 장3도
+    Quality.MINOR: 3,      # 단3도
+    Quality.NEUTRAL: 6,    # 삼전음 — 어느 쪽도 아니다
+}
+
+# 서명2 — 등급. 서명1에서 몇 반음 뛰는가. 거칢이 단조 증가한다.
+#   +5 완전4도(0.12) +8 단6도(0.24) +9 장6도(0.28)
+#   +10 단7도(0.62) +6 삼전음(0.78) +1 단2도(1.00)
+TIER_LEAP = (5, 8, 9, 10, 6, 1)
+
+# 자릿음 — 성질마다의 음계 (기준음 위 반음). 계단 하나가 진법 한 값이다.
+SCALE: dict[Quality, tuple[int, ...]] = {
+    Quality.MAJOR: (0, 2, 4, 5, 7, 9, 11, 12, 14, 16),      # 장음계
+    Quality.MINOR: (0, 2, 3, 5, 7, 8, 10, 12, 14, 15),      # 자연단음계
+    Quality.NEUTRAL: (0, 2, 4, 6, 8, 10, 12, 14, 16),       # 온음계
+}
+
+MELODY_MAX_DIGITS = 8              # 서명 2 + 자릿 8 = 최대 10음
+MELODY_MIN = 3                     # 서명 2 + 자릿 1
+
+# 받아적기(글자)의 고정 서명 — 글자에는 등급도 감정도 없다.
+LETTER_QUALITY = Quality.NEUTRAL
+LETTER_TIER = 0
 
 # ── 맺음 ─────────────────────────────────────────────────────────────
-CLOSE_CONTINUE = 0   # 같은 어절이 이어진다
-CLOSE_BREAK = 1      # 어절이 끝난다
+CLOSE_CONTINUE = 0
+CLOSE_BREAK = 1
 
 TERMINATORS = (".", "?", "!", "…")
 
 # ── 표현 (부호가 아니다) ─────────────────────────────────────────────
-# 길이와 세기는 뜻을 담지 않는다. 오로지 듣기 좋으라고 있다.
 DUR_ROLE = 4
-DUR_HEAD = 8
-DUR_DIGIT = 3
+DUR_HEAD = 4
+DUR_SIG = 3
+DUR_DIGIT = 2
 DUR_CLOSE = 2
 DUR_TERM = 12
 
 REST_AFTER_CLOSE = {CLOSE_CONTINUE: 1, CLOSE_BREAK: 3}
 REST_SENTENCE = 8
 
-# 자리마다 길이를 조금씩 달리해 문장이 숨을 쉬게 한다. 부호가 아니므로
-# 마음대로 바꾸어도 뜻은 그대로다.
 ROLE_DURATION_SCALE: dict[Role, tuple[int, int]] = {
     Role.PREDICATE: (3, 2),
     Role.ADVERBIAL: (3, 4),
@@ -90,10 +108,11 @@ ROLE_DURATION_SCALE: dict[Role, tuple[int, int]] = {
     Role.INDEPENDENT: (3, 2),
 }
 
-VEL_ROLE = 84
-VEL_HEAD = 98
-VEL_DIGIT = 72
-VEL_CLOSE = 60
+VEL_ROLE = 74
+VEL_HEAD = 70
+VEL_SIG = 100
+VEL_DIGIT = 88
+VEL_CLOSE = 58
 VEL_TERM = 90
 POLARITY_ACCENT = 9
 
@@ -103,28 +122,31 @@ def scaled(duration: int, role: Role, floor: int = 1) -> int:
     return max(floor, duration * num // den)
 
 
-# ── 번호 적기 (전단사 32진법) ────────────────────────────────────────
-def digits_of(index: int) -> list[int]:
-    """번호를 자릿수 목록으로. 앞자리 0 이 생기지 않아 길이가 달라도
-    헷갈리지 않는다. 맺음 화음이 끝을 말하므로 길이를 따로 적을 필요가 없다."""
+# ── 번호 적기 (성질별 전단사 진법) ───────────────────────────────────
+def base_of(quality: Quality) -> int:
+    return len(SCALE[quality])
+
+
+def digits_of(index: int, base: int) -> list[int]:
+    """번호를 자릿수 목록으로. 전단사 표기라 앞자리 0 이 없다."""
     if index < 0:
         raise ValueError("번호는 0 이상이어야 한다")
     out: list[int] = []
     m = index + 1
     while m > 0:
-        r = m % BASE or BASE
+        r = m % base or base
         out.append(r - 1)
-        m = (m - r) // BASE
+        m = (m - r) // base
     out.reverse()
     return out
 
 
-def index_of(digits: list[int]) -> int:
+def index_of(digits: list[int], base: int) -> int:
     m = 0
     for d in digits:
-        m = m * BASE + (d + 1)
+        m = m * base + (d + 1)
     return m - 1
 
 
-def capacity(n_digits: int) -> int:
-    return sum(BASE ** k for k in range(1, n_digits + 1))
+def capacity(n_digits: int, base: int) -> int:
+    return sum(base ** k for k in range(1, n_digits + 1))

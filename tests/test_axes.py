@@ -15,15 +15,12 @@ def test_축_검증_전체():
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-def test_사다리가_고르다():
-    """의미 화음의 거칢 계단이 성질마다 대체로 고르게 벌어져 있다."""
+def test_서명_도약의_거칢이_단조다():
+    """등급이 오를수록 서명 도약이 거칠어진다 — 익숙함의 축."""
     sys.path.insert(0, str(ROOT))
-    from sorimun.core.banks import BANKS
-    from sorimun.core.harmony import Quality, dissonance
+    from sorimun.core import codes as C
+    from sorimun.core.harmony import _IC_ROUGHNESS, _interval_class
 
-    for q in Quality:
-        ds = [dissonance(BANKS.meaning[(t, q)].voicing) for t in range(6)]
-        steps = [b - a for a, b in zip(ds, ds[1:])]
-        assert min(steps) > 0
-        # 가장 큰 계단이 가장 작은 계단의 4배를 넘지 않는다
-        assert max(steps) / min(steps) < 4.0, (q, steps)
+    rough = [_IC_ROUGHNESS[_interval_class(v)] for v in C.TIER_LEAP]
+    assert all(a < b for a, b in zip(rough, rough[1:]))
+    assert rough[-1] / rough[0] > 4

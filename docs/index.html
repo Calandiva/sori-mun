@@ -141,8 +141,9 @@ audio{width:100%;margin-top:10px}
 .cnbar{display:flex;align-items:center;gap:16px}
 #cnWords{flex:1;font-family:var(--serif);font-size:1.15rem;line-height:1.8}
 .cnword{margin-right:.55em;color:#5b6b7f;border-bottom:1px solid transparent;
-  transition:color .15s,border-color .15s}
-.cnword.on{color:#e6edf5;border-bottom-color:#e9b44c}
+  display:inline-block;transition:color .15s,border-color .15s,transform .18s;
+  transform-origin:left bottom}
+.cnword.on{color:#e6edf5;border-bottom-color:#e9b44c;transform:scale(1.22)}
 #cnClock{font-family:var(--mono);font-size:.75rem;color:#5b6b7f}
 #cnAsm{width:100%;max-width:900px;margin:6px auto;flex:0 0 auto;display:block}
 #cnRoll{width:100%;flex:1;min-height:0;display:block}
@@ -185,18 +186,22 @@ audio{width:100%;margin-top:10px}
       <div class="rollbox">
         <div class="rollhead">
           <button class="act primary" id="wplay">▶ 들어보기</button>
+          <label class="dim" style="font-size:.78rem;display:flex;align-items:center;gap:8px">
+            빠르기 <input type="range" id="wtempo" min="40" max="132" value="72"
+              style="width:110px;accent-color:var(--accent)">
+            <span class="mono" id="wtempoV">♩=72</span></label>
           <button class="act" id="wdl">⬇ WAV 내려받기</button>
           <button class="act" id="wcine">◈ 시각화</button>
           <div class="legend">
             <span><i class="sw" style="background:var(--major)"></i>장 · 긍정</span>
             <span><i class="sw" style="background:var(--minor)"></i>단 · 부정</span>
             <span><i class="sw" style="background:var(--neutral)"></i>중성</span>
-            <span><i class="sw" style="background:var(--marker)"></i>자리 · 맺음</span>
+            <span><i class="sw" style="background:var(--marker)"></i>구조 화음 (저음)</span>
           </div>
         </div>
         <div class="scroll"><svg class="roll" id="wroll"></svg></div>
-        <div class="rollfoot">세로 = 음높이(C3~C5) · 색 = 화음의 성질 · 아래 띠 = 낱말
-          하나 · 가로 폭은 뜻과 무관 — 부호는 음높이와 화성뿐이다.
+        <div class="rollfoot">세로 = 음높이(C3~C5) · 홑음 = 낱말의 멜로디(색은 성질) · 회색 화음 = 구조(저음)
+          · 아래 띠 = 낱말 하나 · 가로 폭은 뜻과 무관 — 부호는 음높이와 화성뿐이다.
           내려받은 WAV 를 아래 「소리 읽기」에 다시 넣으면 글로 정확히 돌아온다.</div>
       </div>
       <div id="wsent"></div>
@@ -215,7 +220,7 @@ audio{width:100%;margin-top:10px}
       <span class="dim" style="font-size:.82rem">또는 음이름으로:</span>
     </div>
     <textarea id="chordIn" class="notes" spellcheck="false"
-      placeholder="C3+E3+E4  G3+A3+F4  … (화음은 + 로, 사이는 빈칸으로)"></textarea>
+      placeholder="D#3+F#3+A3  B3  E4  D4 …  (화음은 + 로, 홑음은 그대로, 사이는 빈칸)"></textarea>
     <div class="row">
       <button class="act primary" id="doRead">읽기</button>
       <span class="err" id="rerr"></span>
@@ -254,13 +259,15 @@ audio{width:100%;margin-top:10px}
 <section id="theory">
   <div class="wrap">
     <h2><span class="en">WHY THESE RULES</span>이론적 배경 — 두 축의 조화</h2>
-    <p class="sub">흔한 낱말 = 익숙한 화음(지프의 법칙 × 감각적 협화,
-      Plomp–Levelt 1965), 긍정 = 장 · 부정 = 단(Hevner 1935 이래의 조성
-      정서 효과). 두 축이 어긋나지 않는 것은 등급을 <b>성질 안에서</b>
-      매기기 때문이다 — 장3화음은 구조적으로 완전5도만큼 협화로울 수
-      없으므로, 절대 거칢으로 자르면 「흔함×장」 칸이 영원히 빈다.
-      아래 수치는 <code class="mono">tools/verify_axes.py</code> 가 실제로
-      재는 값이며, 점과 단추는 그 화음을 그대로 들려준다.
+    <p class="sub">낱말은 2~10음의 <b>멜로디</b>이고, 그 멜로디가 두 축을
+      직접 노래한다 — 서명1(3도의 성질: 장3도/단3도/삼전음)이 감정을,
+      서명2(도약의 거칢: 완전4도→단2도, Plomp–Levelt 1965)가 익숙함을,
+      자릿음들이 그 성질의 음계(장음계·자연단음계·온음계) 위를 거닐며
+      번호를 적는다. 흔한 긍정어는 짧고 부드러운 장조 가락, 생소한
+      부정어는 길고 튀는 단조 가락이 된다. 두 축은 서로 다른 자리에
+      실리므로 어긋날 길이 없다. 저음의 화음은 구조(문장 성분·갈래·경계)를
+      묘사한다. 수치는 <code class="mono">tools/verify_axes.py</code> 가
+      실제로 재는 값이며, 점과 단추는 그 소리를 그대로 들려준다.
       전문은 <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/THEORY.md">THEORY.md</a>.</p>
     <div class="panel" id="theoryBody">
       <h3>검증 — 익숙함의 사다리, 그리고 네 사분면</h3>
@@ -352,8 +359,8 @@ audio{width:100%;margin-top:10px}
   <svg id="cnAsm" xmlns="http://www.w3.org/2000/svg"></svg>
   <svg id="cnRoll" xmlns="http://www.w3.org/2000/svg"
        preserveAspectRatio="xMidYMid meet"></svg>
-  <div class="cnfoot">낱말을 해체하고 — 개념 번호로 바꾸고 — 32진법으로 풀고 —
-    화음으로 조립한다 · 부호는 음높이와 화성뿐 · C3–C5</div>
+  <div class="cnfoot">낱말을 해체하고 — 개념 번호로 바꾸고 — 서명과 음계로 풀어 —
+    멜로디로 노래한다 · 저음 화음은 구조 · 부호는 음높이와 화성뿐 · C3–C5</div>
 </div>
 
 <script src="data.js"></script>
@@ -409,14 +416,14 @@ function drawRoll(svgEl,notes,glyphMeta){
       t.textContent=nm(p);svgEl.appendChild(t);}}
   for(const n of notes){
     let c=COLOR.marker;
-    if(n.slot==="의미"||n.slot==="자리"){
+    if(n.slot==="서명"||n.slot==="이름"){
       const meta=glyphMeta.get(n.g);
       c=COLOR[(meta&&meta.q)||"neutral"];
     }
     for(const p of n.p){
       const r=sv("rect",{x:x(n.s),y:y(p)-rh*.42,
         width:Math.max(3,x(n.s+n.d)-x(n.s)-1),height:Math.max(3,rh*.84),rx:2,
-        fill:c,"fill-opacity":n.slot==="의미"?.95:.8});
+        fill:c,"fill-opacity":n.slot==="서명"?1:n.slot==="이름"?.92:.55});
       const ti=document.createElementNS(NS,"title");
       ti.textContent=`${n.src}  ${n.slot}  ${n.p.map(nm).join("+")}`;
       r.appendChild(ti);svgEl.appendChild(r);}}
@@ -435,7 +442,7 @@ function drawRoll(svgEl,notes,glyphMeta){
 }
 
 /* ── 변환기 ── */
-let lastPcm=null,lastBlobUrl=null;
+let lastPcm=null,lastBlobUrl=null,curTempo=72;
 $("#src").addEventListener("input",()=>{$("#cnt").textContent=$("#src").value.length;});
 // 예문 칩
 const EX=["아름다운 노래가 어두운 밤을 천천히 어루만졌다.",
@@ -530,7 +537,7 @@ function convert(scroll){
 
   // 소리 준비
   window.__lastPiece=p;
-  lastPcm=W.synth(p.notes,72);
+  lastPcm=W.synth(p.notes,curTempo);
   if(lastBlobUrl)URL.revokeObjectURL(lastBlobUrl);
   lastBlobUrl=URL.createObjectURL(W.wavBlob(lastPcm));
   if(scroll)$("#result").scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -542,6 +549,15 @@ $("#wplay").addEventListener("click",()=>{
   if(!lastPcm)return;
   $("#wplay").textContent="■ 멈추기";
   playing=playPcm(lastPcm,()=>{playing=null;$("#wplay").textContent="▶ 들어보기";});
+});
+$("#wtempo").addEventListener("input",()=>{
+  curTempo=+$("#wtempo").value;
+  $("#wtempoV").textContent="♩="+curTempo;
+  if(window.__lastPiece){
+    lastPcm=W.synth(window.__lastPiece.notes,curTempo);
+    if(lastBlobUrl)URL.revokeObjectURL(lastBlobUrl);
+    lastBlobUrl=URL.createObjectURL(W.wavBlob(lastPcm));
+  }
 });
 $("#wdl").addEventListener("click",()=>{
   if(!lastBlobUrl)return;
@@ -663,39 +679,39 @@ $("#dictQ").addEventListener("input",()=>{
 ST.refreshPiano();
 
 $("#wcine").addEventListener("click",()=>{
-  if(window.__lastPiece) ST.openCinema(window.__lastPiece,$("#src").value);
+  if(window.__lastPiece) ST.openCinema(window.__lastPiece,curTempo);
 });
 $("#cnClose").addEventListener("click",()=>ST.closeCinema());
 
 /* ── 규칙표 ── */
 (function(){const t=$("#tblParts");let tr=el("tr");
  ["자리","무엇을 담는가","어떻게"].forEach(h=>tr.appendChild(el("th",null,h)));t.appendChild(tr);
- [["역할 화음","문장 성분","모양이 자리를, 근음이 그 자리의 음역대를 말한다"],
-  ["머리 화음","개념 / 언어 전용 / 받아적기","개념이면 (등급, 성질)까지 함께 소리 낸다"],
-  ["자릿 화음","번호","근음 어긋남 × 화음 모양 = 한 자리 (32진법)"],
-  ["맺음 화음","글리프의 끝","어절이 이어지는지 끊기는지도 말한다"],
-  ["종결 화음","문장의 끝",". ? ! … 네 가지"]].forEach(r=>{
+ [["역할 화음 (저음)","문장 성분","화음이면 구조 — 낮게 깔린다"],
+  ["갈래 화음 (저음)","언어 전용 / 받아적기","개념이면 이 화음이 없다"],
+  ["서명 1 (홑음)","성질","기준음 위 장3도=장, 단3도=단, 삼전음=중성"],
+  ["서명 2 (홑음)","등급","도약의 거칢 6단계 — 완전4도(익숙)…단2도(생소)"],
+  ["자릿음 (홑음 1~8)","번호","그 성질의 음계 위 계단 = 전단사 진법 한 자리"],
+  ["맺음 화음 (저음)","글리프의 끝","어절이 이어지는지 끊기는지도 말한다"],
+  ["종결 화음 (저음)","문장의 끝",". ? ! … 네 가지"]].forEach(r=>{
    tr=el("tr");tr.appendChild(el("td",null,r[0]));
    tr.appendChild(el("td",null,r[1]));tr.appendChild(el("td",{class:"dim txt"},r[2]));
    t.appendChild(tr);});})();
 (function(){const t=$("#tblRoles");let tr=el("tr");
- ["자리","english","역할 화음 근음","자릿 음역대"].forEach(h=>tr.appendChild(el("th",null,h)));
+ ["자리","english","저음 화음의 근음"].forEach(h=>tr.appendChild(el("th",null,h)));
  t.appendChild(tr);
  K.roles.forEach((r,i)=>{tr=el("tr");
   tr.appendChild(el("td",null,r));
   tr.appendChild(el("td",{class:"dim"},K.rolesEn[i]));
   tr.appendChild(el("td",{class:"mono"},nm(K.rolePitch[i])));
-  tr.appendChild(el("td",{class:"mono dim"},nm(K.band[i])+" 부터"));
   t.appendChild(tr);});})();
 (function(){const t=$("#tblTier");let tr=el("tr");
- ["등급","뜻","장 · 긍정","단 · 부정","중성"].forEach(h=>tr.appendChild(el("th",null,h)));
+ ["등급","뜻","서명 도약","거칢"].forEach(h=>tr.appendChild(el("th",null,h)));
  t.appendChild(tr);
  for(let i=0;i<6;i++){tr=el("tr");
   tr.appendChild(el("td",{class:"mono"},String(i)));
   tr.appendChild(el("td",null,TIERL[i]));
-  ["major","minor","neutral"].forEach(q=>{
-    const td=el("td",{class:"mono"},"("+D.banks.meaning[i+"/"+q].join(",")+")");
-    td.style.color=COLOR[q];tr.appendChild(td);});
+  tr.appendChild(el("td",{class:"mono"},"+"+K.tierLeap[i]+"반음"));
+  tr.appendChild(el("td",{class:"mono dim"},String(D.theory.leapRoughness[i])));
   t.appendChild(tr);}})();
 
 /* ── 개념 찾기 ── */
@@ -720,18 +736,18 @@ function hits(){const q=$("#q").value.trim().toLowerCase();const box=$("#hits");
 $("#q").addEventListener("input",hits);hits();
 
 $("#verifyOut").textContent=
-`$ python tools/verify.py
+`$ python tools/verify.py && python tools/verify_axes.py
 
-✓ 예약 화음 48개가 모두 다르다
+✓ 구조 화음 18개가 서로소 — 전부 2~3음, 홑음(멜로디)과 절대 안 겹침
 ✓ 글리프 19,008가지가 값 그대로 돌아온다
-✓ 모든 소리가 C3~C5 안 (정확히 2옥타브)
+✓ 서명 도약의 거칢이 등급 따라 단조 증가 (0.12 → 1.00, 8배)
+✓ 장음계/자연단음계/온음계가 조성 이론대로 갈린다
 ✓ 길이·세기를 마구 흔든 180번 모두 같은 뜻으로 읽힌다
 ✓ ko 286,068 / en 260,000 항목이 번호로 되찾아진다
 ✓ 개념 7,895 + 근사 6,245 가 두 말을 잇는다
 ✓ ko 30/30, en 30/30 문장이 글자까지 그대로 돌아온다
 ✓ 60/60 문장이 WAV(소리)를 거쳐 글자까지 그대로 돌아온다
-✓ 영어→소리→한국어→소리→영어 에서 핵심 뜻 29/30 생존
-✓ 브라우저 인코더도 60/60 자체 왕복`;
+✓ 브라우저 인코더도 60/60 자체 왕복, 파이썬과 화음까지 동일`;
 
 // 첫 예문 자동 실행
 $("#src").value=EX[0];$("#cnt").textContent=EX[0].length;convert(false);

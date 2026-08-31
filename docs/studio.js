@@ -47,73 +47,98 @@
   const at = (v, root) => v.map(x => root + x);
 
   /* ══ 1. 이론 — 수치와 소리로 ══ */
+  const SCALE_KO = { major: "장음계", minor: "자연단음계", neutral: "온음계" };
+  function playMelody(pitches, step = .32, dur = .3, vel = 96) {
+    pitches.forEach((p, i) =>
+      setTimeout(() => playChord([p], dur, vel), i * step * 1000));
+  }
   function renderTheory() {
     const box = $("#theoryBody");
     if (!box) return;
-    // 거칢 사다리 (선 그래프)
-    const svg = sv("svg", { viewBox: "0 0 640 220", class: "roll",
+
+    // 서명 도약의 거칢 사다리
+    const svg = sv("svg", { viewBox: "0 0 640 200", class: "roll",
                             style: "min-width:520px" });
-    const X = t => 70 + t * 100, Y = d => 190 - d * 140;
+    const X = t => 80 + t * 100, Y = d => 172 - d * 140;
     for (let t = 0; t < 6; t++) {
-      svg.appendChild(sv("line", { x1:X(t), x2:X(t), y1:30, y2:190,
-        stroke:"#222a34", "stroke-width":.5 }));
-      const tx = sv("text", { x:X(t), y:207, fill:"#67788c",
-        "font-size":"11", "text-anchor":"middle" });
-      tx.textContent = t + "등급"; svg.appendChild(tx);
+      svg.appendChild(sv("line", { x1: X(t), x2: X(t), y1: 28, y2: 172,
+        stroke: "#222a34", "stroke-width": .5 }));
+      const tx = sv("text", { x: X(t), y: 190, fill: "#67788c",
+        "font-size": "11", "text-anchor": "middle" });
+      tx.textContent = `${t}등급 +${K.tierLeap[t]}`;
+      svg.appendChild(tx);
     }
-    for (const d of [0, .4, .8, 1.2]) {
-      svg.appendChild(sv("line", { x1:64, x2:576, y1:Y(d), y2:Y(d),
-        stroke:"#222a34", "stroke-width":.5 }));
-      const tx = sv("text", { x:56, y:Y(d)+4, fill:"#67788c",
-        "font-size":"10", "text-anchor":"end",
-        "font-family":"ui-monospace,monospace" });
-      tx.textContent = d.toFixed(1); svg.appendChild(tx);
-    }
-    for (const q of Q_NAME) {
-      const ds = D.theory.dissonance[q];
-      let path = "";
-      ds.forEach((d, t) => { path += (t ? "L" : "M") + X(t) + " " + Y(d); });
-      svg.appendChild(sv("path", { d: path, fill:"none",
-        stroke: COLOR[q], "stroke-width":1.6 }));
-      ds.forEach((d, t) => {
-        const c = sv("circle", { cx:X(t), cy:Y(d), r:4, fill:COLOR[q],
-          style:"cursor:pointer" });
-        c.addEventListener("click", () =>
-          playChord(at(B.meaning[t + "/" + q],
-                       clampRoot(B.meaning[t + "/" + q], 55)), .9));
-        const ti = document.createElementNS(NS, "title");
-        ti.textContent = `${t}등급 ${Q_KO[q]} (${B.meaning[t + "/" + q].join(",")}) — 거칢 ${d}`;
-        c.appendChild(ti); svg.appendChild(c);
+    let path = "";
+    D.theory.leapRoughness.forEach((d, t) => {
+      path += (t ? "L" : "M") + X(t) + " " + Y(d);
+    });
+    svg.appendChild(sv("path", { d: path, fill: "none",
+      stroke: "#e9b44c", "stroke-width": 1.6 }));
+    D.theory.leapRoughness.forEach((d, t) => {
+      const c = sv("circle", { cx: X(t), cy: Y(d), r: 5, fill: "#e9b44c",
+        style: "cursor:pointer" });
+      c.addEventListener("click", () => {
+        const p1 = K.melBase + K.qualitySig.major;
+        playMelody([p1, p1 + K.tierLeap[t]], .4, .45);
       });
-    }
-    const cap = sv("text", { x:70, y:18, fill:"#9fb0c4", "font-size":"11.5" });
-    cap.textContent = "의미 화음의 불협화도 — 성질마다 6개의 고른 계단 (점을 누르면 들린다)";
+      const ti = document.createElementNS(NS, "title");
+      ti.textContent = `${t}등급 — 서명 도약 +${K.tierLeap[t]}반음, 거칢 ${d}`;
+      c.appendChild(ti);
+      svg.appendChild(c);
+    });
+    const cap = sv("text", { x: 80, y: 16, fill: "#9fb0c4",
+      "font-size": "11.5" });
+    cap.textContent =
+      "서명 도약의 거칢 — 익숙한 낱말은 부드럽게, 생소한 낱말은 튀게 (점을 누르면 그 도약이 들린다)";
     svg.appendChild(cap);
     box.appendChild(svg);
 
-    // 사분면 격자
-    const grid = el("div", { class: "quad" });
-    const quads = [["흔함×장","major",0],["흔함×단","minor",0],
-                   ["드묾×장","major",5],["드묾×단","minor",5]];
-    for (const [label, q, t] of quads) {
+    // 세 음계
+    const scaleRow = el("div", { class: "quad" });
+    for (const q of Q_NAME) {
       const cell = el("div", { class: "quadcell" });
       cell.style.borderColor = COLOR[q];
-      const v = B.meaning[t + "/" + q];
+      cell.appendChild(el("div", { class: "quadhead" })).appendChild(
+        el("b", null, `${Q_KO[q]} — ${SCALE_KO[q]}`));
+      cell.appendChild(el("div", { class: "mono dim",
+        style: "font-size:.72rem" },
+        "서명 +" + K.qualitySig[q] + " · 음계 " + K.scale[q].join(" ")));
+      const b = el("button", { class: "chip", type: "button" }, "♪ 음계 듣기");
+      b.addEventListener("click", () =>
+        playMelody(K.scale[q].slice(0, 8).map(o => K.melBase + o), .22, .2));
+      cell.appendChild(b);
+      scaleRow.appendChild(cell);
+    }
+    box.appendChild(scaleRow);
+
+    // 사분면 — 실제 낱말의 멜로디
+    const grid = el("div", { class: "quad" });
+    const quads = [["흔함×장", "major", 0], ["흔함×단", "minor", 0],
+                   ["드묾×장", "major", 5], ["드묾×단", "minor", 5]];
+    for (const [label, q, tRep] of quads) {
+      const cell = el("div", { class: "quadcell" });
+      cell.style.borderColor = COLOR[q];
       const h = el("div", { class: "quadhead" });
       h.appendChild(el("b", null, label));
-      h.appendChild(el("span", { class: "mono dim" },
-        " (" + v.join(",") + ")"));
       cell.appendChild(h);
-      const words = (D.theory.quadrants.ko[label] || []).slice(0, 4)
-        .map(w => w[0]).join(" · ");
-      const wordsEn = (D.theory.quadrants.en[label] || []).slice(0, 3)
-        .map(w => w[0]).join(" · ");
-      cell.appendChild(el("div", { class: "dim", style:"font-size:.85rem" },
-        words));
+      const words = (D.theory.quadrants.ko[label] || []);
+      cell.appendChild(el("div", { class: "dim", style: "font-size:.85rem" },
+        words.slice(0, 4).map(w => w[0]).join(" · ")));
+      const wordsEn = (D.theory.quadrants.en[label] || []);
       cell.appendChild(el("div", { class: "dim mono",
-        style:"font-size:.72rem" }, wordsEn));
-      const b = el("button", { class: "chip", type: "button" }, "♪ 듣기");
-      b.addEventListener("click", () => playChord(at(v, clampRoot(v, 55)), 1.1));
+        style: "font-size:.72rem" },
+        wordsEn.slice(0, 3).map(w => w[0]).join(" · ")));
+      const b = el("button", { class: "chip", type: "button" },
+        "♪ " + (words[0] ? words[0][0] : "") + " 의 멜로디");
+      b.addEventListener("click", () => {
+        if (!words[0]) return;
+        const [form, tag, tier, qi] = words[0];
+        const e = W.entryOf("ko", form, tag);
+        if (!e) return;
+        const ev = W.encodeGlyph(3, 1, "ko", e[0], e[1], e[2], 1, 0, e[3]);
+        const mel = ev.filter(x => x.p.length === 1).map(x => x.p[0]);
+        playMelody(mel, .3, .28);
+      });
       cell.appendChild(b);
       grid.appendChild(cell);
     }
@@ -204,62 +229,79 @@
   function expectation(chords) {
     // 되읽기와 같은 걸음으로 훑어, 다음에 올 수 있는 것을 알려 준다.
     const T = R.tables;
-    let i = 0, state = "role", quality = null, roleIdx = null;
+    let i = 0, state = "role", quality = null, sig1 = null;
     while (i < chords.length) {
-      const k = R.key(chords[i]);
+      const c = chords[i];
       if (state === "role") {
+        if (c.length === 1) return { state: "오류",
+          hint: `${i + 1}번째 — 글리프는 역할 화음으로 시작한다` };
+        const k = R.key(c);
         if (T.TERM[k] !== undefined) { i++; continue; }
         if (T.ROLE[k] === undefined) return { state: "오류",
           hint: `${i + 1}번째 화음이 역할 화음이 아니다` };
-        roleIdx = T.ROLE[k]; state = "head"; i++; continue;
+        state = "head"; i++; continue;
       }
       if (state === "head") {
-        if (T.LANG[k] !== undefined) { i++; continue; }   // 다음은 의미
-        if (T.LETTER[k] !== undefined) { quality = "neutral"; state = "digit"; i++; continue; }
-        const cell = T.MEANING[k];
-        if (cell === undefined) return { state: "오류",
-          hint: `${i + 1}번째 화음이 머리 화음이 아니다` };
-        quality = cell.split("/")[1]; state = "digit"; i++; continue;
+        if (c.length > 1) {
+          const k = R.key(c);
+          if (T.LANG[k] === undefined && T.LETTER[k] === undefined)
+            return { state: "오류", hint: `${i + 1}번째 화음이 갈래 화음이 아니다` };
+          i++; continue;
+        }
+        const q = T.QUAL_BY_SIG[c[0] - K.melBase];
+        if (q === undefined) return { state: "오류",
+          hint: `${i + 1}번째 홑음이 성질 서명이 아니다` };
+        quality = q; sig1 = c[0]; state = "sig2"; i++; continue;
+      }
+      if (state === "sig2") {
+        if (c.length !== 1 || T.TIER_BY_LEAP[c[0] - sig1] === undefined)
+          return { state: "오류", hint: `${i + 1}번째 — 등급 도약이 와야 한다` };
+        state = "digit"; i++; continue;
       }
       if (state === "digit") {
-        if (T.CLOSE[k] !== undefined) { state = "role"; i++; continue; }
-        if (T.DIGIT[quality][k] === undefined) return { state: "오류",
-          hint: `${i + 1}번째 화음이 ${Q_KO[quality]} 자릿 화음도 맺음 화음도 아니다` };
-        i++; continue;
+        if (c.length === 1) {
+          if (T.DEGREE[quality][c[0] - K.melBase] === undefined)
+            return { state: "오류",
+              hint: `${i + 1}번째 홑음이 ${Q_KO[quality]} 음계에 없다` };
+          i++; continue;
+        }
+        if (T.CLOSE[R.key(c)] !== undefined) { state = "role"; i++; continue; }
+        return { state: "오류", hint: `${i + 1}번째 화음이 맺음이 아니다` };
       }
     }
-    return { state, quality, roleIdx };
+    return { state, quality, sig1 };
   }
 
   function candidates(exp) {
-    // 지금 상태에서 눌러 넣을 수 있는 화음들.
+    // 지금 상태에서 눌러 넣을 수 있는 소리들.
     const out = [];
     if (exp.state === "오류") return out;
     if (exp.state === "role") {
       K.roles.forEach((r, i) => out.push({
-        label: r, cls: "marker",
-        p: at(B.role[i], K.rolePitch[i]) }));
+        label: r, cls: "marker", p: at(B.role[i], K.rolePitch[i]) }));
       K.terminators.forEach((t, i) => out.push({
         label: "종결 " + t, cls: "marker",
         p: at(B.term[i], clampRoot(B.term[i], 48)) }));
+      for (const lg of ["ko", "en"]) {
+        // 역할 화음 뒤에 오는 갈래 화음도 이 자리에서 이어 안내한다
+      }
     } else if (exp.state === "head") {
-      for (let t = 0; t < 6; t++) for (const q of Q_NAME)
-        out.push({ label: `${t}·${Q_KO[q]}`, cls: q,
-          p: at(B.meaning[t + "/" + q], clampRoot(B.meaning[t + "/" + q], 48)) });
       for (const lg of ["ko", "en"]) {
         out.push({ label: lg + " 전용", cls: "marker",
           p: at(B.language[lg], clampRoot(B.language[lg], 48)) });
         out.push({ label: lg + " 글자", cls: "marker",
           p: at(B.letter[lg], clampRoot(B.letter[lg], 48)) });
       }
+      for (const q of Q_NAME)
+        out.push({ label: "서명 " + Q_KO[q], cls: q,
+          p: [K.melBase + K.qualitySig[q]] });
+    } else if (exp.state === "sig2") {
+      K.tierLeap.forEach((leap, t) => out.push({
+        label: `${t}등급 (+${leap})`, cls: exp.quality,
+        p: [exp.sig1 + leap] }));
     } else if (exp.state === "digit") {
-      const band = K.band[exp.roleIdx ?? 3];
-      const shapes = B.digit[exp.quality];
-      for (let d = 0; d < 32; d++) {
-        const offI = Math.floor(d / shapes.length), shI = d % shapes.length;
-        out.push({ label: String(d), cls: exp.quality,
-          p: at(shapes[shI], band + K.digitOffsets[offI]) });
-      }
+      K.scale[exp.quality].forEach((off, d) => out.push({
+        label: String(d), cls: exp.quality, p: [K.melBase + off] }));
       out.push({ label: "맺음·이어짐", cls: "marker",
         p: at(B.close[0], clampRoot(B.close[0], 48)) });
       out.push({ label: "맺음·끊김", cls: "marker",
@@ -317,8 +359,11 @@
     });
     // 상태와 후보
     const exp = expectation(seq);
-    const stName = { role: "역할 화음 (또는 종결)", head: "머리 화음",
-                     digit: "자릿 화음 (또는 맺음)", "오류": "오류" }[exp.state];
+    const stName = { role: "역할 화음 (또는 종결)",
+                     head: "갈래 화음 또는 성질 서명",
+                     sig2: "등급 도약 (서명2)",
+                     digit: "음계 자릿음 (또는 맺음)",
+                     "오류": "오류" }[exp.state];
     $("#pianoState").textContent =
       seq.length ? `다음에 올 것: ${stName}` : "역할 화음부터 시작한다";
     if (exp.state === "오류") $("#pianoState").textContent = "⚠ " + exp.hint;
@@ -360,13 +405,13 @@
 
   /* ══ 4. 시각화 — 30초 기계적 예술 ══ */
   const SLOT_RULE = {
-    "역할": "모양 → 문장 성분 · 근음 → 음역",
-    "언어": "이 말에만 있는 낱말이 온다",
-    "받아적기": "글자를 하나씩 적는다",
-    "의미": "등급(빈도) × 성질(감정)",
-    "자리": "32진법 자릿수 = 근음 어긋남 × 화음 모양",
-    "맺음": "글리프의 끝 · 어절 경계",
-    "종결": "문장의 끝",
+    "역할": "저음 화음 — 모양이 문장 성분을 말한다",
+    "언어": "저음 화음 — 이 말에만 있는 낱말",
+    "받아적기": "저음 화음 — 글자를 하나씩 적는다",
+    "서명": "멜로디 서명 — 3도가 감정을, 도약이 익숙함을",
+    "이름": "멜로디 자릿음 — 음계 계단이 진법 한 자리",
+    "맺음": "저음 화음 — 글리프의 끝, 어절 경계",
+    "종결": "저음 화음 — 문장의 끝",
   };
   let cine = { raf: null, srcNode: null };
 
@@ -376,11 +421,12 @@
     return out.reverse();
   }
 
-  function openCinema(piece, text) {
+  function openCinema(piece, tempo) {
     const host = $("#cinema");
     host.hidden = false;
     document.body.style.overflow = "hidden";
-    const sched = W.schedule(piece.notes, 72);
+    tempo = tempo || 72;
+    const sched = W.schedule(piece.notes, tempo);
     const total = sched[sched.length - 1][0] + sched[sched.length - 1][1];
     const notes = [...piece.notes].sort((a, b) => a.s - b.s);
 
@@ -434,12 +480,14 @@
     const asm = $("#cnAsm");
     const AW = 560, AH = 170;
     asm.setAttribute("viewBox", `0 0 ${AW} ${AH}`);
-    function drawAsm(n) {
+    // 현재 낱말의 멜로디를 누적해 그린다 — 궤적이 곧 이름이다
+    let trail = [];      // [{p, slot}]
+    let trailKey = null;
+    function drawAsm(n, frac) {
       asm.textContent = "";
-      // 25반음 세로 눈금
       for (let p = K.lowest; p <= K.highest; p++) {
         const y = 12 + (K.highest - p) * (AH - 26) / 24;
-        asm.appendChild(sv("line", { x1: 320, x2: p % 12 === 0 ? 545 : 535,
+        asm.appendChild(sv("line", { x1: 300, x2: p % 12 === 0 ? 545 : 535,
           y1: y, y2: y, stroke: p % 12 === 0 ? "#2c3745" : "#1b232d",
           "stroke-width": p % 12 === 0 ? 1 : .5 }));
         if (p % 12 === 0) {
@@ -449,38 +497,76 @@
         }
       }
       if (!n) return;
-      // 왼쪽: 규칙 서술 (글자만, 선으로 연결)
-      const put = (x, y, txt, size, color) => {
+      const put = (x, y, txt, size, color, weight) => {
         const t = sv("text", { x, y, fill: color || "#c8d4e2",
           "font-size": size || 12 });
+        if (weight) t.setAttribute("font-weight", weight);
         t.textContent = txt; asm.appendChild(t); return t;
       };
-      put(6, 26, n.src, 15, "#e6edf5");
-      put(6, 46, n.slot + " 화음", 11, "#e9b44c");
-      put(6, 62, SLOT_RULE[n.slot] || "", 10, "#67788c");
-      if (n.kind === 0 || n.kind === 1) {
-        put(6, 92, (n.kind === 0 ? "개념" : "낱말") + " #" + n.idx, 11, "#9fb0c4");
-        const ds = digitsOf(n.idx);
-        put(6, 108, "32진법: [" + ds.join(" ") + "]", 10, "#67788c");
+      const q = Q_NAME[n.qi] || "neutral";
+      const isMel = n.slot === "서명" || n.slot === "이름";
+      const col = isMel ? COLOR[n.kind === -1 ? "neutral" : q] : "#8fa3b8";
+
+      // 낱말 이름 — 소리 나는 동안 살짝 커진다
+      const grow = 15 + 4 * Math.max(0, 1 - (frac || 0) * 2);
+      put(6, 28, n.src, grow, "#e6edf5", "600");
+      put(6, 50, n.slot + (isMel ? " (홑음)" : " (화음)"), 11, "#e9b44c");
+      put(6, 66, SLOT_RULE[n.slot] || "", 10, "#67788c");
+
+      // 실시간 서술 — 지금 이 소리가 무엇을 뜻하는가
+      let desc = "";
+      if (n.slot === "서명") {
+        const off = n.p[0] - K.melBase;
+        const qk = { 4: "장 (+4 장3도)", 3: "단 (+3 단3도)",
+                     6: "중성 (+6 삼전음)" }[off];
+        desc = qk ? "서명1 · 성질 = " + qk
+          : "서명2 · 등급 도약 — 거칢이 익숙함을 말한다";
+      } else if (n.slot === "이름") {
+        desc = "자릿음 · " + Q_KO[q] + " 음계 위 계단";
+      } else if (n.slot === "역할") {
+        desc = n.role + " — 이 낱말이 문장에서 맡은 자리";
       }
-      put(6, 138, n.role, 11, "#9fb0c4");
-      put(6, 154, n.p.map(nm).join(" + "), 12, "#e6edf5");
-      // 연결선과 현재 화음
-      const q = (n.slot === "의미" || n.slot === "자리")
-        && (n.kind === 0 || n.kind === 1) ? Q_NAME[n.qi] : null;
-      const col = q ? COLOR[q] : "#8fa3b8";
-      for (const p of n.p) {
-        const y = 12 + (K.highest - p) * (AH - 26) / 24;
-        asm.appendChild(sv("line", { x1: 205, x2: 320, y1: 150, y2: y,
-          stroke: col, "stroke-width": .6, "stroke-opacity": .7 }));
-        asm.appendChild(sv("rect", { x: 320, y: y - 2.5, width: 215,
-          height: 5, fill: col, "fill-opacity": .85 }));
+      put(6, 92, desc, 10.5, "#9fb0c4");
+      if (n.kind === 0 || n.kind === 1)
+        put(6, 110, (n.kind === 0 ? "개념" : "낱말") + " #" + n.idx, 10, "#67788c");
+      put(6, 152, n.p.map(nm).join(" + "), 13, col, "600");
+
+      // 멜로디 궤적 — 같은 낱말 안에서 누적된다
+      const wkey = n.si + "/" + n.w;
+      if (wkey !== trailKey) { trail = []; trailKey = wkey; }
+      if (isMel && (!trail.length || trail[trail.length - 1].p !== n.p[0]
+                    || trail[trail.length - 1].i !== undefined)) {
+        trail.push({ p: n.p[0], slot: n.slot });
+        if (trail.length > 10) trail.shift();
       }
+      const yOf = p => 12 + (K.highest - p) * (AH - 26) / 24;
+      const x0 = 310, dx = 22;
+      let prev = null;
+      trail.forEach((tn, i2) => {
+        const x = x0 + i2 * dx, y = yOf(tn.p);
+        if (prev)
+          asm.appendChild(sv("line", { x1: prev[0], y1: prev[1], x2: x, y2: y,
+            stroke: col, "stroke-width": 1, "stroke-opacity": .6 }));
+        const last = i2 === trail.length - 1;
+        const r = last ? 6.5 - 2.5 * Math.min(1, frac || 0) : 3.2;
+        asm.appendChild(sv("circle", { cx: x, cy: y, r,
+          fill: tn.slot === "서명" ? col : "none",
+          stroke: col, "stroke-width": 1.3 }));
+        prev = [x, y];
+      });
+      // 화음(구조)은 왼쪽 낮은 자리에 겹대로
+      if (!isMel)
+        for (const p of n.p) {
+          const y = yOf(p);
+          asm.appendChild(sv("rect", { x: 310, y: y - 2.5,
+            width: 90 + 120 * Math.max(0, 1 - (frac || 0)), height: 5,
+            fill: "#4a5a6d", "fill-opacity": .8 }));
+        }
     }
     drawAsm(null);
 
     // 재생 + 동기
-    const pcm = W.synth(piece.notes, 72);
+    const pcm = W.synth(piece.notes, tempo);
     const c = audio();
     const buf = c.createBuffer(1, pcm.length, W.SR);
     const chd = buf.getChannelData(0);
@@ -503,14 +589,18 @@
       head.setAttribute("x2", tx(Math.max(0, Math.min(total, t))));
       let i = cur;
       while (i + 1 < sched.length && sched[i + 1][0] <= t) i++;
-      if (i !== cur && i >= 0) {
-        cur = i;
-        const n = sched[i][2];
-        drawAsm(n);
-        for (const r of rects)
-          r.el.setAttribute("fill-opacity", r.i === i ? .95 : r.i < i ? .5 : .25);
-        wordEls.forEach(w => w.el.classList.toggle("on",
-          w.si === n.si && w.wi === n.w));
+      if (i >= 0 && i < sched.length) {
+        const [st, du, n] = sched[i];
+        const frac = Math.max(0, Math.min(1, (t - st) / du));
+        drawAsm(n, frac);          // 매 프레임 — 크기·서술이 살아 움직인다
+        if (i !== cur) {
+          cur = i;
+          for (const r of rects)
+            r.el.setAttribute("fill-opacity",
+              r.i === i ? .95 : r.i < i ? .5 : .25);
+          wordEls.forEach(w => w.el.classList.toggle("on",
+            w.si === n.si && w.wi === n.w));
+        }
       }
       if (t < total + .4) cine.raf = requestAnimationFrame(frame);
       else closeCinema();

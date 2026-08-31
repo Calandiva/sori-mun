@@ -14,65 +14,70 @@
     return s.map(p => p - s[0]).join(","); };
   const root = (ps) => Math.min(...ps);
 
-  const ROLE = {}, MEANING = {}, LANG = {}, LETTER = {}, DIGIT = {},
-        CLOSE = {}, TERM = {};
+  const ROLE = {}, LANG = {}, LETTER = {}, CLOSE = {}, TERM = {};
   B.role.forEach((v, i) => ROLE[v.join(",")] = i);
-  Object.entries(B.meaning).forEach(([k, v]) => MEANING[v.join(",")] = k);
   Object.entries(B.language).forEach(([k, v]) => LANG[v.join(",")] = k);
   Object.entries(B.letter).forEach(([k, v]) => LETTER[v.join(",")] = k);
-  Object.entries(B.digit).forEach(([q, list]) => {
-    DIGIT[q] = {}; list.forEach((v, i) => DIGIT[q][v.join(",")] = i); });
   B.close.forEach((v, i) => CLOSE[v.join(",")] = i);
   B.term.forEach((v, i) => TERM[v.join(",")] = K.terminators[i]);
+  // 멜로디 서명·음계 되찾기표
+  const QUAL_BY_SIG = {}, TIER_BY_LEAP = {}, DEGREE = {};
+  Object.entries(K.qualitySig).forEach(([q, v]) => QUAL_BY_SIG[v] = q);
+  K.tierLeap.forEach((v, t) => TIER_BY_LEAP[v] = t);
+  Object.entries(K.scale).forEach(([q, sc]) => {
+    DEGREE[q] = {}; sc.forEach((off, i) => DEGREE[q][off] = i); });
 
-  function indexOf(digits) {
+  function indexOf(digits, base) {
     let m = 0;
-    for (const d of digits) m = m * K.base + (d + 1);
+    for (const d of digits) m = m * base + (d + 1);
     return m - 1;
   }
 
   function decodeGlyph(chords, i) {
+    if (chords[i].length === 1)
+      throw new Error(`${i}번째는 홑음입니다 — 글리프는 역할 화음으로 시작합니다`);
     const r = ROLE[key(chords[i])];
     if (r === undefined) throw new Error(`${i}번째 화음은 역할 화음이 아닙니다`);
     const off = root(chords[i]) - K.rolePitch[r];
     const flagIdx = K.flagOffsets.indexOf(off);
     if (flagIdx < 0) throw new Error(`${i}번째 역할 화음의 근음이 맞지 않습니다`);
     let j = i + 1;
-    if (j >= chords.length) throw new Error("머리 화음이 없습니다");
 
-    let kind = "개념", lang = null, tier = -1, quality = "neutral";
-    let k = key(chords[j]);
-    if (LANG[k] !== undefined) {
-      kind = "낱말"; lang = LANG[k]; j++;
-      if (j >= chords.length) throw new Error("의미 화음이 없습니다");
-      k = key(chords[j]);
-    } else if (LETTER[k] !== undefined) {
-      kind = "글자"; lang = LETTER[k]; j++;
-    }
-    if (kind !== "글자") {
-      const cell = MEANING[k];
-      if (cell === undefined) throw new Error(`${j}번째 화음은 의미 화음이 아닙니다`);
-      const [t, q] = cell.split("/");
-      tier = +t; quality = q; j++;
+    let kind = "개념", lang = null;
+    if (j < chords.length && chords[j].length > 1) {
+      const k = key(chords[j]);
+      if (LANG[k] !== undefined) { kind = "낱말"; lang = LANG[k]; j++; }
+      else if (LETTER[k] !== undefined) { kind = "글자"; lang = LETTER[k]; j++; }
+      else throw new Error(`${j}번째 화음은 갈래 화음이 아닙니다`);
     }
 
-    const band = K.band[r], table = DIGIT[quality];
-    const nshape = B.digit[quality].length;
+    // 서명 두 음 — 성질과 등급
+    if (j + 1 >= chords.length || chords[j].length !== 1
+        || chords[j + 1].length !== 1)
+      throw new Error(`${j}번째부터 서명 홑음 두 개가 와야 합니다`);
+    const quality = QUAL_BY_SIG[chords[j][0] - K.melBase];
+    if (quality === undefined) throw new Error("서명1 이 성질이 아닙니다");
+    const tier = TIER_BY_LEAP[chords[j + 1][0] - chords[j][0]];
+    if (tier === undefined) throw new Error("서명2 도약이 등급이 아닙니다");
+    j += 2;
+
+    const base = K.scale[quality].length, table = DEGREE[quality];
     const digits = []; let close = null;
     while (j < chords.length) {
+      if (chords[j].length === 1) {
+        const d = table[chords[j][0] - K.melBase];
+        if (d === undefined)
+          throw new Error(`${j}번째 홑음이 ${quality} 음계에 없습니다`);
+        digits.push(d); j++; continue;
+      }
       const kv = key(chords[j]);
       if (CLOSE[kv] !== undefined) { close = CLOSE[kv]; j++; break; }
-      const sh = table[kv];
-      if (sh === undefined) throw new Error(`${j}번째 화음은 자릿 화음이 아닙니다`);
-      const o = root(chords[j]) - band;
-      const oi = K.digitOffsets.indexOf(o);
-      if (oi < 0) throw new Error(`${j}번째 자릿 화음의 근음이 맞지 않습니다`);
-      digits.push(oi * nshape + sh); j++;
+      throw new Error(`${j}번째 화음은 맺음 화음이 아닙니다`);
     }
     if (close === null) throw new Error("맺음 화음이 없습니다");
-    if (!digits.length) throw new Error("자릿 화음이 없습니다");
+    if (!digits.length) throw new Error("이름 자릿음이 없습니다");
     return { role: r, kind, lang, tier, quality, close,
-             flag: flagIdx, index: indexOf(digits), next: j };
+             flag: flagIdx, index: indexOf(digits, base), next: j };
   }
 
   function read(chords) {
@@ -82,7 +87,7 @@
       items.push({ kind: "글자", form: chars.join(""), role: charRole,
                    lang: charLang, group }); chars = []; } };
     while (i < chords.length) {
-      const t = TERM[key(chords[i])];
+      const t = chords[i].length > 1 ? TERM[key(chords[i])] : undefined;
       if (t !== undefined) { flush(); term = t; i++; continue; }
       let g;
       try { g = decodeGlyph(chords, i); }
@@ -118,7 +123,9 @@
     let cur = [];
     for (const c of chords) {
       cur.push(c);
-      if (TERM[key(c)] !== undefined) { parts.push(cur); cur = []; }
+      if (c.length > 1 && TERM[key(c)] !== undefined) {
+        parts.push(cur); cur = [];
+      }
     }
     if (cur.length) parts.push(cur);
     return parts.map(read);
@@ -441,6 +448,6 @@
 
   window.SoriRead = { read, readAll, decodeGlyph, toKorean, toEnglish,
                       toSame, crossItems, chordsFromSamples, key, root,
-                      tables: { ROLE, MEANING, LANG, LETTER, DIGIT,
-                                CLOSE, TERM } };
+                      tables: { ROLE, LANG, LETTER, CLOSE, TERM,
+                                QUAL_BY_SIG, TIER_BY_LEAP, DEGREE } };
 })();

@@ -101,11 +101,13 @@ def build(lang: str, rows: list[tuple[str, str, int, int]]) -> dict:
         tier_count[tier] += 1
         qual_count[q.value] += 1
 
-    # 자릿수는 위로 열려 있다 (전단사 32진법). 4자리면 백만이 넘는다.
-    limit = C.capacity(4)
+    # 이름 멜로디는 자릿음 8개까지다. 가장 좁은 진법(중성 9)으로도
+    # 4천만이 넘으니 한참 남는다 — 그래도 못박아 둔다.
+    from sorimun.core.harmony import Quality as _Q
+    limit = min(C.capacity(C.MELODY_MAX_DIGITS, C.base_of(q)) for q in _Q)
     if max_index >= limit:
         raise RuntimeError(
-            f"{lang}: 최대 번호 {max_index:,} 가 4자리 한계 {limit:,} 를 넘었다")
+            f"{lang}: 최대 번호 {max_index:,} 가 멜로디 한계 {limit:,} 를 넘었다")
 
     path = OUT / f"dictionary_{lang}.tsv.gz"
     with gzip.open(path, "wt", encoding="utf-8", newline="") as fh:
@@ -114,9 +116,12 @@ def build(lang: str, rows: list[tuple[str, str, int, int]]) -> dict:
         w.writerows(out)
 
     # 이름이 몇 자리가 되는지
+    from sorimun.core.harmony import Quality as _Q2
+    _QMAP = {"major": _Q2.MAJOR, "minor": _Q2.MINOR, "neutral": _Q2.NEUTRAL}
     digit_hist: defaultdict[int, int] = defaultdict(int)
     for r in out:
-        digit_hist[len(C.digits_of(r[7]))] += 1
+        b = C.base_of(_QMAP[r[6]])
+        digit_hist[2 + len(C.digits_of(r[7], b))] += 1
 
     print(f"\n[{lang}] 항목 {len(out):,}  최대 번호 {max_index:,} "
           f"(한계 {limit:,})")
@@ -124,10 +129,8 @@ def build(lang: str, rows: list[tuple[str, str, int, int]]) -> dict:
     print("  등급별: " + "  ".join(
         f"{i}:{n:,}" for i, n in enumerate(tier_count)))
     print("  성질별: " + "  ".join(f"{k}:{v:,}" for k, v in qual_count.items()))
-    print("  이름 자릿수: " + "  ".join(
-        f"{k}자리 {v:,}" for k, v in sorted(digit_hist.items())))
-    print("  글리프 길이(화음 수): " + "  ".join(
-        f"{k+2}개 {v:,}" for k, v in sorted(digit_hist.items())))
+    print("  멜로디 길이(서명 2 + 자릿음): " + "  ".join(
+        f"{k}음 {v:,}" for k, v in sorted(digit_hist.items())))
     return {
         "항목수": len(out), "최대번호": max_index,
         "등급별": tier_count, "성질별": dict(qual_count),
@@ -138,8 +141,7 @@ def build(lang: str, rows: list[tuple[str, str, int, int]]) -> dict:
 def main() -> int:
     meta = {
         "판": 2,
-        "진법": C.BASE,
-        "담을수있는번호_4자리": C.capacity(4),
+        "멜로디최대자릿음": C.MELODY_MAX_DIGITS,
         "등급경계": list(TIER_BANDS),
         "등급이름": list(TIER_LABEL),
         "등급이름_en": list(TIER_LABEL_EN),
