@@ -47,36 +47,50 @@
 
   /* ── 이펙터 — 재생에만 얹는다. 내려받는 WAV 는 언제나 마른 소리다. ──
      공간계 위주의 단순한 세팅: 홑음 멜로디도 아름답게 울리도록. */
-  window.__fx = { space: true, echo: false, loop: false };
-  let _impulse = null;
-  function impulse(c) {
-    if (_impulse) return _impulse;
-    const n = c.sampleRate * 2.6;
+  window.__fx = { revType: "hall", revMix: .4,
+                  dlyDiv: 0, dlyFb: .38, dlyMix: .28,
+                  loop: false, tempo: 72 };
+  const _imp = {};
+  function impulse(c, type) {
+    if (_imp[type]) return _imp[type];
+    // 종류마다 길이·감쇠·질감이 다르다
+    const spec = { room: [1.1, 3.4, 0], hall: [3.0, 2.1, 0],
+                   plate: [1.7, 1.5, 1] }[type] || [2.4, 2.2, 0];
+    const n = Math.floor(c.sampleRate * spec[0]);
     const b = c.createBuffer(2, n, c.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
       const d = b.getChannelData(ch);
-      for (let i = 0; i < n; i++)
-        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6);
+      let prev = 0;
+      for (let i = 0; i < n; i++) {
+        let v = (Math.random() * 2 - 1) * Math.pow(1 - i / n, spec[1]);
+        if (spec[2]) { const hp = v - prev; prev = v; v = hp; } // 플레이트는 밝게
+        d[i] = v;
+      }
     }
-    _impulse = b;
+    _imp[type] = b;
     return b;
   }
   function fxInput(c) {
-    // 설정에 맞는 입력 노드를 만든다. destination 까지 이어져 있다.
+    const F = window.__fx;
     const inp = c.createGain(), out = c.createGain();
-    const dry = c.createGain();
-    dry.gain.value = 1;
+    const dry = c.createGain(); dry.gain.value = 1;
     inp.connect(dry); dry.connect(out);
-    if (window.__fx.echo) {
-      const d = c.createDelay(1.5); d.delayTime.value = .34;
-      const fb = c.createGain(); fb.gain.value = .36;
-      const wet = c.createGain(); wet.gain.value = .30;
-      inp.connect(d); d.connect(fb); fb.connect(d); d.connect(wet);
-      wet.connect(out);
+    if (F.dlyDiv > 0) {
+      // 템포에 맞물린 딜레이 — 0.5=8분, 0.75=점8분, 1=4분
+      const beat = 60 / (F.tempo || 72);
+      const d = c.createDelay(2.5);
+      d.delayTime.value = Math.min(2.4, beat * F.dlyDiv);
+      const fb = c.createGain(); fb.gain.value = Math.min(.7, F.dlyFb);
+      const damp = c.createBiquadFilter();
+      damp.type = "lowpass"; damp.frequency.value = 3200;
+      const wet = c.createGain(); wet.gain.value = F.dlyMix;
+      inp.connect(d); d.connect(damp); damp.connect(fb); fb.connect(d);
+      d.connect(wet); wet.connect(out);
     }
-    if (window.__fx.space) {
-      const cv = c.createConvolver(); cv.buffer = impulse(c);
-      const wet = c.createGain(); wet.gain.value = .45;
+    if (F.revType && F.revType !== "off") {
+      const cv = c.createConvolver();
+      cv.buffer = impulse(c, F.revType);
+      const wet = c.createGain(); wet.gain.value = F.revMix;
       inp.connect(cv); cv.connect(wet); wet.connect(out);
     }
     out.connect(c.destination);
@@ -467,11 +481,12 @@
     "맺음": "저음 화음 — 글리프의 끝, 어절 경계",
     "종결": "저음 화음 — 문장의 끝",
   };
-  let cine = { raf: null, srcNode: null };
+  let cine = { raf: null, src: null, stop: null };
 
-  function digitsOf(index) {
+  function digitsOf32(index, base) {
     const out = []; let m = index + 1;
-    while (m > 0) { const r = m % 32 || 32; out.push(r - 1); m = (m - r) / 32; }
+    while (m > 0) { const r = m % base || base; out.push(r - 1);
+      m = (m - r) / base; }
     return out.reverse();
   }
 
@@ -481,27 +496,106 @@
     document.body.style.overflow = "hidden";
     tempo = tempo || 72;
     const sched = W.schedule(piece.notes, tempo);
-    const total = sched[sched.length - 1][0] + sched[sched.length - 1][1];
-    const notes = [...piece.notes].sort((a, b) => a.s - b.s);
+    const total = sched[sched.length - 1][0] + sched[sched.length - 1][1] + .3;
 
-    // 문장 낱말 띠
+    /* ── 문장 — 크게, 아래쪽에 ── */
     const wordsBox = $("#cnWords");
     wordsBox.textContent = "";
     const wordEls = [];
-    piece.sentences.forEach((s, si) => {
-      s.analysis.forEach((a, wi) => {
+    piece.sentences.forEach((sn, si) => {
+      sn.analysis.forEach((a, wi) => {
         const w = el("span", { class: "cnword" }, a.surface);
         wordsBox.appendChild(w);
         wordEls.push({ si, wi, el: w });
       });
-      wordsBox.appendChild(el("span", { class: "cnword dim" }, s.term));
+      wordsBox.appendChild(el("span", { class: "cnword end" }, sn.term));
     });
 
-    // 아래 타임라인 (전체 화음, 시간 비례)
+    /* ── 낱말 구성 띠 — 재생 전에 짜임을 미리 보이고,
+          음영으로 지금 어느 조각이 울리는지 말한다 ── */
+    const segBox = $("#cnSeg");
+    // 음표 → (낱말, 낱말 안 순번) 미리 계산
+    const noteMeta = [];
+    {
+      let prevKey = null, segIdx = 0;
+      sched.forEach(([, , n], k) => {
+        const wkey = n.si + "/" + n.w;
+        if (wkey !== prevKey) { prevKey = wkey; segIdx = 0; }
+        noteMeta.push({ wkey, segIdx });
+        segIdx++;
+      });
+    }
+    let segKey = null, segEls = [];
+    function buildSeg(i) {
+      const [, , n] = sched[i];
+      const wkey = n.si + "/" + n.w;
+      if (wkey === segKey) return;
+      segKey = wkey;
+      segBox.textContent = "";
+      segEls = [];
+      // 이 낱말의 모든 조각을 순서대로
+      for (let k = 0; k < sched.length; k++) {
+        const m = sched[k][2];
+        if (m.si + "/" + m.w !== wkey) continue;
+        const mel = m.p.length === 1;
+        const q = Q_NAME[m.qi] || "neutral";
+        const d = el("span", { class: "cnseg" });
+        d.style.borderColor = mel ? COLOR[q] : "#4a5a6d";
+        d.appendChild(el("b", null, m.slot));
+        d.appendChild(el("i", null, m.p.map(nm).join("+")));
+        segBox.appendChild(d);
+        segEls.push({ k, el: d });
+      }
+    }
+    function shadeSeg(i) {
+      for (const s2 of segEls)
+        s2.el.className = "cnseg " +
+          (s2.k === i ? "now" : s2.k < i ? "done" : "todo");
+    }
+
+    /* ── 궤도 (12음 시계) ── */
+    const orbit = $("#cnOrbit");
+    orbit.textContent = "";
+    const OC = 80;
+    orbit.setAttribute("viewBox", "0 0 160 160");
+    const orbDots = [];
+    for (let pc = 0; pc < 12; pc++) {
+      const a = pc / 12 * 2 * Math.PI - Math.PI / 2;
+      const x = OC + 62 * Math.cos(a), y = OC + 62 * Math.sin(a);
+      orbit.appendChild(sv("circle", { cx: x, cy: y, r: 2, fill: "#2c3745" }));
+      const t = sv("text", { x: OC + 74 * Math.cos(a),
+        y: OC + 74 * Math.sin(a) + 3, fill: "#43536a", "font-size": "8",
+        "text-anchor": "middle", "font-family": "ui-monospace,monospace" });
+      t.textContent = NAMES[pc]; orbit.appendChild(t);
+      orbDots[pc] = { x, y };
+    }
+    const orbTrail = [];
+    function orbitHit(pitches, col) {
+      if (!window.__cnOrbitOn) return;
+      for (const p of pitches) {
+        const pc = ((p % 12) + 12) % 12;
+        const { x, y } = orbDots[pc];
+        if (orbTrail.length) {
+          const prev = orbTrail[orbTrail.length - 1];
+          const ln = sv("line", { x1: prev.x, y1: prev.y, x2: x, y2: y,
+            stroke: col, "stroke-width": .8, "stroke-opacity": .5 });
+          orbit.appendChild(ln); orbTrail.push({ x, y, el: ln });
+        }
+        const c2 = sv("circle", { cx: x, cy: y, r: 5, fill: col,
+          "fill-opacity": .9 });
+        orbit.appendChild(c2); orbTrail.push({ x, y, el: c2 });
+        while (orbTrail.length > 26) {
+          const old = orbTrail.shift();
+          if (old.el) old.el.remove();
+        }
+      }
+    }
+
+    /* ── 타임라인 ── */
     const tl = $("#cnRoll");
     tl.textContent = "";
-    const TW = 1160, TH = 190, PL = 36;
-    tl.setAttribute("viewBox", `0 0 ${TW + PL + 10} ${TH + 26}`);
+    const TW = 1160, TH = 150, PL = 36;
+    tl.setAttribute("viewBox", `0 0 ${TW + PL + 10} ${TH + 24}`);
     const tx = t => PL + t / total * TW;
     const ty = p => 8 + (K.highest - p) * (TH - 16) / (K.highest - K.lowest);
     for (let p = K.lowest; p <= K.highest; p += 12) {
@@ -514,14 +608,13 @@
     }
     const rects = [];
     sched.forEach(([t0, dur, n], i) => {
-      const q = n.kind === 0 || n.kind === 1
-        ? Q_NAME[n.qi] : null;
-      const col = (n.slot === "의미" || n.slot === "자리") && q
+      const q = Q_NAME[n.qi];
+      const col = (n.slot === "서명" || n.slot === "이름") && q
         ? COLOR[q] : "#3d4b5c";
       for (const p of n.p) {
         const r = sv("rect", { x: tx(t0), y: ty(p) - 2.6,
           width: Math.max(2, tx(t0 + dur) - tx(t0) - 1.2), height: 5.2,
-          rx: 1, fill: col, "fill-opacity": .35 });
+          rx: 1, fill: col, "fill-opacity": .25 });
         tl.appendChild(r);
         rects.push({ i, el: r });
       }
@@ -530,17 +623,78 @@
       stroke: "#e9b44c", "stroke-width": 1.2 });
     tl.appendChild(head);
 
-    // 조립대 (현재 화음)
+    /* ── 매트릭스 — 성질 × 등급의 자리 위에서 문장이 움직인다 ── */
+    const mx = $("#cnMatrix");
+    mx.textContent = "";
+    const mxCells = {};
+    const mxHead = el("div", { class: "mxrow mxhead" });
+    mxHead.appendChild(el("span", { class: "mxlab" }, ""));
+    for (let t = 0; t < 6; t++)
+      mxHead.appendChild(el("span", { class: "mxlab" },
+        t === 0 ? "익숙 0" : t === 5 ? "생소 5" : String(t)));
+    mx.appendChild(mxHead);
+    for (const q of Q_NAME) {
+      const row = el("div", { class: "mxrow" });
+      const lab = el("span", { class: "mxlab" }, Q_KO[q]);
+      lab.style.color = COLOR[q];
+      row.appendChild(lab);
+      for (let t = 0; t < 6; t++) {
+        const cell = el("div", { class: "mxcell" });
+        cell.style.borderColor = COLOR[q] + "44";
+        row.appendChild(cell);
+        mxCells[q + "/" + t] = cell;
+      }
+      mx.appendChild(row);
+    }
+    // 낱말을 제 칸에 미리 놓는다 — 글리프가 등급·성질을 직접 안다
+    const mxWordEls = {};
+    piece.sentences.forEach((sn, si) => {
+      const seen = new Set();
+      for (const g of sn.glyphs) {
+        const wkey = si + "/" + g.word;
+        if (g.word < 0 || seen.has(wkey)) continue;
+        seen.add(wkey);
+        const q = Q_NAME[g.qi] || "neutral";
+        const t2 = Math.max(0, Math.min(5, g.tier ?? 0));
+        const cell = mxCells[q + "/" + t2];
+        if (!cell) continue;
+        const w = el("span", { class: "mxword" },
+          (sn.analysis[g.word] && sn.analysis[g.word].surface)
+          || g.label.split("/")[0]);
+        cell.appendChild(w);
+        mxWordEls[wkey] = { el: w, col: COLOR[q] };
+      }
+    });
+    function matrixHit(n) {
+      const wkey = n.si + "/" + n.w;
+      for (const k in mxWordEls) {
+        const on = k === wkey;
+        mxWordEls[k].el.classList.toggle("on", on);
+        if (on) mxWordEls[k].el.style.color = mxWordEls[k].col;
+        else if (!mxWordEls[k].el.classList.contains("was"))
+          mxWordEls[k].el.style.color = "";
+      }
+      if (mxWordEls[wkey]) mxWordEls[wkey].el.classList.add("was");
+    }
+    function applyMatrixMode() {
+      const on = !!window.__cnMatrixOn;
+      $("#cnStage").style.display = on ? "none" : "";
+      $("#cnRoll").style.display = on ? "none" : "";
+      $("#cnSeg").style.display = on ? "none" : "";
+      mx.hidden = !on;
+    }
+    applyMatrixMode();
+    cine.applyMatrixMode = applyMatrixMode;
+
+    /* ── 조립대 ── */
     const asm = $("#cnAsm");
-    const AW = 560, AH = 170;
+    const AW = 560, AH = 150;
     asm.setAttribute("viewBox", `0 0 ${AW} ${AH}`);
-    // 현재 낱말의 멜로디를 누적해 그린다 — 궤적이 곧 이름이다
-    let trail = [];      // [{p, slot}]
-    let trailKey = null;
+    let trail = [], trailKey = null;
     function drawAsm(n, frac) {
       asm.textContent = "";
       for (let p = K.lowest; p <= K.highest; p++) {
-        const y = 12 + (K.highest - p) * (AH - 26) / 24;
+        const y = 10 + (K.highest - p) * (AH - 22) / 24;
         asm.appendChild(sv("line", { x1: 300, x2: p % 12 === 0 ? 545 : 535,
           y1: y, y2: y, stroke: p % 12 === 0 ? "#2c3745" : "#1b232d",
           "stroke-width": p % 12 === 0 ? 1 : .5 }));
@@ -555,60 +709,48 @@
         const t = sv("text", { x, y, fill: color || "#c8d4e2",
           "font-size": size || 12 });
         if (weight) t.setAttribute("font-weight", weight);
-        t.textContent = txt; asm.appendChild(t); return t;
+        t.textContent = txt; asm.appendChild(t);
       };
       const q = Q_NAME[n.qi] || "neutral";
       const isMel = n.slot === "서명" || n.slot === "이름";
-      const col = isMel ? COLOR[n.kind === -1 ? "neutral" : q] : "#8fa3b8";
-
-      // 낱말 이름 — 소리 나는 동안 살짝 커진다
-      const grow = 15 + 4 * Math.max(0, 1 - (frac || 0) * 2);
-      put(6, 28, n.src, grow, "#e6edf5", "600");
-      put(6, 50, n.slot + (isMel ? " (홑음)" : " (화음)"), 11, "#e9b44c");
-      put(6, 66, SLOT_RULE[n.slot] || "", 10, "#67788c");
-
-      // 실시간 서술 — 지금 이 소리가 무엇을 뜻하는가
+      const col = isMel ? COLOR[q] : "#8fa3b8";
+      put(6, 24, n.src, 14, "#e6edf5", "600");
+      put(6, 44, n.slot + " — " + (SLOT_RULE[n.slot] || ""), 10, "#67788c");
       let desc = "";
       if (n.slot === "서명") {
         const off = n.p[0] - K.melBase;
-        const qk = { 4: "장 (+4 장3도)", 3: "단 (+3 단3도)",
-                     6: "중성 (+6 삼전음)" }[off];
-        desc = qk ? "서명1 · 성질 = " + qk
-          : "서명2 · 등급 도약 — 거칢이 익숙함을 말한다";
-      } else if (n.slot === "이름") {
-        desc = "자릿음 · " + Q_KO[q] + " 음계 위 계단";
-      } else if (n.slot === "역할") {
-        desc = n.role + " — 이 낱말이 문장에서 맡은 자리";
-      }
-      put(6, 92, desc, 10.5, "#9fb0c4");
-      if (n.kind === 0 || n.kind === 1)
-        put(6, 110, (n.kind === 0 ? "개념" : "낱말") + " #" + n.idx, 10, "#67788c");
-      put(6, 152, n.p.map(nm).join(" + "), 13, col, "600");
+        desc = { 4: "성질 = 장 (장3도)", 3: "성질 = 단 (단3도)",
+                 6: "성질 = 중성 (삼전음)" }[off]
+          || "등급 도약 — 거칢이 익숙함을 말한다";
+      } else if (n.slot === "이름") desc = Q_KO[q] + " 음계 위 계단";
+      else if (n.slot === "역할") desc = n.role;
+      put(6, 66, desc, 10.5, "#9fb0c4");
+      if (n.idx !== undefined && (n.kind === 0 || n.kind === 1))
+        put(6, 84, "#" + n.idx, 10, "#67788c");
+      put(6, 128, n.p.map(nm).join(" + "), 13, col, "600");
 
-      // 멜로디 궤적 — 같은 낱말 안에서 누적된다
       const wkey = n.si + "/" + n.w;
       if (wkey !== trailKey) { trail = []; trailKey = wkey; }
-      if (isMel && (!trail.length || trail[trail.length - 1].p !== n.p[0]
-                    || trail[trail.length - 1].i !== undefined)) {
+      if (isMel && (!trail.length
+          || trail[trail.length - 1].p !== n.p[0])) {
         trail.push({ p: n.p[0], slot: n.slot });
         if (trail.length > 10) trail.shift();
       }
-      const yOf = p => 12 + (K.highest - p) * (AH - 26) / 24;
-      const x0 = 310, dx = 22;
+      const yOf = p => 10 + (K.highest - p) * (AH - 22) / 24;
       let prev = null;
       trail.forEach((tn, i2) => {
-        const x = x0 + i2 * dx, y = yOf(tn.p);
+        const x = 310 + i2 * 22, y = yOf(tn.p);
         if (prev)
-          asm.appendChild(sv("line", { x1: prev[0], y1: prev[1], x2: x, y2: y,
-            stroke: col, "stroke-width": 1, "stroke-opacity": .6 }));
+          asm.appendChild(sv("line", { x1: prev[0], y1: prev[1],
+            x2: x, y2: y, stroke: col, "stroke-width": 1,
+            "stroke-opacity": .6 }));
         const last = i2 === trail.length - 1;
-        const r = last ? 6.5 - 2.5 * Math.min(1, frac || 0) : 3.2;
-        asm.appendChild(sv("circle", { cx: x, cy: y, r,
+        asm.appendChild(sv("circle", { cx: x, cy: y,
+          r: last ? 6.5 - 2.5 * Math.min(1, frac || 0) : 3.2,
           fill: tn.slot === "서명" ? col : "none",
           stroke: col, "stroke-width": 1.3 }));
         prev = [x, y];
       });
-      // 화음(구조)은 왼쪽 낮은 자리에 겹대로
       if (!isMel)
         for (const p of n.p) {
           const y = yOf(p);
@@ -619,109 +761,91 @@
     }
     drawAsm(null);
 
-    // 궤도 — 12음 시계 (실험 레이어, 켜고 끌 수 있다)
-    const orbit = $("#cnOrbit");
-    orbit.textContent = "";
-    const OC = 80;
-    orbit.setAttribute("viewBox", "0 0 160 160");
-    const orbDots = [];
-    for (let pc = 0; pc < 12; pc++) {
-      const a = pc / 12 * 2 * Math.PI - Math.PI / 2;
-      const x = OC + 62 * Math.cos(a), y = OC + 62 * Math.sin(a);
-      orbit.appendChild(sv("circle", { cx: x, cy: y, r: 2,
-        fill: "#2c3745" }));
-      const t = sv("text", { x: OC + 74 * Math.cos(a),
-        y: OC + 74 * Math.sin(a) + 3, fill: "#43536a", "font-size": "8",
-        "text-anchor": "middle", "font-family": "ui-monospace,monospace" });
-      t.textContent = NAMES[pc]; orbit.appendChild(t);
-      orbDots[pc] = { x, y };
-    }
-    const orbTrail = [];   // {pc, el, age}
-    function orbitHit(pitches, col) {
-      if (!window.__cnOrbitOn) return;
-      for (const p of pitches) {
-        const pc = ((p % 12) + 12) % 12;
-        const { x, y } = orbDots[pc];
-        if (orbTrail.length > 1) {
-          const prev = orbTrail[orbTrail.length - 1];
-          const ln = sv("line", { x1: prev.x, y1: prev.y, x2: x, y2: y,
-            stroke: col, "stroke-width": .8, "stroke-opacity": .5 });
-          orbit.appendChild(ln); orbTrail.push({ x, y, el: ln, age: 0 });
-        } else orbTrail.push({ x, y, el: null, age: 0 });
-        const c2 = sv("circle", { cx: x, cy: y, r: 5, fill: col,
-          "fill-opacity": .9 });
-        orbit.appendChild(c2); orbTrail.push({ x, y, el: c2, age: 0 });
-        while (orbTrail.length > 26) {
-          const old = orbTrail.shift();
-          if (old.el) old.el.remove();
-        }
-      }
-    }
-
-    // 재생 + 동기 — 이펙터를 거친다 (내려받는 WAV 는 마른 소리 그대로)
-    const pcm = W.synth(piece.notes, tempo);
+    /* ── 트랜스포트 — 재생·정지·반복. 끝나도 창은 남는다 ── */
     const c = audio();
+    const pcm = W.synth(piece.notes, tempo);
     const buf = c.createBuffer(1, pcm.length, W.SR);
     const chd = buf.getChannelData(0);
     for (let i = 0; i < pcm.length; i++) chd[i] = pcm[i] / 32768;
-    const srcN = c.createBufferSource();
-    srcN.buffer = buf;
-    const fx = fxInput(c);
-    srcN.connect(fx.input);
-    const t0 = c.currentTime + .15;
-    srcN.start(t0);
-    cine.srcNode = srcN;
-    // 소리가 막힌 환경(자동재생 차단)에서도 그림은 돌아가게 — 대체 시계
-    const wall0 = performance.now() / 1000 + .15;
-    let cur = -1;
+
+    let playing = false, offset = 0, startPerf = 0, cur = -1;
+    function startFrom(off) {
+      stopSrc();
+      const srcN = c.createBufferSource();
+      srcN.buffer = buf;
+      srcN.connect(fxInput(c).input);
+      srcN.start(0, Math.min(off, buf.duration - .01));
+      cine.src = srcN;
+      offset = off;
+      startPerf = performance.now() / 1000;
+      playing = true;
+      $("#cnPlay").textContent = "⏸";
+    }
+    function stopSrc() {
+      if (cine.src) { try { cine.src.stop(); } catch (e) {} cine.src = null; }
+    }
+    function pause() {
+      if (!playing) return;
+      offset = getT(); stopSrc(); playing = false;
+      $("#cnPlay").textContent = "▶";
+    }
+    const getT = () => playing
+      ? offset + (performance.now() / 1000 - startPerf) : offset;
+    cine.toggle = () => {
+      if (playing) pause();
+      else startFrom(getT() >= total - .05 ? 0 : getT());
+    };
+
     function frame() {
-      const t = c.state === "running"
-        ? c.currentTime - t0
-        : performance.now() / 1000 - wall0;
-      $("#cnClock").textContent =
-        Math.max(0, t).toFixed(1) + " / " + total.toFixed(1) + " s";
-      head.setAttribute("x1", tx(Math.max(0, Math.min(total, t))));
-      head.setAttribute("x2", tx(Math.max(0, Math.min(total, t))));
-      let i = cur;
+      const t = Math.min(total, getT());
+      $("#cnClock").textContent = t.toFixed(1) + " / " + total.toFixed(1) + " s";
+      head.setAttribute("x1", tx(t)); head.setAttribute("x2", tx(t));
+      let i = -1;
       while (i + 1 < sched.length && sched[i + 1][0] <= t) i++;
-      if (i >= 0 && i < sched.length) {
+      if (i >= 0) {
         const [st, du, n] = sched[i];
         const frac = Math.max(0, Math.min(1, (t - st) / du));
-        drawAsm(n, frac);          // 매 프레임 — 크기·서술이 살아 움직인다
+        if (!window.__cnMatrixOn) { buildSeg(i); shadeSeg(i); drawAsm(n, frac); }
         if (i !== cur) {
-          const isMel = n.slot === "서명" || n.slot === "이름";
-          orbitHit(n.p, isMel
-            ? COLOR[Q_NAME[n.qi] || "neutral"] : "#4a5a6d");
-          // 잔상 — 지나간 멜로디는 제 색으로 남는다
-          if (window.__cnTrailOn)
-            for (const r of rects)
-              if (r.i < i) r.el.setAttribute("fill-opacity", .5);
           cur = i;
+          const isMel = n.slot === "서명" || n.slot === "이름";
+          orbitHit(n.p, isMel ? COLOR[Q_NAME[n.qi] || "neutral"] : "#4a5a6d");
+          matrixHit(n);
           for (const r of rects)
             r.el.setAttribute("fill-opacity",
-              r.i === i ? .95 : r.i < i ? .5 : .25);
+              r.i === i ? .95
+              : r.i < i ? (window.__cnTrailOn ? .5 : .25) : .25);
+          // 낱말은 제 글리프가 우는 동안 내내 크게
           wordEls.forEach(w => w.el.classList.toggle("on",
             w.si === n.si && w.wi === n.w));
         }
       }
-      if (t < total + .4) cine.raf = requestAnimationFrame(frame);
-      else closeCinema();
+      if (playing && getT() >= total) {
+        if (window.__fx.loop) { cur = -1; startFrom(0); }
+        else pause();                 // 끝 — 창은 닫지 않는다
+      }
+      cine.raf = requestAnimationFrame(frame);
     }
+    startFrom(0);
     cine.raf = requestAnimationFrame(frame);
   }
   function closeCinema() {
     if (cine.raf) cancelAnimationFrame(cine.raf);
-    if (cine.srcNode) { try { cine.srcNode.stop(); } catch (e) {} }
-    cine = { raf: null, srcNode: null };
+    if (cine.src) { try { cine.src.stop(); } catch (e) {} }
+    cine = { raf: null, src: null };
     $("#cinema").hidden = true;
     document.body.style.overflow = "";
   }
 
   window.__cnTrailOn = true;
   window.__cnOrbitOn = true;
+  window.__cnMatrixOn = false;
 
   window.SoriStudio = { renderTheory, searchFull, refreshPiano,
                         openCinema, closeCinema, playChord, playMelody,
                         playBuffer, fxInput,
+                        cineToggle: () => cine.toggle && cine.toggle(),
+                        cineMatrix: () => cine.applyMatrixMode
+                          && cine.applyMatrixMode(),
                         expectation, candidates };
 })();

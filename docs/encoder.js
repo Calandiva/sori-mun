@@ -747,7 +747,8 @@
           sNotes.push({ p: e.p, s: cursor, d: e.d, v: e.v, slot: e.slot,
                         src: g.label, role: K.roles[g.roleIdx],
                         w: g.word, si: sentences.length,
-                        kind: g.kind, qi: g.qi, idx: g.index });
+                        kind: g.kind, qi: g.qi, tier: g.tier,
+                        idx: g.index });
           cursor += e.d + e.rest;
         }
       }

@@ -96,7 +96,10 @@ svg.roll{display:block;width:100%;height:auto;min-width:600px}
 .wchip:hover{border-color:var(--line2);color:var(--ink)}
 .wchip.sel{background:var(--accent);border-color:var(--accent);color:#1a1207;
   font-weight:500}
-.fxbar{display:flex;gap:12px;align-items:center;font-size:.78rem;color:var(--ink3)}
+.fxbar{display:flex;gap:10px;align-items:center;font-size:.78rem;color:var(--ink3);
+  flex-wrap:wrap}
+.fxbar select{background:var(--bg3);color:var(--ink);border:1px solid var(--line);
+  border-radius:6px;padding:3px 6px;font-size:.76rem}
 .fxbar label{display:flex;gap:5px;align-items:center;cursor:pointer}
 .fxbar input{accent-color:var(--accent)}
 .howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
@@ -179,11 +182,41 @@ audio{width:100%;margin-top:10px}
   display:flex;flex-direction:column;padding:22px 28px;gap:8px}
 #cinema[hidden]{display:none}
 .cnbar{display:flex;align-items:center;gap:16px}
-#cnWords{flex:1;font-family:var(--serif);font-size:1.15rem;line-height:1.8}
-.cnword{margin-right:.55em;color:#5b6b7f;border-bottom:1px solid transparent;
-  display:inline-block;transition:color .15s,border-color .15s,transform .18s;
-  transform-origin:left bottom}
-.cnword.on{color:#e6edf5;border-bottom-color:#e9b44c;transform:scale(1.22)}
+#cnWords{font-family:var(--serif);font-size:clamp(1.5rem,3vw,2.2rem);
+  line-height:1.9;text-align:center;padding:10px 0 2px}
+.cnword{margin:0 .3em;color:#4c5a6d;border-bottom:2px solid transparent;
+  display:inline-block;transition:color .2s,border-color .2s,transform .22s;
+  transform-origin:center bottom}
+.cnword.on{color:#f2f6fa;border-bottom-color:#e9b44c;transform:scale(1.3)}
+.cnword.end{border:none}
+#cnSeg{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;
+  min-height:44px;padding:8px 0 4px}
+.cnseg{display:inline-flex;flex-direction:column;align-items:center;
+  border:1px solid #2c3745;border-bottom-width:3px;border-radius:6px;
+  padding:3px 9px;transition:opacity .12s,background .12s}
+.cnseg b{font-size:.66rem;font-weight:500;color:#9fb0c4}
+.cnseg i{font-style:normal;font-family:var(--mono);font-size:.6rem;color:#5b6b7f}
+.cnseg.todo{opacity:.32}
+.cnseg.done{opacity:.6}
+.cnseg.now{opacity:1;background:#1b222b}
+.cnseg.now b{color:#e9b44c}
+.cnplay{background:var(--accent);color:#1a1207;border:none;border-radius:999px;
+  width:44px;height:36px;font-size:1rem;cursor:pointer}
+#cnMatrix{flex:1;display:flex;flex-direction:column;gap:10px;
+  justify-content:center;max-width:1050px;margin:0 auto;width:100%}
+#cnMatrix[hidden]{display:none}
+.mxrow{display:flex;gap:10px;align-items:stretch}
+.mxhead .mxlab{font-family:var(--mono);font-size:.72rem;color:#5b6b7f;
+  border:none;display:flex;align-items:flex-end;justify-content:center}
+.mxlab{flex:0 0 64px;display:flex;align-items:center;justify-content:center;
+  font-size:.85rem}
+.mxcell{flex:1;min-height:74px;border:1px solid #2c3745;border-radius:8px;
+  padding:6px 8px;display:flex;flex-wrap:wrap;gap:4px 10px;
+  align-content:flex-start}
+.mxword{font-family:var(--serif);font-size:.95rem;color:#3d4b5c;
+  transition:color .15s,transform .15s;display:inline-block}
+.mxword.was{color:#8fa3b8}
+.mxword.on{transform:scale(1.35);font-weight:600}
 #cnClock{font-family:var(--mono);font-size:.75rem;color:#5b6b7f}
 #cnAsm{width:100%;max-width:900px;margin:6px auto;flex:0 0 auto;display:block}
 #cnRoll{width:100%;flex:1;min-height:0;display:block}
@@ -209,17 +242,15 @@ audio{width:100%;margin-top:10px}
 <header>
   <div class="wrap">
     <h1>소리문</h1>
-    <p class="lede">문장을 넣으면 음악이 된다. 그 음악은 어느 말의 것도 아니어서,
-      다시 한국어로도 영어로도 읽힌다. 그리고 이 부호는 <b>사람이 손으로도
-      할 수 있다</b> — 필요한 것은 사전과 나눗셈뿐이다.</p>
+    <p class="lede">문장은 음악이 되고, 음악은 다시 문장이 된다.
+      한국어로도, 영어로도. 사전과 나눗셈만 있으면 사람 손으로도 된다.</p>
   </div>
 </header>
 
 <section id="guide" style="border-top:none">
   <div class="wrap">
     <h2><span class="en">HOW A HUMAN DOES IT</span>설명 — 사람이 하는 법</h2>
-    <p class="sub">다섯 걸음이면 낱말 하나가 멜로디가 된다. 기계와 똑같은
-      절차이며, 전부 이 순서대로다. 상세한 절차와 되읽는 법은
+    <p class="sub">다섯 걸음. 기계가 하는 그대로다. 전문은
       <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/HOWTO.md">HOWTO.md</a>.</p>
     <div class="howto">
       <div class="howcard"><h4><span class="n">1</span>자리를 정한다</h4>
@@ -301,10 +332,22 @@ audio{width:100%;margin-top:10px}
           <button class="act" id="wdl">⬇ WAV 내려받기</button>
           <button class="act" id="wcine">◈ 시각화</button>
           <span class="fxbar">
-            <label><input type="checkbox" id="fxSpace" checked>공간</label>
-            <label><input type="checkbox" id="fxEcho">메아리</label>
+            <label>리버브 <select id="fxRev">
+              <option value="off">끄기</option>
+              <option value="room">룸</option>
+              <option value="hall" selected>홀</option>
+              <option value="plate">플레이트</option></select></label>
+            <input type="range" id="fxRevMix" min="0" max="80" value="40"
+              title="리버브 양" style="width:64px;accent-color:var(--accent)">
+            <label>딜레이 <select id="fxDly">
+              <option value="0" selected>끄기</option>
+              <option value="0.5">8분</option>
+              <option value="0.75">점8분</option>
+              <option value="1">4분</option></select></label>
+            <input type="range" id="fxDlyFb" min="0" max="65" value="38"
+              title="피드백" style="width:56px;accent-color:var(--accent)">
             <label><input type="checkbox" id="fxLoop">루퍼</label>
-            <span class="dim">(재생만 — 내려받는 WAV 는 마른 소리)</span>
+            <span class="dim">재생 전용 · WAV 는 드라이</span>
           </span>
           <div class="legend">
             <span><i class="sw" style="background:var(--major)"></i>장 · 긍정</span>
@@ -327,8 +370,8 @@ audio{width:100%;margin-top:10px}
 <section id="readback">
   <div class="wrap">
     <h2><span class="en">READ</span>입력 — 소리를 글로</h2>
-    <p class="sub">위에서 내려받은 WAV 를 넣으면 — 또는 음이름을 적으면 —
-      한국어와 영어로 읽어 낸다. 판독은 음높이와 화성만 본다. 길이는 보지 않는다.</p>
+    <p class="sub">WAV든 음이름이든, 넣으면 두 언어로 돌아온다.
+      판독이 보는 것은 음높이와 화성뿐이다.</p>
     <div class="row">
       <label class="file">🎵 소리 파일 넣기 (.wav)
         <input type="file" id="afile" accept="audio/*"></label>
@@ -343,9 +386,8 @@ audio{width:100%;margin-top:10px}
     <div class="panel" style="margin-top:26px">
       <h3>화음을 눌러 낱말 짓기 — 안내형 입력</h3>
       <p class="sub" style="font-size:.85rem;margin-bottom:12px">
-        느리지만 정확하게 — 지금 상태에서 올 수 있는 화음이 단추로 나온다.
-        역할 → 머리 → 자릿수 → 맺음 순서로 누르면 낱말 하나가 완성되어
-        아래에 두 말로 읽힌다. 건반은 자유 입력용이다.</p>
+        지금 올 수 있는 소리가 단추로 나온다. 차례로 누르면 낱말이
+        완성되고, 아래에 두 언어로 읽힌다. 건반은 자유 입력.</p>
       <div id="pianoState" class="dim" style="font-size:.85rem"></div>
       <div id="candBox"></div>
       <div id="keys"></div>
@@ -374,16 +416,13 @@ audio{width:100%;margin-top:10px}
 <section id="theory">
   <div class="wrap">
     <h2><span class="en">WHY THESE RULES</span>이론적 배경 — 두 축의 조화</h2>
-    <p class="sub">낱말은 2~10음의 <b>멜로디</b>이고, 그 멜로디가 두 축을
-      직접 노래한다 — 서명1(3도의 성질: 장3도/단3도/삼전음)이 감정을,
-      서명2(도약의 거칢: 완전4도→단2도, Plomp–Levelt 1965)가 익숙함을,
-      자릿음들이 그 성질의 음계(장음계·자연단음계·온음계) 위를 거닐며
-      번호를 적는다. 흔한 긍정어는 짧고 부드러운 장조 가락, 생소한
-      부정어는 길고 튀는 단조 가락이 된다. 두 축은 서로 다른 자리에
-      실리므로 어긋날 길이 없다. 저음의 화음은 구조(문장 성분·갈래·경계)를
-      묘사한다. 수치는 <code class="mono">tools/verify_axes.py</code> 가
-      실제로 재는 값이며, 점과 단추는 그 소리를 그대로 들려준다.
-      전문은 <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/THEORY.md">THEORY.md</a>.</p>
+    <p class="sub">멜로디가 두 축을 노래한다. 첫 음의 3도가 감정을,
+      둘째 음의 도약이 익숙함을(Plomp–Levelt 1965), 나머지가 그 성질의
+      음계 위에서 번호를. 흔한 긍정어는 짧고 부드러운 장조, 생소한
+      부정어는 길고 튀는 단조가 된다. 아래 수치는
+      <code class="mono">verify_axes</code> 가 재는 값이고, 점과 단추는
+      그 소리를 그대로 낸다. 전문은
+      <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/THEORY.md">THEORY.md</a>.</p>
     <div class="panel" id="theoryBody">
       <h3>검증 — 익숙함의 사다리, 그리고 네 사분면</h3>
     </div>
@@ -410,9 +449,8 @@ audio{width:100%;margin-top:10px}
 <section id="dict">
   <div class="wrap">
     <h2><span class="en">DICTIONARY</span>사전 — 전부 찾고, 미리 듣는다</h2>
-    <p class="sub">한국어 286,068 + 영어 260,000 항목 전체. 낱말을 넣으면
-      등급·성질·개념 이음을 보이고, ♪ 단추가 그 낱말의 글리프를 화음
-      차례로 들려준다. (처음 한 번만 사전을 내려받는다 — 5MB쯤)</p>
+    <p class="sub">546,068 항목 전체. 등급·성질·개념 이음이 보이고,
+      미리보기가 그 낱말을 들려준다. 첫 검색 때 사전을 한 번 내려받는다.</p>
     <div class="row"><input id="dictQ" type="search"
       placeholder="아무 낱말이나 — 어루만지다의 어간 '어루만지', 밤, serendipity …"
       autocomplete="off"></div>
@@ -446,11 +484,10 @@ audio{width:100%;margin-top:10px}
         한국어→소리→영어 를 돌아도 핵심 낱말이 살아남는다.</li>
     </ol>
     <div class="verify" id="verifyOut"></div>
-    <p class="caveat">정직하게 — 문장 성분 판별과 품사 붙이기는 규칙 어림이지
-      완전한 구문분석이 아니다. 비교급·관계절·복문은 자리로 환원되며 단순해진다.
-      브라우저의 한국어 가르기는 사전 앞머리 맞추기라 파이썬(형태소 분석기)보다
-      거칠고, 갈리지 않는 어절은 글자로 받아 적는다 — 소리는 길어지지만 정확성은
-      잃지 않는다. 소리 판독은 이 페이지가 만드는 음원에 맞춰져 있다.</p>
+    <p class="caveat">한계도 분명하다. 성분 판별과 품사 붙이기는 규칙
+      어림이라 복문은 단순해진다. 브라우저의 한국어 가르기는 형태소
+      분석기보다 거칠어, 갈리지 않는 어절은 글자로 받아 적는다 — 길어질
+      뿐 틀리지는 않는다. 소리 판독은 이 페이지가 만드는 음원 기준이다.</p>
   </div>
 </section>
 
@@ -469,22 +506,27 @@ audio{width:100%;margin-top:10px}
 
 <div id="cinema" hidden>
   <div class="cnbar">
-    <div id="cnWords"></div>
+    <button class="cnplay" id="cnPlay">⏸</button>
     <span class="cntoggles">
+      <label><input type="checkbox" id="cnLoopT">반복</label>
       <label><input type="checkbox" id="cnTrail" checked>잔상</label>
       <label><input type="checkbox" id="cnOrbitT" checked>궤도</label>
+      <label><input type="checkbox" id="cnMatrixT">매트릭스</label>
     </span>
+    <span style="flex:1"></span>
     <span id="cnClock"></span>
     <button class="cnclose" id="cnClose">✕ 닫기</button>
   </div>
+  <div id="cnWords"></div>
+  <div id="cnSeg"></div>
   <div id="cnStage">
     <svg id="cnAsm" xmlns="http://www.w3.org/2000/svg" style="flex:1"></svg>
     <svg id="cnOrbit" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
   <svg id="cnRoll" xmlns="http://www.w3.org/2000/svg"
        preserveAspectRatio="xMidYMid meet"></svg>
-  <div class="cnfoot">낱말을 해체하고 — 개념 번호로 바꾸고 — 서명과 음계로 풀어 —
-    멜로디로 노래한다 · 저음 화음은 구조 · 부호는 음높이와 화성뿐 · C3–C5</div>
+  <div id="cnMatrix" hidden></div>
+  <div class="cnfoot">해체 — 번호 — 서명과 음계 — 멜로디 · 저음 화음은 구조 · C3–C5</div>
 </div>
 
 <script src="data.js"></script>
@@ -724,15 +766,18 @@ $("#wplay").addEventListener("click",()=>{
   $("#wplay").textContent="■ 멈추기";
   playing=playPcm(lastPcm,()=>{playing=null;$("#wplay").textContent="▶ 들어보기";});
 });
-["fxSpace","fxEcho","fxLoop"].forEach(id=>{
-  $("#"+id).addEventListener("change",()=>{
-    window.__fx={space:$("#fxSpace").checked,echo:$("#fxEcho").checked,
-                 loop:$("#fxLoop").checked};
-  });
-});
+function syncFx(){
+  window.__fx={revType:$("#fxRev").value,revMix:+$("#fxRevMix").value/100,
+    dlyDiv:+$("#fxDly").value,dlyFb:+$("#fxDlyFb").value/100,dlyMix:.3,
+    loop:$("#fxLoop").checked,tempo:curTempo};
+}
+["fxRev","fxRevMix","fxDly","fxDlyFb","fxLoop"].forEach(id=>
+  $("#"+id).addEventListener("change",syncFx));
+syncFx();
 $("#wtempo").addEventListener("input",()=>{
   curTempo=+$("#wtempo").value;
   $("#wtempoV").textContent="♩="+curTempo;
+  window.__fx.tempo=curTempo;
   if(window.__lastPiece){
     lastPcm=W.synth(window.__lastPiece.notes,curTempo);
     if(lastBlobUrl)URL.revokeObjectURL(lastBlobUrl);
@@ -862,10 +907,16 @@ $("#wcine").addEventListener("click",()=>{
   if(window.__lastPiece) ST.openCinema(window.__lastPiece,curTempo);
 });
 $("#cnClose").addEventListener("click",()=>ST.closeCinema());
+$("#cnPlay").addEventListener("click",()=>ST.cineToggle());
+$("#cnLoopT").addEventListener("change",e=>window.__fx.loop=e.target.checked);
 $("#cnTrail").addEventListener("change",e=>window.__cnTrailOn=e.target.checked);
 $("#cnOrbitT").addEventListener("change",e=>{
   window.__cnOrbitOn=e.target.checked;
   $("#cnOrbit").style.visibility=e.target.checked?"visible":"hidden";
+});
+$("#cnMatrixT").addEventListener("change",e=>{
+  window.__cnMatrixOn=e.target.checked;
+  ST.cineMatrix();
 });
 
 /* ── 규칙표 ── */
@@ -901,9 +952,8 @@ $("#cnOrbitT").addEventListener("change",e=>{
 
 /* ── 개념 찾기 ── */
 $("#cxSub").textContent=`개념 ${D.meta.concepts.toLocaleString()}개. `+
-  `소리에는 이 번호만 들어가고 어느 말인지는 들어가지 않는다. 한쪽에만 있는 `+
-  `낱말도 가장 가까운 개념으로 이어져(근사 ${D.approx.length.toLocaleString()}개) `+
-  `다른 말로 읽힌다.`;
+  `소리에 적히는 것은 이 번호뿐 — 어느 말인지는 적히지 않는다. `+
+  `한쪽에만 있는 낱말은 근사 ${D.approx.length.toLocaleString()}개가 잇는다.`;
 function hits(){const q=$("#q").value.trim().toLowerCase();const box=$("#hits");
  box.textContent="";
  let rows=D.concepts.map((c,i)=>[c,i]);
