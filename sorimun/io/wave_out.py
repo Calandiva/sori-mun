@@ -11,7 +11,7 @@ import math
 import wave
 from pathlib import Path
 
-from ..compose import Score
+from ..compose import Piece
 
 SAMPLE_RATE = 44100
 # 배음 세기. 종 비슷한, 조금 차가운 음색.
@@ -29,13 +29,13 @@ def _unit_seconds(tempo: int) -> float:
     return 60.0 / tempo / 4
 
 
-def render(score: Score, tempo: int | None = None) -> array.array:
-    tempo = tempo or score.tempo
+def render(piece: Piece, tempo: int | None = None) -> array.array:
+    tempo = tempo or piece.tempo
     us = _unit_seconds(tempo)
-    total = int((score.length * us + RELEASE + 0.4) * SAMPLE_RATE) + 1
+    total = int((piece.length * us + RELEASE + 0.4) * SAMPLE_RATE) + 1
     buf = array.array("d", bytes(8 * total))
 
-    for n in score.notes:
+    for n in piece.notes:
         t0 = int(n.start * us * SAMPLE_RATE)
         hold = n.duration * us
         dur = hold + RELEASE
@@ -64,10 +64,10 @@ def render(score: Score, tempo: int | None = None) -> array.array:
     return buf
 
 
-def write(score: Score, path: Path | str, tempo: int | None = None) -> Path:
+def write(piece: Piece, path: Path | str, tempo: int | None = None) -> Path:
     """악보를 16비트 모노 .wav 로 쓴다."""
     path = Path(path)
-    buf = render(score, tempo)
+    buf = render(piece, tempo)
 
     peak = max((abs(x) for x in buf), default=0.0)
     gain = (0.89 / peak) if peak > 0 else 1.0

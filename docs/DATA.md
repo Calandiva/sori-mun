@@ -67,6 +67,82 @@ KNU 는 부정 쪽으로 크게 치우쳐 있다(부정 9,829 : 긍정 4,871, �
 
 ---
 
+# 영어
+
+## 4. 표제어와 품사 — Moby Part-of-Speech
+
+- 출처: <https://github.com/en-wl/wordlist> (`pos/part-of-speech.txt`)
+- 만든 이: Grady Ward, public domain
+- 쓰는 것: 낱말 295,172개 → **표제어 260,000항목**
+
+낱자 코드(`N` 명사, `V` 동사, `A` 형용사, `v` 부사 …)를 우리 체계로 옮긴다.
+닫힌 부류(관사·대명사·전치사·접속사)는 손으로 못박는다 — 실제 문장에서 가장
+자주 나오고 자리를 가르는 데 결정적이라 사전 추정에 맡기지 않는다.
+
+**굴절형의 잃어버린 읽기를 되살린다.** Moby 는 굴절형을 '고립형으로 무엇이
+될 수 있는가' 로만 싣는다. `touched → 형용사만`, `sings → 아예 없음`. 그대로
+두면 동사 읽기를 잃어 문장이 통째로 어긋난다. 그래서 밑말을 되짚어
+(`touched → touch`) 그 품사를 물려준다.
+
+영어는 낱말이 곧 표면형이다. 한국어처럼 형태소로 쪼개지 않고 나타난 꼴
+그대로 싣는다 (`love / loves / loved` 는 각각 다른 항목). 그래야 되읽을 때
+원문이 정확히 돌아온다.
+
+## 5. 사용 빈도 — FrequencyWords (영어)
+
+한국어와 **같은 말뭉치 계열**(OpenSubtitles)을 쓴다. 두 말의 등급이 같은
+잣대로 매겨져야 '아주 흔함' 이 양쪽에서 같은 뜻이 되기 때문이다.
+
+## 6. 감정 극성 — VADER + AFINN
+
+- VADER (MIT): 7,209 낱말, −4 ~ +4
+- AFINN-165: 3,324 낱말, −5 ~ +5
+
+각각 [−1, 1] 로 고른 뒤 평균낸다. 두 사전이 어긋나면 평균이 0 쪽으로 당겨져
+저절로 중립이 된다. 굴절형에도 물려준다 — `loved / loving / loves` 는
+`love` 의 극성을 받는다. → **6,838 낱말**
+
+---
+
+# 두 말을 잇는 자리
+
+## 7. 개념 — MUSE 한·영 대역쌍
+
+- 출처: <https://dl.fbaipublicfiles.com/arrival/dictionaries/> (Facebook Research)
+- 쓰는 것: 대역쌍 20,465개 → **개념 7,892개**
+
+소리가 언어에 매이지 않으려면 '사랑' 과 'love' 가 같은 번호를 받아야 한다.
+다만 MUSE 를 그대로 쓸 수는 없다. 임베딩 정렬을 위해 만든 것이라
+`night → 나이트`(음차), `water → 물이`(굴절형), `sing → sing`(그대로) 같은
+잡음이 섞여 있다. 이렇게 씻는다.
+
+1. **한국어 쪽을 표제어로 되돌린다** — kiwi 로 쪼개어 `물이 → 물`,
+   `아름다운 → 아름답`.
+2. **두 사전에 다 있는 것만** 남긴다.
+3. **품사가 서로 맞는 것만** 남긴다 (명사↔체언, 동사↔용언 …).
+4. **서로가 서로의 으뜸 짝인 것만** 남긴다 — love 의 으뜸 한국어가 사랑이고
+   사랑의 으뜸 영어가 love 일 때만. 음차(러브)와 굴절형은 빈도에서 밀려
+   저절로 떨어진다.
+5. **한쪽이 겹치면 뒤엣것을 버린다.** '잡' 이 take 와 hold 둘 다이면 번호에서
+   낱말로 돌아올 때 어느 쪽인지 알 수 없다. 되찾기는 일대일이어야 한다.
+
+이렇게 20,465 → 16,917 → 7,851 로 줄어든다.
+
+### 손질 층
+
+`data/concepts_curated.tsv` 가 147개를 덮어쓴다. 통계로는 잘 잡히지 않지만
+문장의 서술어가 되는 기본 동사(오다·가다·부르다·만지다 …)와 기본 형용사가
+빠지면 다른 말로 옮길 때 문장이 통째로 무너지기 때문이다. 양쪽 사전에
+실제로 있는지 확인하고 넣는다.
+
+### 문법 개념
+
+`data/concepts_grammar.tsv` 가 6개를 맨 앞에 세운다. 가장 자주 나오므로
+가장 짧게 적혀야 한다. 한국어는 형태소로 따로 세우고 영어는 낱말 안에 녹여
+넣는, 같은 뜻의 것들이다 — 과거·미래·복수·부정·3인칭단수·진행.
+
+---
+
 ## 형태소 분석기 — kiwipiepy
 
 - 출처: <https://github.com/bab2min/kiwipiepy>
@@ -85,12 +161,16 @@ KNU 는 부정 쪽으로 크게 치우쳐 있다(부정 9,829 : 긍정 4,871, �
 ## 다시 만들기
 
 ```bash
-python tools/fetch_data.py        # 원본 내려받기 (~28MB)
-python tools/build_lexicon.py     # 표제어 244,352
-python tools/build_frequency.py   # 형태소 빈도 71,474  (~10초)
-python tools/build_sentiment.py   # 극성 2,408
-python tools/build_dictionary.py  # 사전 286,068
-python tools/verify.py            # 규칙 준수 확인
+python tools/fetch_data.py           # 원본 내려받기 (~53MB)
+python tools/build_lexicon.py        # 한국어 표제어 244,352
+python tools/build_frequency.py      # 한국어 형태소 빈도 71,474
+python tools/build_sentiment.py      # 한국어 극성 2,408
+python tools/build_lexicon_en.py     # 영어 표제어 260,000
+python tools/build_sentiment_en.py   # 영어 극성 6,838
+python tools/build_dictionary.py     # 두 사전
+python tools/build_concepts.py       # 개념 7,892
+python tools/verify.py               # 다섯 약속 확인
+python tools/build_site.py           # 웹페이지 자료
 ```
 
 같은 원본에서는 언제나 같은 사전이 나온다. 무작위가 끼어드는 곳이 없다.

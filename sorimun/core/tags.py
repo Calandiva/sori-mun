@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from enum import Enum
-
 # ── 대분류 ───────────────────────────────────────────────────────────
 SUBSTANTIVE = {"NNG", "NNP", "NNB", "NNBC", "NP", "NR"}   # 체언
 PREDICATE = {"VV", "VA", "VX", "VCP", "VCN"}              # 용언
@@ -42,16 +40,3 @@ def normalize(tag: str) -> str:
     if "-" in tag:
         tag = tag.split("-", 1)[0]
     return tag
-
-
-class Role(str, Enum):
-    """문장 성분. 낱말이 문장 안에서 실제로 맡는 자리."""
-
-    SUBJECT = "주어"
-    OBJECT = "목적어"
-    PREDICATE = "서술어"
-    COMPLEMENT = "보어"
-    ADNOMINAL = "관형어"
-    ADVERBIAL = "부사어"
-    INDEPENDENT = "독립어"
-    MARKER = "표지"      # 조사·어미 자체

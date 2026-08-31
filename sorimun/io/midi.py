@@ -5,7 +5,7 @@ from __future__ import annotations
 import struct
 from pathlib import Path
 
-from ..compose import Score
+from ..compose import Piece
 
 TICKS_PER_QUARTER = 480
 TICKS_PER_UNIT = TICKS_PER_QUARTER // 4   # 1단위 = 16분음표
@@ -39,7 +39,7 @@ def _track(events: list[tuple[int, int, bytes]]) -> bytes:
     return b"MTrk" + struct.pack(">I", len(out)) + bytes(out)
 
 
-def write(score: Score, path: Path | str, channel: int = 0,
+def write(piece: Piece, path: Path | str, channel: int = 0,
           program: int = 0, title: str | None = None) -> Path:
     """악보를 .mid 파일로 쓴다.
 
@@ -48,13 +48,13 @@ def write(score: Score, path: Path | str, channel: int = 0,
     path = Path(path)
     events: list[tuple[int, int, bytes]] = []
 
-    name = (title or (score.sentence.text if score.sentence else "소리문"))[:120]
+    name = (title or (piece.analysis.text if piece.analysis else "소리문"))[:120]
     events.append((0, 0, _meta(0x03, name.encode("utf-8"))))
-    mpqn = int(60_000_000 / max(1, score.tempo))
+    mpqn = int(60_000_000 / max(1, piece.tempo))
     events.append((0, 0, _meta(0x51, struct.pack(">I", mpqn)[1:])))
     events.append((0, 0, bytes([0xC0 | channel, program])))
 
-    for n in score.notes:
+    for n in piece.notes:
         on = n.start * TICKS_PER_UNIT
         off = on + max(1, n.duration * TICKS_PER_UNIT)
         for p in n.pitches:

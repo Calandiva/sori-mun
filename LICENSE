@@ -27,3 +27,7 @@ data/ 아래 사전 자료는 각 원본의 라이선스를 따른다 (docs/DATA
   mecab-ko-dic       Apache-2.0
   FrequencyWords     CC-BY-SA 4.0
   KNU 한국어 감성사전   군산대학교
+  Moby Part-of-Speech  public domain (Grady Ward)
+  VADER              MIT
+  AFINN-165          Open Database License
+  MUSE 한·영 대역쌍     Facebook Research

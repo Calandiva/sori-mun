@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """웹페이지가 쓸 자료를 만든다.
 
-예제 문장을 실제로 분석·작곡해서 그 결과를 그대로 싣는다. 페이지에
-적힌 분석표와 악보는 파이썬이 낸 것과 같은 값이며, 브라우저는 그것을
-그리고 소리로 낼 뿐이다.
+브라우저에서도 **되읽기**는 그대로 된다. 되읽기에는 형태소 분석기가
+필요 없고 화음 은행과 개념표만 있으면 되기 때문이다. 그래서 페이지는
+소리를 넣으면 한국어와 영어로 내어 준다.
+
+다만 한국어 활용(아름답 + ㄴ → 아름다운)은 브라우저에서 지을 수 없으므로,
+자리마다 필요한 꼴을 여기서 미리 지어 실어 보낸다.
 
 내는 것: docs/data.js
 """
@@ -17,178 +20,155 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from sorimun.compose import ROLE_RULES, Composer  # noqa: E402
-from sorimun.core import pitch  # noqa: E402
-from sorimun.core.analyze import Analyzer  # noqa: E402
-from sorimun.core.harmony import Quality, shape_table  # noqa: E402
-from sorimun.core.markers import GESTURE, GESTURE_NAME  # noqa: E402
-from sorimun.core.tags import KOREAN_NAME, Role  # noqa: E402
-from sorimun.dictionary import Dictionary  # noqa: E402
-from sorimun.io.text import TIER_LABEL  # noqa: E402
+from sorimun.compose import Composer  # noqa: E402
+from sorimun.concepts import Concepts  # noqa: E402
+from sorimun.core import codes as C, pitch  # noqa: E402
+from sorimun.core.banks import BANKS  # noqa: E402
+from sorimun.core.glyph import Kind  # noqa: E402
+from sorimun.core.harmony import Quality  # noqa: E402
+from sorimun.core.roles import ENGLISH_NAME, ORDER as ROLES  # noqa: E402
+from sorimun.decompose import read, render  # noqa: E402
+from sorimun.dictionary import TIER_LABEL, TIER_LABEL_EN  # noqa: E402
+from sorimun.generate import _korean_one  # noqa: E402
+from sorimun.lang import get, inflect_en as INF  # noqa: E402
 
 OUT = ROOT / "docs" / "data.js"
 
 EXAMPLES = [
-    ("아름다운 노래가 어두운 밤을 천천히 어루만졌다.",
-     "일곱 성분 중 다섯이 한 문장에 다 나온다. 관형어는 높고 짧게 스치고, "
-     "서술어는 C3 까지 내려가 길게 착지한다."),
-    ("사랑은 죽음보다 강하다.",
-     "긍정어 '사랑'은 장3도 관계, 부정어 '죽음'은 단3도 관계를 받는다. "
-     "감정 축이 가장 또렷하게 들리는 문장."),
-    ("철수야, 물이 얼음이 되었다.",
-     "'물이'와 '얼음이'는 똑같이 '이'로 끝나지만 하나는 주격(JKS), 하나는 "
-     "보격(JKC)이다. 조사가 다르니 몸짓도 다르다."),
-    ("밥은 내가 먹었다.",
-     "'밥은'의 은/는은 주어 표시가 아니다. 뒤에 진짜 주어 '내가'가 있으므로 "
-     "'밥은'은 목적어로 잡히고 중고음역으로 올라간다."),
-    ("그는 슬픔의 노래를 부른다.",
-     "관형격 '의'는 상행 단2도 — 바로 뒤 체언에 매달리는 소리다."),
-    ("아, 봄이 왔구나!",
-     "감탄사 '아'는 독립어. 가장 높은 자리에서 앞뒤로 긴 쉼표를 두르고 홀로 "
-     "울린다. 느낌표는 서술어의 세기를 올린다."),
-    ("너는 어디로 가니?",
-     "물음표는 맨 끝에 상행 장2도를 하나 덧붙여 말끝을 올린다."),
-    ("쀍뿕뿅이 우두두두 쏟아졌다.",
-     "'쀍뿕뿅'은 사전에 없다. 미등재어는 화음 넷짜리 긴 음형을 받아 "
-     "길고 낯설게 울린다."),
+    ("ko", "아이가 조용히 웃었다.",
+     "일곱 자리 가운데 셋이 나온다. 소리에는 '아이·웃다·과거·조용히' 라는 "
+     "개념만 담기고 조사와 어미는 담기지 않는다. 그래서 영어로도 읽힌다."),
+    ("en", "The child laughed quietly.",
+     "위와 똑같은 소리다. 영어로 적었지만 소리는 같은 개념을 담으므로 "
+     "한국어로 읽어 내면 '아이가 조용히 웃었다' 가 나온다."),
+    ("ko", "바람이 꽃을 흔들었다.",
+     "주어·목적어·서술어가 모두 개념으로 적힌다. 자리는 역할 화음이, "
+     "뜻은 의미 화음과 자릿 화음이 나른다."),
+    ("en", "The water was dark.",
+     "영어의 'was' 는 한국어에 없다. 그래서 소리에 담기지 않고, 과거라는 "
+     "개념만 담긴다. 한국어로 읽으면 '어두웠다' 로 되살아난다."),
+    ("ko", "아름다운 노래가 어두운 밤을 천천히 어루만졌다.",
+     "'어루만지다' 는 개념표에 없어 한국어 전용으로 적힌다. 그런 낱말은 "
+     "다른 말로 옮겨지지 않는다 — 소리에 옮겨진 몫이 표시된다."),
+    ("ko", "쀍뿕뿅이 우두두두 쏟아졌다.",
+     "사전에도 없는 말은 글자를 하나씩 받아 적는다. 길고 더듬거리지만 "
+     "글자 하나 틀리지 않고 돌아온다."),
+    ("en", "Love is stronger than death.",
+     "비교급과 전치사는 영어의 것이라 소리에 담기지 않는다. 개념으로 "
+     "옮겨진 몫이 낮아지는 것이 그대로 드러난다."),
+    ("en", "Zxqwv frobnicates the widget.",
+     "사전에 없는 영어 낱말도 글자로 받아 적힌다."),
 ]
 
-# 사전에서 페이지에 실을 몫. 전부 싣기에는 28만 개가 너무 크다.
-DICT_MARKERS = True          # 조사·어미는 전부
-DICT_CONTENT_TOP = 4000      # 내용어는 빈도 상위만
+
+# 체언은 받침만 보면 조사를 붙일 수 있으므로 브라우저가 짓는다.
+# 활용이 필요한 용언만 미리 지어 실어 보낸다.
+_PREDICATE_TAGS = {"VV", "VA", "VX", "VCP", "VCN", "XR"}
 
 
-def role_key(role: Role) -> str:
-    return role.value
+def korean_forms(c, kiwi):
+    """활용이 필요한 낱말만, 자리마다의 꼴을 미리 지어 둔다."""
+    if c.ko_tag not in _PREDICATE_TAGS:
+        return None
+    from sorimun.core.roles import Role
+    return {
+        "p": _korean_one(c.ko_form, c.ko_tag, Role.PREDICATE, kiwi, []),
+        "pp": _korean_one(c.ko_form, c.ko_tag, Role.PREDICATE, kiwi, [INF.PAST]),
+        "a": _korean_one(c.ko_form, c.ko_tag, Role.ADNOMINAL, kiwi, []),
+        "ap": _korean_one(c.ko_form, c.ko_tag, Role.ADNOMINAL, kiwi, [INF.PAST]),
+        "v": _korean_one(c.ko_form, c.ko_tag, Role.ADVERBIAL, kiwi, []),
+    }
 
 
 def main() -> int:
-    analyzer = Analyzer()
-    d = Dictionary()
-    composer = Composer(d)
+    ka, ea = get("ko"), get("en")
+    kiwi = getattr(ka, "_kiwi", None)
+    cx = Concepts.load()
 
     examples = []
-    for text, note in EXAMPLES:
-        s = analyzer.analyze(text)
-        sc = composer.compose(s)
-        seen = set()
-        mapping = []
-        for label, e, _role in sc.entries:
-            if label in seen:
-                continue
-            seen.add(label)
-            item = {
-                "form": e.form, "tag": e.tag,
-                "tagName": KOREAN_NAME.get(e.tag, e.tag),
-                "kind": e.kind, "events": e.phrase.n_events,
-            }
-            if e.is_marker:
-                item["gesture"] = GESTURE[e.tag]
-                item["gestureName"] = GESTURE_NAME[e.tag]
-            else:
-                item["tier"] = e.tier
-                item["tierLabel"] = "미등재" if not e.known else TIER_LABEL[e.tier]
-                item["polarity"] = e.polarity
-                item["quality"] = e.quality
-                item["known"] = e.known
-            mapping.append(item)
-
+    for lang, text, note in EXAMPLES:
+        an = ka if lang == "ko" else ea
+        p = Composer(lang, analyzer=an).compose(an.analyze(text))
+        r = read(p.chords)
         examples.append({
-            "text": text,
-            "note": note,
-            "term": s.terminator,
-            "tempo": sc.tempo,
-            "length": sc.length,
-            "eojeols": [
-                {
-                    "surface": e.surface,
-                    "role": role_key(e.role),
-                    "guessed": e.guessed,
-                    "morphs": [
-                        {"form": m.form, "tag": m.tag,
-                         "tagName": KOREAN_NAME.get(m.tag, m.tag)}
-                        for m in e.morphs
-                    ],
-                }
-                for e in s.eojeols
+            "lang": lang, "text": text, "note": note,
+            "tempo": p.tempo,
+            "translatable": round(p.translatable, 3),
+            "ko": render(r, "ko", ka),
+            "en": render(r, "en", ea),
+            "tokens": [
+                {"form": t.form, "tag": t.tag, "role": t.role.value,
+                 "group": t.group}
+                for t in p.analysis.tokens
             ],
-            "map": mapping,
             "notes": [
                 {"p": list(n.pitches), "s": n.start, "d": n.duration,
-                 "v": n.velocity, "src": n.source, "role": n.role,
-                 "k": n.kind, "e": n.eojeol}
-                for n in sorted(sc.notes, key=lambda x: x.start)
+                 "v": n.velocity, "slot": n.slot, "src": n.source,
+                 "role": n.role, "g": n.glyph}
+                for n in sorted(p.notes, key=lambda x: x.start)
+            ],
+            "glyphs": [
+                {"role": g.role.value, "kind": g.kind.value,
+                 "lang": g.lang, "tier": g.tier,
+                 "quality": g.quality.value, "index": g.index,
+                 "label": lab}
+                for g, lab in zip(p.glyphs, p.labels)
             ],
         })
 
-    # ── 규칙표 ──────────────────────────────────────────────────────
-    table = shape_table()
-    tiers = []
-    for t in range(6):
-        tiers.append({
-            "tier": t,
-            "label": TIER_LABEL[t],
-            "shapes": {
-                q.value: [list(s.voicing) for s in table.get((t, q), [])[:6]]
-                for q in Quality
-            },
-            "counts": {q.value: len(table.get((t, q), [])) for q in Quality},
-        })
-
-    roles = []
-    for role in (Role.INDEPENDENT, Role.ADNOMINAL, Role.OBJECT, Role.COMPLEMENT,
-                 Role.SUBJECT, Role.ADVERBIAL, Role.PREDICATE):
-        r = ROLE_RULES[role]
-        roles.append({
-            "role": role.value, "register": r.register,
-            "registerName": pitch.name(r.register),
-            "dur": (f"×{r.dur_num}" if r.dur_den == 1
-                    else f"×{r.dur_num}/{r.dur_den}"),
-            "velocity": r.velocity, "note": r.note,
-        })
-
-    gestures = [
-        {"tag": t, "name": KOREAN_NAME.get(t, t), "semitones": g,
-         "gesture": GESTURE_NAME[t]}
-        for t, g in GESTURE.items()
-    ]
-
-    # ── 사전 일부 ───────────────────────────────────────────────────
-    entries = list(d.entries)
-    markers = [e for e in entries if e.is_marker]
-    content = sorted(
-        (e for e in entries if not e.is_marker), key=lambda e: -e.freq
-    )[:DICT_CONTENT_TOP]
-    chosen = markers + content if DICT_MARKERS else content
-    # [표제어, 품사, 등급(표지는 -1), 극성, 빈도, 프레이즈코드]
-    dict_rows = [
-        [e.form, e.tag, e.tier, e.polarity, e.freq, e.code]
-        for e in sorted(chosen, key=lambda e: (-e.freq, e.form))
-    ]
-
-    payload = {
-        "meta": {
-            "entries": len(d),
-            "markers": len(markers),
-            "lowest": pitch.LOWEST,
-            "highest": pitch.HIGHEST,
-            "shapeCount": sum(len(v) for v in table.values()),
-            "dictSample": len(dict_rows),
-        },
-        "examples": examples,
-        "rules": {"tiers": tiers, "roles": roles, "gestures": gestures},
-        "dict": dict_rows,
+    banks = {
+        "role": [list(BANKS.role[i].voicing) for i in range(8)],
+        "meaning": {f"{t}/{q.value}": list(BANKS.meaning[(t, q)].voicing)
+                    for t in range(6) for q in Quality},
+        "language": {k: list(v.voicing) for k, v in BANKS.language.items()},
+        "letter": {k: list(v.voicing) for k, v in BANKS.letter.items()},
+        "digit": {q.value: [list(s.voicing) for s in v]
+                  for q, v in BANKS.digit.items()},
+        "close": [list(s.voicing) for s in BANKS.close],
+        "term": [list(s.voicing) for s in BANKS.term],
     }
 
+    codes = {
+        "roles": [r.value for r in ROLES],
+        "rolesEn": [ENGLISH_NAME[r] for r in ROLES],
+        "rolePitch": [C.ROLE_PITCH[r] for r in ROLES],
+        "band": [C.BAND[r] for r in ROLES],
+        "flagOffsets": list(C.FLAG_OFFSETS),
+        "digitOffsets": list(C.DIGIT_OFFSETS),
+        "base": C.BASE,
+        "terminators": list(C.TERMINATORS),
+        "lowest": pitch.LOWEST, "highest": pitch.HIGHEST,
+        "tierLabel": list(TIER_LABEL), "tierLabelEn": list(TIER_LABEL_EN),
+    }
+
+    # 개념표 — 되읽기와 생성에 필요한 것만
+    # 자리를 아끼려고 배열로 싣는다: [한국어, 품사, 영어, 품사, 등급, 극성, 활용]
+    concepts = []
+    for c in cx.all:
+        f = korean_forms(c, kiwi)
+        row = [c.ko_form, c.ko_tag, c.en_form, c.en_tag, c.tier, c.polarity]
+        if f:
+            row.append([f["p"], f["pp"], f["a"], f["ap"], f["v"]])
+        concepts.append(row)
+
+    from sorimun.core import alphabet
+    payload = {
+        "codes": codes, "banks": banks, "examples": examples,
+        "concepts": concepts,
+        "alphabet": {k: "".join(v) for k, v in alphabet.ALPHABET.items()},
+        "meta": {
+            "concepts": len(cx),
+            "ko": 286068, "en": 260000,
+            "reserved": len(BANKS.all_shapes()),
+        },
+    }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(
         "window.SORIMUN = "
         + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-        + ";\n",
-        encoding="utf-8",
-    )
+        + ";\n", encoding="utf-8")
     print(f"→ {OUT.relative_to(ROOT)} ({OUT.stat().st_size:,}B)")
-    print(f"  예제 {len(examples)}개, 사전 표본 {len(dict_rows):,}개")
+    print(f"  예제 {len(examples)}개, 개념 {len(concepts):,}개")
     return 0
 
 

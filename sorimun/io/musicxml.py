@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from ..compose import Score
+from ..compose import Piece
 
 DIVISIONS = 4           # 4분음표 = 4 등분  →  1등분 = 16분음표
 BEATS_PER_MEASURE = 16  # 4/4 한 마디
@@ -41,9 +41,9 @@ def _pitch_xml(midi: int) -> str:
     return f"<pitch><step>{_STEP[pc]}</step>{alter}<octave>{octave}</octave></pitch>"
 
 
-def _events(score: Score) -> list[tuple[int, int, tuple[int, ...] | None, str]]:
+def _events(piece: Piece) -> list[tuple[int, int, tuple[int, ...] | None, str]]:
     """(시작, 길이, 음높이들 또는 None=쉼표, 설명) 을 시간 순으로."""
-    notes = sorted(score.notes, key=lambda n: (n.start, min(n.pitches)))
+    notes = sorted(piece.notes, key=lambda n: (n.start, min(n.pitches)))
     out = []
     cursor = 0
     for n in notes:
@@ -56,9 +56,9 @@ def _events(score: Score) -> list[tuple[int, int, tuple[int, ...] | None, str]]:
     return out
 
 
-def write(score: Score, path: Path | str, title: str | None = None) -> Path:
+def write(piece: Piece, path: Path | str, title: str | None = None) -> Path:
     path = Path(path)
-    title = title or (score.sentence.text if score.sentence else "소리문")
+    title = title or (piece.analysis.text if piece.analysis else "소리문")
 
     body: list[str] = []
     measure = 1
@@ -80,14 +80,14 @@ def write(score: Score, path: Path | str, title: str | None = None) -> Path:
             body.append(
                 f"<direction placement=\"above\"><direction-type>"
                 f"<metronome><beat-unit>quarter</beat-unit>"
-                f"<per-minute>{score.tempo}</per-minute></metronome>"
-                f"</direction-type><sound tempo=\"{score.tempo}\"/></direction>"
+                f"<per-minute>{piece.tempo}</per-minute></metronome>"
+                f"</direction-type><sound tempo=\"{piece.tempo}\"/></direction>"
             )
             first = False
 
     open_measure()
 
-    for _start, dur, pitches, label in _events(score):
+    for _start, dur, pitches, label in _events(piece):
         left = dur
         while left > 0:
             take = min(left, BEATS_PER_MEASURE - filled)
@@ -141,15 +141,15 @@ def write(score: Score, path: Path | str, title: str | None = None) -> Path:
 
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN"'
+        '<!DOCTYPE piece-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN"'
         ' "http://www.musicxml.org/dtds/partwise.dtd">\n'
-        '<score-partwise version="3.1">'
+        '<piece-partwise version="3.1">'
         f"<work><work-title>{escape(title)}</work-title></work>"
         "<identification><encoding><software>sori-mun</software></encoding>"
         "</identification>"
-        '<part-list><score-part id="P1">'
-        "<part-name>소리문</part-name></score-part></part-list>"
-        '<part id="P1">' + "".join(body) + "</part></score-partwise>\n"
+        '<part-list><piece-part id="P1">'
+        "<part-name>소리문</part-name></piece-part></part-list>"
+        '<part id="P1">' + "".join(body) + "</part></piece-partwise>\n"
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(xml, encoding="utf-8")

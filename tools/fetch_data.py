@@ -60,6 +60,7 @@ MECAB_FILES = [
 ]
 
 OTHER = {
+    # 한국어
     "frequency_ko.txt": (
         "https://raw.githubusercontent.com/hermitdave/FrequencyWords/"
         "master/content/2018/ko/ko_full.txt"
@@ -67,6 +68,35 @@ OTHER = {
     "knu_sentiment.json": (
         "https://raw.githubusercontent.com/park1200656/KnuSentiLex/"
         "master/data/SentiWord_info.json"
+    ),
+    # 영어 — 빈도는 한국어와 같은 말뭉치 계열(OpenSubtitles)을 써서
+    # 두 언어의 등급이 같은 잣대로 매겨지게 한다.
+    "frequency_en.txt": (
+        "https://raw.githubusercontent.com/hermitdave/FrequencyWords/"
+        "master/content/2018/en/en_full.txt"
+    ),
+    # Moby Part-of-Speech (Grady Ward, public domain) — 표제어와 품사
+    "pos_en.txt": (
+        "https://raw.githubusercontent.com/en-wl/wordlist/"
+        "master/pos/part-of-speech.txt"
+    ),
+    # VADER (MIT) — 감정 극성
+    "vader_lexicon.txt": (
+        "https://raw.githubusercontent.com/cjhutto/vaderSentiment/"
+        "master/vaderSentiment/vader_lexicon.txt"
+    ),
+    # AFINN-165 — VADER 를 보완한다
+    "afinn_165.txt": (
+        "https://raw.githubusercontent.com/fnielsen/afinn/"
+        "master/afinn/data/AFINN-en-165.txt"
+    ),
+    # 한·영 대역쌍 (MUSE, Facebook Research) — 개념 층의 바탕.
+    # 소리를 언어에 매이지 않게 하려면 두 말을 잇는 표가 있어야 한다.
+    "muse_en_ko.txt": (
+        "https://dl.fbaipublicfiles.com/arrival/dictionaries/en-ko.txt"
+    ),
+    "muse_ko_en.txt": (
+        "https://dl.fbaipublicfiles.com/arrival/dictionaries/ko-en.txt"
     ),
 }
 
