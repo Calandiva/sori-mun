@@ -627,11 +627,15 @@
   function composeSentence(lang, sentence, term) {
     const glyphs = [];   // {roleIdx,kind,lang,tier,qi,index,close,flag,pol,label}
     const analysis = [];
-    const push = (...gs) => glyphs.push(...gs);
+    let wordRef = () => -1;
+    const push = (...gs) => glyphs.push(...gs.map(g => (g.word = wordIdx, g)));
 
+    let wordIdx = -1;
+    const stamp = g => { g.word = wordIdx; return g; };
     if (lang === "ko") {
       const chunks = analyzeKo(sentence);
       for (const c of chunks) {
+        wordIdx++;
         analysis.push({ surface: c.surface, role: c.role,
           morphs: c.spell ? [[c.core || c.surface, "받아적기"]] : c.morphs,
           spelled: c.spell });
@@ -673,6 +677,7 @@
         byGroup.get(t.group).push(t);
       }
       for (const [g, group] of byGroup) {
+        wordIdx++;
         const surface = group.map(t => t.raw).join("");
         const back = joinEn(group);
         const contentRoles = group.filter(t => t.role !== "표지");
@@ -739,13 +744,15 @@
         for (const e of ev) {
           sNotes.push({ p: e.p, s: cursor, d: e.d, v: e.v, slot: e.slot,
                         src: g.label, role: K.roles[g.roleIdx],
-                        g: notes.length ? undefined : undefined });
+                        w: g.word, si: sentences.length,
+                        kind: g.kind, qi: g.qi, idx: g.index });
           cursor += e.d + e.rest;
         }
       }
       const t = terminatorEvent(term);
       sNotes.push({ p: t.p, s: cursor, d: t.d, v: t.v, slot: "종결",
-                    src: "종결 " + term, role: "맺음" });
+                    src: "종결 " + term, role: "맺음",
+                    w: -1, si: sentences.length, kind: -1 });
       cursor += t.d + t.rest;
       notes.push(...sNotes);
       sentences.push(s);
@@ -769,16 +776,23 @@
   /* ══ 소리 빚기 — 파이썬 wave_out 과 같은 잣대 ══ */
   const SR = 44100, PARTIALS = [[1,1],[2,.28],[3,.14],[4,.06]];
   const ATTACK = .012, REL = .06, GAP = .13, MIN_DUR = .30;
-  function synth(notes, tempo) {
+  function schedule(notes, tempo) {
+    // (시작초, 길이초, 원래 note) — 재생과 시각화가 같은 시계를 쓴다
     const unit = 60 / (tempo || 72) / 4;
-    const sched = [];
+    const out = [];
     let t = 0;
     for (const n of [...notes].sort((a, b) => a.s - b.s)) {
       const dur = Math.max(MIN_DUR, n.d * unit);
-      sched.push([t, dur, n.p, n.v]);
+      out.push([t, dur, n]);
       t += dur + GAP;
     }
-    const total = Math.ceil((t + REL + .3) * SR);
+    return out;
+  }
+
+  function synth(notes, tempo) {
+    const sched = schedule(notes, tempo).map(([t, dur, n]) => [t, dur, n.p, n.v]);
+    const last = sched[sched.length - 1];
+    const total = Math.ceil((last[0] + last[1] + REL + .3) * SR);
     const buf = new Float64Array(total);
     for (const [start, hold, pitches, vel] of sched) {
       const t0 = Math.round(start * SR);
@@ -842,7 +856,7 @@
   }
 
   window.SoriWrite = { compose, analyzeKo, analyzeEn, joinKo, joinEn,
-                       synth, wavBlob, SR, lookupRev, approxOf,
-                       isConcept, inDict,
+                       synth, wavBlob, schedule, SR, lookupRev, approxOf,
+                       isConcept, inDict, encodeGlyph, terminatorEvent,
                        detect: t => /[가-힣ᄀ-ᇿ]/.test(t) ? "ko" : "en" };
 })();

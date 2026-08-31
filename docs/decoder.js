@@ -440,5 +440,7 @@
   }
 
   window.SoriRead = { read, readAll, decodeGlyph, toKorean, toEnglish,
-                      toSame, crossItems, chordsFromSamples, key, root };
+                      toSame, crossItems, chordsFromSamples, key, root,
+                      tables: { ROLE, MEANING, LANG, LETTER, DIGIT,
+                                CLOSE, TERM } };
 })();

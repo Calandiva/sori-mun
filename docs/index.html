@@ -108,6 +108,48 @@ a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 footer a{color:var(--ink2)}
 audio{width:100%;margin-top:10px}
+.quad{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:18px}
+.quadcell{border:1px solid var(--line);border-left-width:3px;border-radius:8px;
+  padding:12px 14px;background:var(--bg2)}
+.quadhead{margin-bottom:4px}
+.hit4{grid-template-columns:minmax(110px,auto) 1fr auto auto}
+#keys{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;padding:8px 0}
+.key{flex:0 0 34px;height:74px;border-radius:0 0 5px 5px;cursor:pointer;
+  background:#dde4ec;border:1px solid #0d1014;position:relative;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px}
+.key span{font-family:var(--mono);font-size:.56rem;color:#3a4655}
+.key.black{background:#232c37;height:52px;flex-basis:26px;margin:0 -7px;z-index:2}
+.key.black span{color:#8fa3b8}
+.key.on{background:var(--accent)}
+.key.black.on{background:#b98a2c}
+.key.on span{color:#1a1207}
+.seqchip{display:inline-block;background:var(--bg3);border:1px solid var(--line);
+  border-radius:5px;padding:2px 7px;margin:2px 3px 2px 0;font-size:.68rem;
+  cursor:pointer;color:var(--ink2)}
+#candBox{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}
+.cand{font-family:var(--mono);font-size:.68rem;border-radius:5px;cursor:pointer;
+  padding:3px 8px;background:var(--bg3);border:1px solid var(--line);color:var(--ink2)}
+.cand:hover{border-color:var(--accent);color:var(--accent)}
+.cand.major{border-left:3px solid var(--major)}
+.cand.minor{border-left:3px solid var(--minor)}
+.cand.neutral{border-left:3px solid var(--neutral)}
+#pianoOut{font-family:var(--serif);font-size:1rem;white-space:pre-wrap;
+  color:var(--ink);margin-top:10px;line-height:1.7}
+#cinema{position:fixed;inset:0;background:#05070a;z-index:999;
+  display:flex;flex-direction:column;padding:22px 28px;gap:8px}
+#cinema[hidden]{display:none}
+.cnbar{display:flex;align-items:center;gap:16px}
+#cnWords{flex:1;font-family:var(--serif);font-size:1.15rem;line-height:1.8}
+.cnword{margin-right:.55em;color:#5b6b7f;border-bottom:1px solid transparent;
+  transition:color .15s,border-color .15s}
+.cnword.on{color:#e6edf5;border-bottom-color:#e9b44c}
+#cnClock{font-family:var(--mono);font-size:.75rem;color:#5b6b7f}
+#cnAsm{width:100%;max-width:900px;margin:6px auto;flex:0 0 auto;display:block}
+#cnRoll{width:100%;flex:1;min-height:0;display:block}
+.cnclose{background:none;border:1px solid var(--line2);color:var(--ink2);
+  border-radius:999px;padding:5px 16px;cursor:pointer;font-size:.82rem}
+.cnclose:hover{border-color:var(--accent);color:var(--accent)}
+.cnfoot{font-size:.7rem;color:#43536a;font-family:var(--mono)}
 @media(max-width:640px){section{padding:48px 0}.hit{grid-template-columns:1fr auto}}
 </style>
 </head>
@@ -144,6 +186,7 @@ audio{width:100%;margin-top:10px}
         <div class="rollhead">
           <button class="act primary" id="wplay">▶ 들어보기</button>
           <button class="act" id="wdl">⬇ WAV 내려받기</button>
+          <button class="act" id="wcine">◈ 시각화</button>
           <div class="legend">
             <span><i class="sw" style="background:var(--major)"></i>장 · 긍정</span>
             <span><i class="sw" style="background:var(--minor)"></i>단 · 부정</span>
@@ -177,6 +220,24 @@ audio{width:100%;margin-top:10px}
       <button class="act primary" id="doRead">읽기</button>
       <span class="err" id="rerr"></span>
     </div>
+    <div class="panel" style="margin-top:26px">
+      <h3>화음을 눌러 낱말 짓기 — 안내형 입력</h3>
+      <p class="sub" style="font-size:.85rem;margin-bottom:12px">
+        느리지만 정확하게 — 지금 상태에서 올 수 있는 화음이 단추로 나온다.
+        역할 → 머리 → 자릿수 → 맺음 순서로 누르면 낱말 하나가 완성되어
+        아래에 두 말로 읽힌다. 건반은 자유 입력용이다.</p>
+      <div id="pianoState" class="dim" style="font-size:.85rem"></div>
+      <div id="candBox"></div>
+      <div id="keys"></div>
+      <div class="row">
+        <span class="mono dim" style="font-size:.78rem">고른 음: <span id="pickShow">—</span></span>
+        <button class="act" id="addChord">이 화음 넣기</button>
+        <button class="act" id="undoChord">하나 지우기</button>
+        <button class="act" id="clearChord">모두 지우기</button>
+      </div>
+      <div id="seqShow" style="margin:6px 0"></div>
+      <div id="pianoOut"></div>
+    </div>
     <div id="rout" hidden>
       <div class="readings">
         <div class="reading k"><span class="tag">한국어로</span>
@@ -187,6 +248,24 @@ audio{width:100%;margin-top:10px}
       <div class="panel"><h3>되찾은 것</h3>
         <div class="scroll"><table id="tblRead"></table></div></div>
     </div>
+  </div>
+</section>
+
+<section id="theory">
+  <div class="wrap">
+    <h2><span class="en">WHY THESE RULES</span>이론적 배경 — 두 축의 조화</h2>
+    <p class="sub">흔한 낱말 = 익숙한 화음(지프의 법칙 × 감각적 협화,
+      Plomp–Levelt 1965), 긍정 = 장 · 부정 = 단(Hevner 1935 이래의 조성
+      정서 효과). 두 축이 어긋나지 않는 것은 등급을 <b>성질 안에서</b>
+      매기기 때문이다 — 장3화음은 구조적으로 완전5도만큼 협화로울 수
+      없으므로, 절대 거칢으로 자르면 「흔함×장」 칸이 영원히 빈다.
+      아래 수치는 <code class="mono">tools/verify_axes.py</code> 가 실제로
+      재는 값이며, 점과 단추는 그 화음을 그대로 들려준다.
+      전문은 <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/THEORY.md">THEORY.md</a>.</p>
+    <div class="panel" id="theoryBody">
+      <h3>검증 — 익숙함의 사다리, 그리고 네 사분면</h3>
+    </div>
+    <div class="verify" id="axesOut"></div>
   </div>
 </section>
 
@@ -203,6 +282,19 @@ audio{width:100%;margin-top:10px}
       <div class="scroll"><table id="tblRoles"></table></div></div>
     <div class="panel"><h3>의미 화음 — 협화도는 빈도가, 장·단은 감정이 정한다</h3>
       <div class="scroll"><table id="tblTier"></table></div></div>
+  </div>
+</section>
+
+<section id="dict">
+  <div class="wrap">
+    <h2><span class="en">FULL DICTIONARY</span>사전 — 전부 찾아진다</h2>
+    <p class="sub">한국어 286,068 + 영어 260,000 항목 전체. 낱말을 넣으면
+      등급·성질·개념 이음을 보이고, ♪ 단추가 그 낱말의 글리프를 화음
+      차례로 들려준다. (처음 한 번만 사전을 내려받는다 — 5MB쯤)</p>
+    <div class="row"><input id="dictQ" type="search"
+      placeholder="아무 낱말이나 — 어루만지다의 어간 '어루만지', 밤, serendipity …"
+      autocomplete="off"></div>
+    <div id="dictHits"></div>
   </div>
 </section>
 
@@ -251,9 +343,23 @@ audio{width:100%;margin-top:10px}
   </div>
 </footer>
 
+<div id="cinema" hidden>
+  <div class="cnbar">
+    <div id="cnWords"></div>
+    <span id="cnClock"></span>
+    <button class="cnclose" id="cnClose">✕ 닫기</button>
+  </div>
+  <svg id="cnAsm" xmlns="http://www.w3.org/2000/svg"></svg>
+  <svg id="cnRoll" xmlns="http://www.w3.org/2000/svg"
+       preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="cnfoot">낱말을 해체하고 — 개념 번호로 바꾸고 — 32진법으로 풀고 —
+    화음으로 조립한다 · 부호는 음높이와 화성뿐 · C3–C5</div>
+</div>
+
 <script src="data.js"></script>
 <script src="decoder.js"></script>
 <script src="encoder.js"></script>
+<script src="studio.js"></script>
 <script>
 (function(){
 "use strict";
@@ -423,6 +529,7 @@ function convert(scroll){
   });
 
   // 소리 준비
+  window.__lastPiece=p;
   lastPcm=W.synth(p.notes,72);
   if(lastBlobUrl)URL.revokeObjectURL(lastBlobUrl);
   lastBlobUrl=URL.createObjectURL(W.wavBlob(lastPcm));
@@ -529,6 +636,36 @@ $("#afile").addEventListener("change",async ev=>{
   }catch(e){$("#rerr").textContent="소리를 읽지 못했다: "+e.message;}
   ev.target.value="";
 });
+
+/* ── 스튜디오 배선 ── */
+const ST=window.SoriStudio;
+ST.renderTheory();
+$("#axesOut").textContent=
+`$ python tools/verify_axes.py
+
+✓ 세 성질 모두에서 의미 화음의 불협화도가 등급 따라 단조 증가
+    장   0.157 → 0.240 → 0.350 → 0.430 → 0.493 → 0.578
+    단   0.170 → 0.265 → 0.330 → 0.403 → 0.483 → 0.557
+    중성 0.050 → 0.265 → 0.493 → 0.713 → 0.923 → 1.150
+✓ 0등급과 5등급의 거칢 차이 2배 이상 — 귀로 구별된다
+✓ 자릿 화음(이름을 적는 소리)도 제 성질을 지킨다
+✓ 교과서 화음 10종(전위 포함)이 전부 제 성질로 판별된다
+✓ 여덟 사분면(두 말 × 흔함/드묾 × 장/단)이 모두 실제 낱말로 차 있다
+✓ 등급별 빈도 중앙값 단조 감소 (ko 12,120 ≥ 1,240 ≥ 186 ≥ 18 ≥ 1 ≥ 0)
+✓ 극성 표본 24낱말의 방향이 원본 감성사전과 일치한다`;
+
+let dictTimer=null;
+$("#dictQ").addEventListener("input",()=>{
+  clearTimeout(dictTimer);
+  dictTimer=setTimeout(()=>ST.searchFull($("#dictQ").value),250);
+});
+
+ST.refreshPiano();
+
+$("#wcine").addEventListener("click",()=>{
+  if(window.__lastPiece) ST.openCinema(window.__lastPiece,$("#src").value);
+});
+$("#cnClose").addEventListener("click",()=>ST.closeCinema());
 
 /* ── 규칙표 ── */
 (function(){const t=$("#tblParts");let tr=el("tr");

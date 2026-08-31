@@ -94,11 +94,29 @@ def build() -> Banks:
     # 2. 의미 은행 — (등급 × 성질). 언어를 담지 않는다. 소리가 뜻을
     #    담되 어느 말인지는 담지 않아야, 영어로 적은 것을 한국어로
     #    읽어 낼 수 있다.
-    meaning = {
-        (tier, q): _pick(pool, 1, quality=q, tier=tier,
-                         max_span=WIDE_MAX_SPAN)[0]
-        for tier in range(N_TIERS) for q in Quality
-    }
+    #
+    #    등급은 그 성질 안 거칢의 6등분이다. 분위수(낱말 수 기준)로
+    #    뽑으면 계단이 고르지 않아 2→3등급은 거의 안 들리고 3→4등급만
+    #    껑충 뛴다. 거칢 값 자체를 고르게 벌려 뽑아야 등급 하나하나가
+    #    귀로 구별된다.
+    meaning: dict[tuple[int, Quality], Shape] = {}
+    for q in Quality:
+        cand = sorted(
+            (sh for sh in pool
+             if sh.quality is q and sh.span <= WIDE_MAX_SPAN),
+            key=lambda sh: (sh.dissonance, sh.voicing),
+        )
+        lo, hi = cand[0].dissonance, cand[-1].dissonance
+        taken: list[Shape] = []
+        for t in range(N_TIERS):
+            want = lo + (hi - lo) * t / (N_TIERS - 1)
+            best = min((sh for sh in cand if sh not in taken),
+                       key=lambda sh: abs(sh.dissonance - want))
+            taken.append(best)
+        taken.sort(key=lambda sh: sh.dissonance)
+        for t, sh in enumerate(taken):
+            meaning[(t, q)] = sh
+            pool.remove(sh)
 
     # 3. 그 언어에만 있는 낱말 / 글자 받아적기
     language = {lang: _pick(pool, 1, max_span=WIDE_MAX_SPAN)[0]

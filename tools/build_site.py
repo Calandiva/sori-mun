@@ -253,6 +253,42 @@ def main() -> int:
         if (form, tag) in kept:
             approx_rows.append([lang, form, tag, ci])
 
+    # ── 이론 수치 — 페이지가 주장을 증거와 함께 보이도록 ────────────
+    from sorimun.core.harmony import dissonance
+    theory = {
+        "dissonance": {
+            q.value: [round(dissonance(BANKS.meaning[(t, q)].voicing), 3)
+                      for t in range(6)]
+            for q in Quality
+        },
+        # 사분면 대표 낱말 (흔함=0~1등급, 드묾=4~5등급)
+        "quadrants": {},
+    }
+    for lang in ("ko", "en"):
+        d = ko_dic if lang == "ko" else en_dic
+        best: dict[str, list] = {"흔함×장": [], "흔함×단": [],
+                                 "드묾×장": [], "드묾×단": []}
+        for e in sorted(d.entries, key=lambda x: -x.freq):
+            if e.quality is Quality.NEUTRAL:
+                continue
+            fam = "흔함" if e.tier <= 1 else ("드묾" if e.tier >= 4 else None)
+            if fam is None:
+                continue
+            key = f"{fam}×{'장' if e.quality is Quality.MAJOR else '단'}"
+            if len(best[key]) < 6:
+                best[key].append([e.form, e.tag, e.tier,
+                                  0 if e.quality is Quality.MAJOR else 1])
+        theory["quadrants"][lang] = best
+
+    # 전체 사전을 웹에서 찾을 수 있게 눌러 둔 채로 복사한다.
+    # 브라우저의 DecompressionStream 이 그대로 푼다.
+    import shutil
+    dict_dir = ROOT / "docs" / "dict"
+    dict_dir.mkdir(exist_ok=True)
+    for lang in ("ko", "en"):
+        shutil.copyfile(ROOT / "data" / f"dictionary_{lang}.tsv.gz",
+                        dict_dir / f"{lang}.tsv.gz")
+
     from sorimun.core import alphabet
     from sorimun.core import codes as CC
     payload = {
@@ -263,6 +299,7 @@ def main() -> int:
         "alphabet": {k: "".join(v) for k, v in alphabet.ALPHABET.items()},
         "inflect": inflect_rows,
         "approx": approx_rows,
+        "theory": theory,
         "durations": {
             "role": CC.DUR_ROLE, "head": CC.DUR_HEAD,
             "digit": CC.DUR_DIGIT, "close": CC.DUR_CLOSE,
