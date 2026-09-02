@@ -224,6 +224,16 @@ audio{width:100%;margin-top:10px}
   border-radius:999px;padding:5px 16px;cursor:pointer;font-size:.82rem}
 .cnclose:hover{border-color:var(--accent);color:var(--accent)}
 .cnfoot{font-size:.7rem;color:#43536a;font-family:var(--mono)}
+#cnFx{position:absolute;top:56px;right:26px;background:#0d1218f2;
+  border:1px solid var(--line2);border-radius:10px;padding:14px 18px;
+  display:flex;flex-direction:column;gap:10px;z-index:5;font-size:.78rem}
+#cnFx[hidden]{display:none}
+.cnfxrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:var(--ink2)}
+.cnfxrow b{font-size:.72rem;color:var(--accent);min-width:70px;font-weight:500}
+.cnfxrow select{background:var(--bg3);color:var(--ink);border:1px solid var(--line);
+  border-radius:6px;padding:3px 6px;font-size:.74rem}
+.cnfxrow label{display:flex;gap:5px;align-items:center}
+.cnfxrow input[type=range]{width:72px;accent-color:var(--accent)}
 @media(max-width:640px){section{padding:48px 0}.hit{grid-template-columns:1fr auto}}
 </style>
 </head>
@@ -338,7 +348,9 @@ audio{width:100%;margin-top:10px}
               <option value="off">끄기</option>
               <option value="room">룸</option>
               <option value="hall" selected>홀</option>
-              <option value="plate">플레이트</option></select></label>
+              <option value="plate">플레이트</option>
+              <option value="chamber">챔버</option>
+              <option value="cathedral">성당</option></select></label>
             <input type="range" id="fxRevMix" min="0" max="80" value="40"
               title="리버브 양" style="width:64px;accent-color:var(--accent)">
             <label>딜레이 <select id="fxDly">
@@ -514,6 +526,7 @@ audio{width:100%;margin-top:10px}
       <label><input type="checkbox" id="cnOrbitT" checked>궤도</label>
       <label><input type="checkbox" id="cnMatrixT">매트릭스</label>
     </span>
+    <button class="cnclose" id="cnFxT">이펙터</button>
     <span style="flex:1"></span>
     <span id="cnClock"></span>
     <button class="cnclose" id="cnClose">✕ 닫기</button>
@@ -527,7 +540,32 @@ audio{width:100%;margin-top:10px}
   <svg id="cnRoll" xmlns="http://www.w3.org/2000/svg"
        preserveAspectRatio="xMidYMid meet"></svg>
   <div id="cnMatrix" hidden></div>
-  <div class="cnfoot">해체 — 번호 — 서명과 음계 — 멜로디 · 저음 화음은 구조 · C3–C5</div>
+  <div id="cnFx" hidden>
+    <div class="cnfxrow"><b>공간</b>
+      <select id="cxRev">
+        <option value="off">끄기</option><option value="chamber">챔버</option>
+        <option value="room">룸</option><option value="plate">플레이트</option>
+        <option value="hall" selected>홀</option>
+        <option value="cathedral">성당</option></select>
+      <label>양 <input type="range" id="cxRevMix" min="0" max="85" value="40"></label>
+      <label>프리딜레이 <input type="range" id="cxPre" min="0" max="120" value="20"></label>
+      <label>톤 <input type="range" id="cxTone" min="1200" max="8000" value="4200"></label>
+    </div>
+    <div class="cnfxrow"><b>핑퐁 딜레이</b>
+      <select id="cxDly">
+        <option value="0" selected>끄기</option><option value="0.5">8분</option>
+        <option value="0.75">점8분</option><option value="1">4분</option>
+        <option value="1.5">점4분</option></select>
+      <label>피드백 <input type="range" id="cxFb" min="0" max="70" value="38"></label>
+      <label>양 <input type="range" id="cxDlyMix" min="0" max="70" value="28"></label>
+    </div>
+    <div class="cnfxrow"><b>합창</b>
+      <label><input type="checkbox" id="cxCh">켜기</label>
+      <label>양 <input type="range" id="cxChMix" min="0" max="60" value="25"></label>
+      <span class="dim">재생 전용 — 내려받는 WAV 는 드라이</span>
+    </div>
+  </div>
+  <div class="cnfoot">해체 — 번호 — 가락과 종지 · 저음 화음은 구조 · C3–C5</div>
 </div>
 
 <script src="data.js"></script>
@@ -767,13 +805,34 @@ $("#wplay").addEventListener("click",()=>{
   $("#wplay").textContent="■ 멈추기";
   playing=playPcm(lastPcm,()=>{playing=null;$("#wplay").textContent="▶ 들어보기";});
 });
-function syncFx(){
-  window.__fx={revType:$("#fxRev").value,revMix:+$("#fxRevMix").value/100,
-    dlyDiv:+$("#fxDly").value,dlyFb:+$("#fxDlyFb").value/100,dlyMix:.3,
-    loop:$("#fxLoop").checked,tempo:curTempo};
+function syncFx(from){
+  const F=window.__fx;
+  if(from==="cinema"){
+    F.revType=$("#cxRev").value; F.revMix=+$("#cxRevMix").value/100;
+    F.preDelay=+$("#cxPre").value/1000; F.tone=+$("#cxTone").value;
+    F.dlyDiv=+$("#cxDly").value; F.dlyFb=+$("#cxFb").value/100;
+    F.dlyMix=+$("#cxDlyMix").value/100;
+    F.chorus=$("#cxCh").checked; F.chorusMix=+$("#cxChMix").value/100;
+    $("#fxRev").value=F.revType; $("#fxRevMix").value=F.revMix*100;
+    $("#fxDly").value=String(F.dlyDiv); $("#fxDlyFb").value=F.dlyFb*100;
+  }else{
+    F.revType=$("#fxRev").value; F.revMix=+$("#fxRevMix").value/100;
+    F.dlyDiv=+$("#fxDly").value; F.dlyFb=+$("#fxDlyFb").value/100;
+    F.dlyMix=F.dlyMix||.28;
+    F.loop=$("#fxLoop").checked;
+    $("#cxRev").value=F.revType; $("#cxRevMix").value=F.revMix*100;
+    $("#cxDly").value=String(F.dlyDiv); $("#cxFb").value=F.dlyFb*100;
+  }
+  F.tempo=curTempo;
+  window.SoriStudio.applyFx();   // 재생 중이어도 즉시 반영
 }
 ["fxRev","fxRevMix","fxDly","fxDlyFb","fxLoop"].forEach(id=>
-  $("#"+id).addEventListener("change",syncFx));
+  $("#"+id).addEventListener("change",()=>syncFx()));
+["cxRev","cxRevMix","cxPre","cxTone","cxDly","cxFb","cxDlyMix","cxCh","cxChMix"]
+  .forEach(id=>$("#"+id).addEventListener("input",()=>syncFx("cinema")));
+$("#cnFxT").addEventListener("click",()=>{
+  const el2=$("#cnFx"); el2.hidden=!el2.hidden;
+});
 syncFx();
 $("#wtempo").addEventListener("input",()=>{
   curTempo=+$("#wtempo").value;

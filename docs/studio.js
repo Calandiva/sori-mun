@@ -47,14 +47,16 @@
 
   /* ── 이펙터 — 재생에만 얹는다. 내려받는 WAV 는 언제나 마른 소리다. ──
      공간계 위주의 단순한 세팅: 홑음 멜로디도 아름답게 울리도록. */
-  window.__fx = { revType: "hall", revMix: .4,
+  window.__fx = { revType: "hall", revMix: .4, preDelay: .02, tone: 4200,
                   dlyDiv: 0, dlyFb: .38, dlyMix: .28,
+                  chorus: false, chorusMix: .25,
                   loop: false, tempo: 72 };
   const _imp = {};
   function impulse(c, type) {
     if (_imp[type]) return _imp[type];
     // 종류마다 길이·감쇠·질감이 다르다
-    const spec = { room: [1.1, 3.4, 0], hall: [3.0, 2.1, 0],
+    const spec = { room: [1.0, 3.6, 0], chamber: [0.55, 4.6, 0],
+                   hall: [3.0, 2.1, 0], cathedral: [5.6, 1.7, 0],
                    plate: [1.7, 1.5, 1] }[type] || [2.4, 2.2, 0];
     const n = Math.floor(c.sampleRate * spec[0]);
     const b = c.createBuffer(2, n, c.sampleRate);
@@ -70,31 +72,77 @@
     _imp[type] = b;
     return b;
   }
-  function fxInput(c) {
-    const F = window.__fx;
-    const inp = c.createGain(), out = c.createGain();
+
+  /* 상주 이펙터 랙 — 모든 재생이 이 입구를 지나고, 조절값은 재생 중에도
+     그대로 먹는다. 내려받는 WAV 는 이 랙을 지나지 않는다. */
+  let RACK = null;
+  function rack(c) {
+    if (RACK) return RACK;
+    const input = c.createGain(), out = c.createGain();
+    // 드라이
     const dry = c.createGain(); dry.gain.value = 1;
-    inp.connect(dry); dry.connect(out);
-    if (F.dlyDiv > 0) {
-      // 템포에 맞물린 딜레이 — 0.5=8분, 0.75=점8분, 1=4분
-      const beat = 60 / (F.tempo || 72);
-      const d = c.createDelay(2.5);
-      d.delayTime.value = Math.min(2.4, beat * F.dlyDiv);
-      const fb = c.createGain(); fb.gain.value = Math.min(.7, F.dlyFb);
-      const damp = c.createBiquadFilter();
-      damp.type = "lowpass"; damp.frequency.value = 3200;
-      const wet = c.createGain(); wet.gain.value = F.dlyMix;
-      inp.connect(d); d.connect(damp); damp.connect(fb); fb.connect(d);
-      d.connect(wet); wet.connect(out);
+    input.connect(dry); dry.connect(out);
+    // 리버브: 프리딜레이 → 컨볼루션 → 톤(저역통과) → 양
+    const pre = c.createDelay(.25);
+    const cv = c.createConvolver();
+    const damp = c.createBiquadFilter(); damp.type = "lowpass";
+    const revWet = c.createGain();
+    input.connect(pre); pre.connect(cv); cv.connect(damp);
+    damp.connect(revWet); revWet.connect(out);
+    // 딜레이: 좌우로 튀는 핑퐁 — 감쇠 필터를 문 되먹임
+    const dl = c.createDelay(2.5), dr = c.createDelay(2.5);
+    const fbl = c.createGain(), fbr = c.createGain();
+    const dampL = c.createBiquadFilter(); dampL.type = "lowpass";
+    dampL.frequency.value = 3000;
+    const dampR = c.createBiquadFilter(); dampR.type = "lowpass";
+    dampR.frequency.value = 3000;
+    const panL = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
+    const panR = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
+    if (panL.pan) { panL.pan.value = -.55; panR.pan.value = .55; }
+    const dlyWet = c.createGain();
+    input.connect(dl);
+    dl.connect(dampL); dampL.connect(fbl); fbl.connect(dr);   // 좌 → 우
+    dr.connect(dampR); dampR.connect(fbr); fbr.connect(dl);   // 우 → 좌
+    dl.connect(panL); dr.connect(panR);
+    panL.connect(dlyWet); panR.connect(dlyWet); dlyWet.connect(out);
+    // 합창: 흔들리는 짧은 지연 두 갈래 — 홑음에 폭을 준다
+    const chWet = c.createGain(); chWet.gain.value = 0;
+    for (const [base, rate, pan] of [[.012, .8, -.6], [.019, .53, .6]]) {
+      const d = c.createDelay(.06); d.delayTime.value = base;
+      const lfo = c.createOscillator(), depth = c.createGain();
+      lfo.frequency.value = rate; depth.gain.value = .0035;
+      lfo.connect(depth); depth.connect(d.delayTime); lfo.start();
+      const pn = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
+      if (pn.pan) pn.pan.value = pan;
+      input.connect(d); d.connect(pn); pn.connect(chWet);
     }
-    if (F.revType && F.revType !== "off") {
-      const cv = c.createConvolver();
-      cv.buffer = impulse(c, F.revType);
-      const wet = c.createGain(); wet.gain.value = F.revMix;
-      inp.connect(cv); cv.connect(wet); wet.connect(out);
-    }
+    chWet.connect(out);
     out.connect(c.destination);
-    return { input: inp, analyserTap: out };
+    RACK = { input, cv, pre, damp, revWet, dl, dr, fbl, fbr, dlyWet, chWet,
+             ctx: c };
+    applyFx();
+    return RACK;
+  }
+  function applyFx() {
+    if (!RACK) return;
+    const F = window.__fx, c = RACK.ctx, t = c.currentTime + .02;
+    const rev = F.revType && F.revType !== "off";
+    if (rev) RACK.cv.buffer = impulse(c, F.revType);
+    RACK.revWet.gain.setTargetAtTime(rev ? F.revMix : 0, t, .05);
+    RACK.pre.delayTime.setTargetAtTime(F.preDelay || 0, t, .05);
+    RACK.damp.frequency.setTargetAtTime(F.tone || 4200, t, .05);
+    const beat = 60 / (F.tempo || 72);
+    const on = F.dlyDiv > 0;
+    const dt = Math.min(2.4, beat * (on ? F.dlyDiv : .5));
+    RACK.dl.delayTime.setTargetAtTime(dt, t, .05);
+    RACK.dr.delayTime.setTargetAtTime(dt, t, .05);
+    RACK.fbl.gain.setTargetAtTime(on ? Math.min(.72, F.dlyFb) : 0, t, .05);
+    RACK.fbr.gain.setTargetAtTime(on ? Math.min(.72, F.dlyFb) : 0, t, .05);
+    RACK.dlyWet.gain.setTargetAtTime(on ? F.dlyMix : 0, t, .05);
+    RACK.chWet.gain.setTargetAtTime(F.chorus ? F.chorusMix : 0, t, .05);
+  }
+  function fxInput(c) {
+    return { input: rack(c).input };
   }
   function playBuffer(pcm, sr, onEnd) {
     const c = audio();
@@ -857,7 +905,7 @@
 
   window.SoriStudio = { renderTheory, searchFull, refreshPiano,
                         openCinema, closeCinema, playChord, playMelody,
-                        playBuffer, fxInput,
+                        playBuffer, fxInput, applyFx,
                         cineToggle: () => cine.toggle && cine.toggle(),
                         cineMatrix: () => cine.applyMatrixMode
                           && cine.applyMatrixMode(),
