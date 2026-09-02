@@ -16,7 +16,8 @@ from dataclasses import dataclass, field
 from .concepts import Concept, Concepts
 from .generate import RawWord
 from .core import alphabet, codes as C
-from .core.glyph import DecodeError, Glyph, Kind, decode, read_terminator
+from .core.glyph import (DecodeError, Glyph, Kind, decode, is_join,
+                         read_terminator)
 from .core.roles import Role
 from .dictionary import Dictionary
 from .generate import english, korean
@@ -123,13 +124,18 @@ def read(chords: list[tuple[int, ...]]) -> Reading:
             break
         r.glyphs.append(g)
 
+        # 이음 화음이 따라오면 같은 낱말이 이어진다
+        joined = i < len(chords) and is_join(chords[i])
+        if joined:
+            i += 1
+
         if g.kind is Kind.LETTER:
             ch = alphabet.to_char(g.lang, g.index)
             if g.flag and not chars:
                 ch = ch.upper()
             chars.append(ch)
             char_role, char_lang = g.role, g.lang
-            if g.close == C.CLOSE_BREAK:
+            if not joined:
                 flush()
         else:
             flush()
@@ -152,7 +158,7 @@ def read(chords: list[tuple[int, ...]]) -> Reading:
                 else:
                     r.items.append(Item(g.role, g.kind, None, e.form, e.tag,
                                         g.lang, group, g.flag))
-        if g.close == C.CLOSE_BREAK:
+        if not joined:
             group += 1
 
     flush()

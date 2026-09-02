@@ -7,8 +7,10 @@
     역할 은행    8개   문장 성분
     언어 은행    2개   그 언어에만 있는 낱말이 따라온다는 표시
     받아적기     2개   사전에 없는 낱말을 글자로 적는다는 표시
-    맺음 은행    2개   이어짐 / 끊김 — 쉼표 대신 경계를 말한다
+    이음 은행    1개   한 낱말이 여러 글리프로 이어질 때의 다리
     종결 은행    4개   . ? ! …
+
+글리프의 끝은 다음 화음이 말하므로 맺음 화음은 없다.
 
 은행은 **구조의 층**이다 — 저음에 깔리는 화음. 낱말 그 자체(등급·성질·
 번호)는 은행을 쓰지 않고 **홑음 멜로디**가 나른다. 모든 은행 화음이
@@ -34,11 +36,11 @@ class Banks:
     role: tuple[Shape, ...]                                # 8
     language: dict[str, Shape]                             # 2
     letter: dict[str, Shape]                               # 2
-    close: tuple[Shape, Shape]                             # 이어짐 / 끊김
+    join: Shape                                            # 이음
     term: tuple[Shape, ...]                                # 4
 
     def all_shapes(self) -> list[Shape]:
-        out = list(self.role) + list(self.close) + list(self.term)
+        out = list(self.role) + [self.join] + list(self.term)
         out += list(self.language.values()) + list(self.letter.values())
         return out
 
@@ -80,15 +82,15 @@ def build() -> Banks:
     letter = {lang: _pick(pool, 1, max_span=WIDE_MAX_SPAN)[0]
               for lang in LANGUAGES}
 
-    # 4. 맺음 — 이어짐 / 끊김. 쉼표가 하던 일을 화음이 맡는다.
-    close = tuple(_pick(pool, 2, max_span=WIDE_MAX_SPAN, spread=True))
+    # 4. 이음 — 한 낱말 안에서 글리프를 잇는 작은 다리.
+    join = _pick(pool, 1, max_span=WIDE_MAX_SPAN)[0]
 
     # 5. 종결과 역할
     term = tuple(_pick(pool, 4, max_span=WIDE_MAX_SPAN, spread=True))
     role = tuple(_pick(pool, 8, max_span=ROLE_MAX_SPAN, spread=True))
 
     banks = Banks(role=role, language=language,
-                  letter=letter, close=close, term=term)
+                  letter=letter, join=join, term=term)
     v = [s.voicing for s in banks.all_shapes()]
     if len(set(v)) != len(v):
         raise RuntimeError("은행끼리 모양이 겹친다")

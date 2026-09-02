@@ -1,22 +1,19 @@
 """글리프 — 낱말 하나를 적고 되읽는다.
 
-    [역할 화음] ([언어·받아적기 화음]) [이름 멜로디 2~10음] [맺음 화음]
+    [역할 화음] ([언어·받아적기 화음]) [자릿음 1~8] [종지 2음]
 
-두 층이 갈린다. 저음의 **화음**은 구조를 묘사하고(문장 성분·갈래·경계),
-고음의 **홑음 멜로디**는 낱말 그 자체다. 모든 은행 화음이 2~3음이므로
-홑음은 언제나 멜로디다 — 화음이면 구조, 홑음이면 이름.
+낱말의 가락이 먼저 나온다. 자릿음들이 지그재그 순열로 계단을 밟아
+번호마다 전혀 다른 윤곽을 그리고, 마지막 두 음의 **종지**가 성질(3도)과
+등급(도약의 거칢)으로 그 낱말의 성격을 요약하며 맺는다.
 
-이름 멜로디가 익숙함과 감정을 직접 나른다.
-
-    서명1  성질   기준음 위 장3도=장, 단3도=단, 삼전음=중성
-    서명2  등급   서명1에서 뛰는 음정의 거칢 6단계 (완전4도…단2도)
-    자릿음 번호   그 성질의 음계 위 계단이 전단사 진법의 한 자리
+글리프의 끝은 다음 화음이 말한다 — 홑음의 연속이 끊기는 곳이 곧
+경계다. 한 낱말이 여러 글리프로 이어질 때만 사이에 이음 화음이 선다.
 
 되읽을 수 있는 까닭
     1. 은행이 서로소라 화음 하나만 보아도 어느 자리인지 안다.
-    2. 홑음은 언제나 멜로디이고, 자리(서명1→서명2→자릿음)는 차례가
-       정한다. 서명이 성질과 등급을 밝히므로 자릿음의 음계도 정해진다.
-    3. 맺음 화음이 글리프의 끝을 말한다. 길이를 재지 않아도 끊긴다.
+    2. 홑음의 연속에서 마지막 두 음이 종지, 앞이 자릿음이다 — 경계가
+       화음으로 닫히므로 자리가 어긋날 길이 없다.
+    3. 종지가 성질을 밝히므로 자릿음의 음계와 순열도 정해진다.
 """
 
 from __future__ import annotations
@@ -37,21 +34,24 @@ Chord = tuple[int, ...]
 
 
 class Kind(str, Enum):
-    CONCEPT = "개념"   # 언어에 매이지 않는다 — 표시 화음 없음
-    WORD = "낱말"      # 그 언어에만 있다 — 언어 화음이 앞선다
-    LETTER = "글자"    # 받아 적는다 — 받아적기 화음이 앞선다
+    CONCEPT = "개념"
+    WORD = "낱말"
+    LETTER = "글자"
 
 
 # ── 되찾기표 ─────────────────────────────────────────────────────────
 _ROLE_BY_V = {BANKS.role[ROLE_INDEX[r]].voicing: r for r in ROLE_ORDER}
 _LANG_BY_V = {sh.voicing: lg for lg, sh in BANKS.language.items()}
 _LETTER_BY_V = {sh.voicing: lg for lg, sh in BANKS.letter.items()}
-_CLOSE_BY_V = {BANKS.close[i].voicing: i for i in (0, 1)}
+_JOIN_V = BANKS.join.voicing
 _TERM_BY_V = {BANKS.term[i].voicing: t for i, t in enumerate(C.TERMINATORS)}
 _QUALITY_BY_SIG = {v: q for q, v in C.QUALITY_SIG.items()}
 _TIER_BY_LEAP = {v: t for t, v in enumerate(C.TIER_LEAP)}
-_DEGREE_BY_OFFSET = {
-    q: {off: i for i, off in enumerate(scale)} for q, scale in C.SCALE.items()
+# 지그재그 순열의 역 — (성질, 음계어긋남) → 자릿값
+_DIGIT_BY_OFFSET = {
+    q: {C.SCALE[q][C.DIGIT_ORDER[q][d]]: d
+        for d in range(len(C.SCALE[q]))}
+    for q in Quality
 }
 
 
@@ -66,12 +66,10 @@ def root_of(pitches) -> int:
 
 @dataclass(frozen=True, slots=True)
 class Event:
-    """울리는 소리 하나. 길이와 세기는 표현일 뿐 뜻을 담지 않는다."""
-
     pitches: Chord
     duration: int
     velocity: int
-    slot: str          # 역할/언어/받아적기/서명/이름/맺음/종결
+    slot: str          # 역할/언어/받아적기/이름/종지/이음/종결
     rest_after: int = 0
 
 
@@ -79,11 +77,10 @@ class Event:
 class Glyph:
     role: Role
     kind: Kind
-    lang: str | None       # 개념이면 None
+    lang: str | None
     tier: int
     quality: Quality
     index: int
-    close: int
     events: tuple[Event, ...]
     flag: int = 0
 
@@ -113,7 +110,6 @@ def encode(
     index: int,
     *,
     lang: str | None = None,
-    close: int = C.CLOSE_BREAK,
     polarity: int = 0,
     flag: int = 0,
 ) -> Glyph:
@@ -125,11 +121,11 @@ def encode(
     accent = C.POLARITY_ACCENT * abs(polarity)
     ev: list[Event] = []
 
-    def chord(shape, root, dur, vel, slot, rest=0, exact=False):
+    def chord(shape, root, dur, vel, slot, exact=False):
         r = root if exact else min(root, pitch.HIGHEST - shape.span)
         ps = shape.at(r)
         pitch.assert_in_range(ps)
-        ev.append(Event(ps, C.scaled(dur, role), min(127, vel), slot, rest))
+        ev.append(Event(ps, C.scaled(dur, role), min(127, vel), slot))
 
     def single(p, dur, vel, slot):
         pitch.assert_in_range((p,))
@@ -148,25 +144,31 @@ def encode(
         chord(BANKS.letter[lang], C.HEAD_PITCH, C.DUR_HEAD,
               C.VEL_HEAD, "받아적기")
 
-    # 3. 이름 멜로디
-    sig1 = C.MEL_BASE + C.QUALITY_SIG[quality]
-    single(sig1, C.DUR_SIG, C.VEL_SIG + accent, "서명")
-    single(sig1 + C.TIER_LEAP[tier], C.DUR_SIG, C.VEL_SIG + accent, "서명")
-
+    # 3. 자릿음 — 낱말 고유의 가락이 먼저 나온다.
     base = C.base_of(quality)
     digits = C.digits_of(index, base)
     if len(digits) > C.MELODY_MAX_DIGITS:
-        raise ValueError(f"번호 {index:,} 는 멜로디 {C.MELODY_MAX_DIGITS}자리를 넘는다")
-    scale = C.SCALE[quality]
-    for d in digits:
-        single(C.MEL_BASE + scale[d], C.DUR_DIGIT, C.VEL_DIGIT + accent, "이름")
+        raise ValueError(f"번호 {index:,} 는 자릿음 {C.MELODY_MAX_DIGITS}개를 넘는다")
+    scale, order = C.SCALE[quality], C.DIGIT_ORDER[quality]
+    for i, d in enumerate(digits):
+        dur = C.DUR_DIGIT if i % 2 == 0 else C.DUR_DIGIT_OFF
+        single(C.MEL_BASE + scale[order[d]], dur,
+               C.VEL_DIGIT + accent, "이름")
 
-    # 4. 맺음
-    chord(BANKS.close[close], C.HEAD_PITCH, C.DUR_CLOSE, C.VEL_CLOSE,
-          "맺음", C.REST_AFTER_CLOSE[close])
+    # 4. 종지 — 성질과 등급으로 맺는다.
+    sig1 = C.MEL_BASE + C.QUALITY_SIG[quality]
+    single(sig1, C.DUR_SIG, C.VEL_SIG + accent, "종지")
+    single(sig1 + C.TIER_LEAP[tier], C.DUR_SIG_END,
+           C.VEL_SIG + accent, "종지")
 
-    return Glyph(role, kind, lang, tier, quality, index, close,
-                 tuple(ev), flag)
+    return Glyph(role, kind, lang, tier, quality, index, tuple(ev), flag)
+
+
+def join_event(role: Role) -> Event:
+    """한 낱말 안에서 글리프를 잇는 작은 다리."""
+    sh = BANKS.join
+    ps = sh.at(min(C.HEAD_PITCH, pitch.HIGHEST - sh.span))
+    return Event(ps, C.scaled(C.DUR_JOIN, role), C.VEL_JOIN, "이음")
 
 
 def terminator(mark: str) -> Event:
@@ -178,11 +180,15 @@ def terminator(mark: str) -> Event:
     return Event(ps, C.DUR_TERM, C.VEL_TERM, "종결", C.REST_SENTENCE)
 
 
-# ── 되읽기 — 화음의 차례만 본다 ──────────────────────────────────────
+# ── 되읽기 ───────────────────────────────────────────────────────────
 def read_terminator(chord: Chord) -> str | None:
     if len(chord) == 1:
         return None
     return _TERM_BY_V.get(voicing_of(chord))
+
+
+def is_join(chord: Chord) -> bool:
+    return len(chord) > 1 and voicing_of(chord) == _JOIN_V
 
 
 def decode(chords: list[Chord], start: int = 0) -> tuple[Glyph, int]:
@@ -214,50 +220,36 @@ def decode(chords: list[Chord], start: int = 0) -> tuple[Glyph, int]:
         else:
             raise DecodeError(f"{i}번째 화음 {chords[i]} 는 갈래 화음이 아니다")
 
-    # 서명 두 음
-    if i + 1 >= n or len(chords[i]) != 1 or len(chords[i + 1]) != 1:
-        raise DecodeError(f"{i}번째부터 서명 홑음 두 개가 와야 한다")
-    q_off = chords[i][0] - C.MEL_BASE
-    quality = _QUALITY_BY_SIG.get(q_off)
+    # 홑음의 연속 — 다음 화음(또는 끝)까지가 이 글리프의 멜로디다.
+    j = i
+    while j < n and len(chords[j]) == 1:
+        j += 1
+    melody = [chords[k][0] for k in range(i, j)]
+    if len(melody) < C.MELODY_MIN:
+        raise DecodeError(f"멜로디가 {len(melody)}음뿐이다 — 자릿음 하나와 종지 둘은 있어야 한다")
+
+    # 마지막 두 음이 종지: 성질과 등급
+    quality = _QUALITY_BY_SIG.get(melody[-2] - C.MEL_BASE)
     if quality is None:
-        raise DecodeError(f"서명1 어긋남 {q_off} 은 성질이 아니다")
-    leap = chords[i + 1][0] - chords[i][0]
-    tier = _TIER_BY_LEAP.get(leap)
+        raise DecodeError(f"종지 첫 음 {melody[-2]} 이 성질이 아니다")
+    tier = _TIER_BY_LEAP.get(melody[-1] - melody[-2])
     if tier is None:
-        raise DecodeError(f"서명2 도약 {leap} 은 등급이 아니다")
-    i += 2
+        raise DecodeError(f"종지 도약 {melody[-1] - melody[-2]} 이 등급이 아니다")
 
-    # 자릿음들
+    table = _DIGIT_BY_OFFSET[quality]
     base = C.base_of(quality)
-    table = _DEGREE_BY_OFFSET[quality]
     digits: list[int] = []
-    close: int | None = None
-    while i < n:
-        if len(chords[i]) == 1:
-            d = table.get(chords[i][0] - C.MEL_BASE)
-            if d is None:
-                raise DecodeError(
-                    f"{i}번째 홑음 {chords[i][0]} 은 {quality.value} 음계에 없다")
-            digits.append(d)
-            i += 1
-            continue
-        cv = voicing_of(chords[i])
-        if cv in _CLOSE_BY_V:
-            close = _CLOSE_BY_V[cv]
-            i += 1
-            break
-        raise DecodeError(f"{i}번째 화음 {chords[i]} 는 맺음 화음이 아니다")
+    for p in melody[:-2]:
+        d = table.get(p - C.MEL_BASE)
+        if d is None:
+            raise DecodeError(f"홑음 {p} 은 {quality.value} 음계에 없다")
+        digits.append(d)
 
-    if close is None:
-        raise DecodeError("맺음 화음이 없다")
-    if not digits:
-        raise DecodeError("이름 자릿음이 하나도 없다")
-    if kind is Kind.LETTER:
-        if (quality, tier) != (C.LETTER_QUALITY, C.LETTER_TIER):
-            raise DecodeError("받아적기의 서명이 어긋난다")
+    if kind is Kind.LETTER and (quality, tier) != (C.LETTER_QUALITY, C.LETTER_TIER):
+        raise DecodeError("받아적기의 종지가 어긋난다")
 
     return (
         Glyph(role, kind, lang, tier, quality,
-              C.index_of(digits, base), close, (), flag),
-        i,
+              C.index_of(digits, base), (), flag),
+        j,
     )

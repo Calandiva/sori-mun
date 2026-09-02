@@ -14,18 +14,20 @@
     return s.map(p => p - s[0]).join(","); };
   const root = (ps) => Math.min(...ps);
 
-  const ROLE = {}, LANG = {}, LETTER = {}, CLOSE = {}, TERM = {};
+  const ROLE = {}, LANG = {}, LETTER = {}, TERM = {};
   B.role.forEach((v, i) => ROLE[v.join(",")] = i);
   Object.entries(B.language).forEach(([k, v]) => LANG[v.join(",")] = k);
   Object.entries(B.letter).forEach(([k, v]) => LETTER[v.join(",")] = k);
-  B.close.forEach((v, i) => CLOSE[v.join(",")] = i);
+  const JOIN_KEY = B.join.join(",");
   B.term.forEach((v, i) => TERM[v.join(",")] = K.terminators[i]);
-  // 멜로디 서명·음계 되찾기표
+  // 종지·음계 되찾기표 (지그재그 순열의 역 포함)
   const QUAL_BY_SIG = {}, TIER_BY_LEAP = {}, DEGREE = {};
   Object.entries(K.qualitySig).forEach(([q, v]) => QUAL_BY_SIG[v] = q);
   K.tierLeap.forEach((v, t) => TIER_BY_LEAP[v] = t);
   Object.entries(K.scale).forEach(([q, sc]) => {
-    DEGREE[q] = {}; sc.forEach((off, i) => DEGREE[q][off] = i); });
+    DEGREE[q] = {};
+    K.digitOrder[q].forEach((deg, d) => DEGREE[q][sc[deg]] = d);
+  });
 
   function indexOf(digits, base) {
     let m = 0;
@@ -51,33 +53,27 @@
       else throw new Error(`${j}번째 화음은 갈래 화음이 아닙니다`);
     }
 
-    // 서명 두 음 — 성질과 등급
-    if (j + 1 >= chords.length || chords[j].length !== 1
-        || chords[j + 1].length !== 1)
-      throw new Error(`${j}번째부터 서명 홑음 두 개가 와야 합니다`);
-    const quality = QUAL_BY_SIG[chords[j][0] - K.melBase];
-    if (quality === undefined) throw new Error("서명1 이 성질이 아닙니다");
-    const tier = TIER_BY_LEAP[chords[j + 1][0] - chords[j][0]];
-    if (tier === undefined) throw new Error("서명2 도약이 등급이 아닙니다");
-    j += 2;
-
+    // 홑음의 연속 — 마지막 두 음이 종지, 앞이 자릿음이다
+    let j2 = j;
+    while (j2 < chords.length && chords[j2].length === 1) j2++;
+    const mel = [];
+    for (let k2 = j; k2 < j2; k2++) mel.push(chords[k2][0]);
+    if (mel.length < 3)
+      throw new Error("멜로디가 세 음은 되어야 합니다 (자릿음 + 종지 둘)");
+    const quality = QUAL_BY_SIG[mel[mel.length - 2] - K.melBase];
+    if (quality === undefined) throw new Error("종지 첫 음이 성질이 아닙니다");
+    const tier = TIER_BY_LEAP[mel[mel.length - 1] - mel[mel.length - 2]];
+    if (tier === undefined) throw new Error("종지 도약이 등급이 아닙니다");
     const base = K.scale[quality].length, table = DEGREE[quality];
-    const digits = []; let close = null;
-    while (j < chords.length) {
-      if (chords[j].length === 1) {
-        const d = table[chords[j][0] - K.melBase];
-        if (d === undefined)
-          throw new Error(`${j}번째 홑음이 ${quality} 음계에 없습니다`);
-        digits.push(d); j++; continue;
-      }
-      const kv = key(chords[j]);
-      if (CLOSE[kv] !== undefined) { close = CLOSE[kv]; j++; break; }
-      throw new Error(`${j}번째 화음은 맺음 화음이 아닙니다`);
+    const digits = [];
+    for (let k2 = 0; k2 < mel.length - 2; k2++) {
+      const d = table[mel[k2] - K.melBase];
+      if (d === undefined)
+        throw new Error(`홑음 ${mel[k2]} 이 ${quality} 음계에 없습니다`);
+      digits.push(d);
     }
-    if (close === null) throw new Error("맺음 화음이 없습니다");
-    if (!digits.length) throw new Error("이름 자릿음이 없습니다");
-    return { role: r, kind, lang, tier, quality, close,
-             flag: flagIdx, index: indexOf(digits, base), next: j };
+    return { role: r, kind, lang, tier, quality,
+             flag: flagIdx, index: indexOf(digits, base), next: j2 };
   }
 
   function read(chords) {
@@ -93,11 +89,14 @@
       try { g = decodeGlyph(chords, i); }
       catch (e) { warn.push(e.message); break; }
       i = g.next;
+      const joined = i < chords.length && chords[i].length > 1
+        && key(chords[i]) === JOIN_KEY;
+      if (joined) i++;
       if (g.kind === "글자") {
         let ch = D.alphabet[g.lang][g.index] || "?";
         if (g.flag && !chars.length) ch = ch.toUpperCase();
         chars.push(ch); charRole = g.role; charLang = g.lang;
-        if (g.close === 1) flush();
+        if (!joined) flush();
       } else {
         flush();
         if (g.kind === "개념") {
@@ -111,7 +110,7 @@
                        group, flag: g.flag });
         }
       }
-      if (g.close === 1) group++;
+      if (!joined) group++;
     }
     flush();
     return { items, terminator: term, warnings: warn };
@@ -376,7 +375,7 @@
      화음 사이 무음으로 가르고, 구간마다 25개 후보 음의 힘을 골츠엘로
      재고, 이미 고른 음의 배음으로 설명되는 것은 거른다. */
   const PARTIAL_GAIN = { 2: .28, 3: .14, 4: .06 };
-  const AR = { silence: .045, minSeg: .12, floor: .20, margin: 2.2 };
+  const AR = { silence: .045, minSeg: .12, minGap: .08, floor: .20, margin: 2.2 };
   const fq = m => 440 * Math.pow(2, (m - 69) / 12);
 
   function goertzel(x, a, b, sr, freq) {
@@ -414,8 +413,16 @@
     }
     if (start !== null) segs.push([start * win, nw * win]);
 
+    // 간섭 딥 병합 — 진짜 경계 골(0.13s+)만 살아남는다
+    const merged = [];
+    for (const [a, b] of segs) {
+      if (merged.length && (a - merged[merged.length - 1][1]) / sr < AR.minGap)
+        merged[merged.length - 1][1] = b;
+      else merged.push([a, b]);
+    }
+
     const out = [];
-    for (const [a0, b0] of segs) {
+    for (const [a0, b0] of merged) {
       if ((b0 - a0) / sr < AR.minSeg) continue;
       const n = b0 - a0;
       let a = a0 + Math.floor(n * .15), b = a0 + Math.floor(n * .85);
@@ -448,6 +455,6 @@
 
   window.SoriRead = { read, readAll, decodeGlyph, toKorean, toEnglish,
                       toSame, crossItems, chordsFromSamples, key, root,
-                      tables: { ROLE, LANG, LETTER, CLOSE, TERM,
+                      tables: { ROLE, LANG, LETTER, JOIN_KEY, TERM,
                                 QUAL_BY_SIG, TIER_BY_LEAP, DEGREE } };
 })();

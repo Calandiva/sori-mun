@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from .concepts import Concept, Concepts
 from .core import alphabet, codes as C, pitch
-from .core.glyph import Event, Glyph, Kind, encode, terminator
+from .core.glyph import Event, Glyph, Kind, encode, join_event, terminator
 from .core.harmony import Quality
 from .core.roles import Role
 from .dictionary import Dictionary
@@ -112,13 +112,15 @@ class Composer:
         for group in analysis.groups:
             if self.analyzer is not None and not self._faithful(group):
                 surface = "".join(t.surface for t in group if t.surface)
-                cursor = self._spell(piece, group[0].role, surface, cursor,
-                                     C.CLOSE_BREAK)
+                cursor = self._spell(piece, group[0].role, surface, cursor)
+                cursor += C.REST_WORD
                 continue
             for j, tok in enumerate(group):
-                close = (C.CLOSE_BREAK if j + 1 >= len(group)
-                         else C.CLOSE_CONTINUE)
-                cursor = self._one(piece, tok, cursor, close)
+                last = j + 1 >= len(group)
+                cursor = self._one(piece, tok, cursor)
+                if not last:
+                    cursor = self._join(piece, tok.role, cursor)
+            cursor += C.REST_WORD
 
         e = terminator(analysis.terminator)
         piece.notes.append(Note(e.pitches, cursor, e.duration, e.velocity,
@@ -126,36 +128,41 @@ class Composer:
                                 "맺음", -1))
         return piece
 
-    def _one(self, piece: Piece, tok: Token, cursor: int, close: int) -> int:
+    def _join(self, piece: Piece, role: Role, cursor: int) -> int:
+        e = join_event(role)
+        gi = len(piece.glyphs) - 1
+        piece.notes.append(Note(e.pitches, cursor, e.duration, e.velocity,
+                                e.slot, "이음", role.value, gi))
+        return cursor + e.duration + C.REST_GLYPH
+
+    def _one(self, piece: Piece, tok: Token, cursor: int) -> int:
         flag = 1 if tok.surface[:1].isupper() else 0
         c = self.concepts.of(self.lang, tok.form, tok.tag)
         if c is not None and c.form(self.lang) == (tok.form, tok.tag):
             g = encode(tok.role, Kind.CONCEPT, c.tier, c.quality, c.index,
-                       close=close, polarity=c.polarity, flag=flag)
+                       polarity=c.polarity, flag=flag)
             return self._emit(piece, g, cursor, f"{tok} ≡{c}", tok.role)
 
         e = self.dict.get(tok.form, tok.tag)
         if e is not None:
             g = encode(tok.role, Kind.WORD, e.tier, e.quality, e.index,
-                       lang=self.lang, close=close, polarity=e.polarity,
-                       flag=flag)
+                       lang=self.lang, polarity=e.polarity, flag=flag)
             return self._emit(piece, g, cursor, str(tok), tok.role)
 
-        # 형태소 하나를 받아 적을 때는 그 형태소의 꼴을 쓴다. 어절
-        # 표면형을 쓰면 뒤따르는 조사와 겹쳐 같은 글자가 두 번 나온다.
-        return self._spell(piece, tok.role, tok.form, cursor, close, flag)
+        # 형태소 하나를 받아 적을 때는 그 형태소의 꼴을 쓴다.
+        return self._spell(piece, tok.role, tok.form, cursor, flag)
 
     def _spell(self, piece: Piece, role: Role, text: str,
-               cursor: int, close: int, flag: int = 0) -> int:
+               cursor: int, flag: int = 0) -> int:
         chars = [ch for ch in text
                  if alphabet.to_index(self.lang, ch) is not None] or ["?"]
         for j, ch in enumerate(chars):
-            last = j == len(chars) - 1
             g = encode(role, Kind.LETTER, -1, Quality.NEUTRAL,
                        alphabet.to_index(self.lang, ch), lang=self.lang,
-                       close=close if last else C.CLOSE_CONTINUE,
                        flag=flag if j == 0 else 0)
             cursor = self._emit(piece, g, cursor, f"글자 {ch}", role)
+            if j + 1 < len(chars):
+                cursor = self._join(piece, role, cursor)
         return cursor
 
     @staticmethod

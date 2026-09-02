@@ -82,15 +82,15 @@
     return Math.min(root, K.highest - span);
   }
 
-  // kind: 0=개념 1=낱말 2=글자
-  function encodeGlyph(roleIdx, kind, lang, tier, qi, index, close, flag, pol) {
+  // kind: 0=개념 1=낱말 2=글자.  가락이 먼저, 종지가 맺는다.
+  function encodeGlyph(roleIdx, kind, lang, tier, qi, index, _close, flag, pol) {
     const accent = DUR.vel.accent * Math.abs(pol || 0);
     let q = Q_NAME[qi], t = tier;
-    if (kind === 2) { q = "neutral"; t = 0; }   // 글자의 고정 서명
+    if (kind === 2) { q = "neutral"; t = 0; }   // 글자의 고정 종지
     const ev = [];
-    const put = (voicing, root, d, v, slot, rest) =>
+    const put = (voicing, root, d, v, slot) =>
       ev.push({ p: chordAt(voicing, root), d: scaled(d, roleIdx),
-                v: Math.min(127, v), slot, rest: rest || 0 });
+                v: Math.min(127, v), slot, rest: 0 });
     const single = (p, d, v, slot) =>
       ev.push({ p: [p], d: scaled(d, roleIdx), v: Math.min(127, v),
                 slot, rest: 0 });
@@ -104,17 +104,21 @@
       put(B.letter[lang], clampRoot(B.letter[lang], 48),
           DUR.head, DUR.vel.head, "받아적기");
 
-    const sig1 = K.melBase + K.qualitySig[q];
-    single(sig1, DUR.sig, DUR.vel.sig + accent, "서명");
-    single(sig1 + K.tierLeap[t], DUR.sig, DUR.vel.sig + accent, "서명");
-    const scale = K.scale[q], base = scale.length;
-    for (const d of digitsOf(index, base))
-      single(K.melBase + scale[d], DUR.digit, DUR.vel.digit + accent, "이름");
+    const scale = K.scale[q], order = K.digitOrder[q], base = scale.length;
+    digitsOf(index, base).forEach((d, i2) =>
+      single(K.melBase + scale[order[d]],
+             i2 % 2 === 0 ? DUR.digit : DUR.digitOff,
+             DUR.vel.digit + accent, "이름"));
 
-    put(B.close[close], clampRoot(B.close[close], 48),
-        DUR.close, DUR.vel.close, "맺음",
-        close === 1 ? 3 : 1);
+    const sig1 = K.melBase + K.qualitySig[q];
+    single(sig1, DUR.sig, DUR.vel.sig + accent, "종지");
+    single(sig1 + K.tierLeap[t], DUR.sigEnd, DUR.vel.sig + accent, "종지");
     return ev;
+  }
+  function joinEventJs(roleIdx) {
+    return { p: chordAt(B.join, clampRoot(B.join, 48)),
+             d: scaled(DUR.join, roleIdx), v: DUR.vel.join,
+             slot: "이음", rest: DUR.restGlyph };
   }
   function terminatorEvent(mark) {
     const i = Math.max(0, K.terminators.indexOf(mark));
@@ -611,7 +615,7 @@
   }
 
   /* ══ 작곡 ══ */
-  function spellGlyphs(lang, roleIdx, text, closeAtEnd, flag) {
+  function spellGlyphs(lang, roleIdx, text, flag) {
     const alpha = D.alphabet[lang];
     const out = [];
     const chars = [...text].filter(ch => alpha.indexOf(ch) >= 0);
@@ -619,7 +623,7 @@
     chars.forEach((ch, j) => {
       out.push({ roleIdx, kind: 2, lang, tier: -1, qi: 2,
                  index: alpha.indexOf(ch),
-                 close: j === chars.length - 1 ? closeAtEnd : 0,
+                 joinAfter: j < chars.length - 1,
                  flag: j === 0 ? flag : 0, pol: 0,
                  label: "글자 " + ch });
     });
@@ -643,14 +647,14 @@
           spelled: c.spell });
         const roleIdx = R_IDX[c.role];
         if (c.spell) {
-          push(...spellGlyphs("ko", roleIdx, c.surface, 1, 0));
+          push(...spellGlyphs("ko", roleIdx, c.surface, 0));
           continue;
         }
         const parts = [...c.morphs.map(m => ({ m, punct: false })),
                        ...c.punct.map(p => ({ m: [p, "SYM"], punct: true }))];
         parts.forEach((part, j) => {
           const [f, t] = part.m;
-          const close = j === parts.length - 1 ? 1 : 0;
+          const joinAfter = j < parts.length - 1;
           const rIdx = GRAMMATICAL_KO.has(t) || t === "SYM"
             ? R_IDX["표지"] : roleIdx;
           const ci = CONCEPT_KO.get(f + "|" + t);
@@ -659,14 +663,16 @@
             const c2 = D.concepts[ci];
             push({ roleIdx: rIdx, kind: 0, lang: null,
                    tier: conceptTier(ci), qi: conceptQi(ci), index: ci,
-                   close, flag: 0, pol: c2[5],
+                   joinAfter, flag: 0, pol: c2[5],
                    label: `${f}/${t} ≡${c2[0]}↔${c2[2]}` });
           } else if (entry) {
             push({ roleIdx: rIdx, kind: 1, lang: "ko",
                    tier: entry[0], qi: entry[1], index: entry[2],
-                   close, flag: 0, pol: entry[3], label: `${f}/${t}` });
+                   joinAfter, flag: 0, pol: entry[3], label: `${f}/${t}` });
           } else {
-            push(...spellGlyphs("ko", rIdx, f, close, 0));
+            const sg = spellGlyphs("ko", rIdx, f, 0);
+            if (joinAfter && sg.length) sg[sg.length - 1].joinAfter = true;
+            push(...sg);
           }
         });
       }
@@ -690,12 +696,12 @@
                         : group.map(t => [t.form, t.tag]),
           spelled: spell });
         if (spell) {
-          push(...spellGlyphs("en", R_IDX[role], surface, 1,
+          push(...spellGlyphs("en", R_IDX[role], surface,
                               /[A-Z]/.test(surface[0]) ? 1 : 0));
           continue;
         }
         group.forEach((t, j) => {
-          const close = j === group.length - 1 ? 1 : 0;
+          const joinAfter = j < group.length - 1;
           const rIdx = R_IDX[t.role];
           const flag = /^[A-Z]/.test(t.raw) ? 1 : 0;
           const ci = CONCEPT_EN.get(t.form + "|" + t.tag);
@@ -704,14 +710,16 @@
             const c2 = D.concepts[ci];
             push({ roleIdx: rIdx, kind: 0, lang: null,
                    tier: conceptTier(ci), qi: conceptQi(ci), index: ci,
-                   close, flag, pol: c2[5],
+                   joinAfter, flag, pol: c2[5],
                    label: `${t.form}/${t.tag} ≡${c2[0]}↔${c2[2]}` });
           } else if (entry) {
             push({ roleIdx: rIdx, kind: 1, lang: "en",
                    tier: entry[0], qi: entry[1], index: entry[2],
-                   close, flag, pol: entry[3], label: `${t.form}/${t.tag}` });
+                   joinAfter, flag, pol: entry[3], label: `${t.form}/${t.tag}` });
           } else {
-            push(...spellGlyphs("en", rIdx, t.raw || t.form, close, flag));
+            const sg = spellGlyphs("en", rIdx, t.raw || t.form, flag);
+            if (joinAfter && sg.length) sg[sg.length - 1].joinAfter = true;
+            push(...sg);
           }
         });
       }
@@ -742,7 +750,7 @@
       const sNotes = [];
       for (const g of s.glyphs) {
         const ev = encodeGlyph(g.roleIdx, g.kind, g.lang, g.tier, g.qi,
-                               g.index, g.close, g.flag, g.pol);
+                               g.index, 0, g.flag, g.pol);
         for (const e of ev) {
           sNotes.push({ p: e.p, s: cursor, d: e.d, v: e.v, slot: e.slot,
                         src: g.label, role: K.roles[g.roleIdx],
@@ -751,6 +759,13 @@
                         idx: g.index });
           cursor += e.d + e.rest;
         }
+        if (g.joinAfter) {
+          const je = joinEventJs(g.roleIdx);
+          sNotes.push({ p: je.p, s: cursor, d: je.d, v: je.v, slot: "이음",
+                        src: "이음", role: K.roles[g.roleIdx],
+                        w: g.word, si: sentences.length, kind: -1 });
+          cursor += je.d + je.rest;
+        } else cursor += DUR.restWord;
       }
       const t = terminatorEvent(term);
       sNotes.push({ p: t.p, s: cursor, d: t.d, v: t.v, slot: "종결",
@@ -778,7 +793,7 @@
 
   /* ══ 소리 빚기 — 파이썬 wave_out 과 같은 잣대 ══ */
   const SR = 44100, PARTIALS = [[1,1],[2,.28],[3,.14],[4,.06]];
-  const ATTACK = .012, REL = .06, GAP = .13, MIN_DUR = .30;
+  const ATTACK = .012, REL = .05, GAP = .17, MIN_DUR = .30;
   function schedule(notes, tempo) {
     // (시작초, 길이초, 원래 note) — 재생과 시각화가 같은 시계를 쓴다
     const unit = 60 / (tempo || 72) / 4;
@@ -809,7 +824,7 @@
           if (tt < ATTACK) env = tt / ATTACK;
           else if (tt < hold) env = 1 - .25 * (tt - ATTACK) / Math.max(1e-6, hold - ATTACK);
           else {
-            env = .75 * Math.exp(-(tt - hold) * 60);
+            env = .75 * Math.exp(-(tt - hold) * 80);
             if (env <= .0005) break;
           }
           let v = 0;

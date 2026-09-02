@@ -22,6 +22,8 @@ from ..core import pitch
 PARTIAL_GAIN = {2: 0.28, 3: 0.14, 4: 0.06}
 SILENCE_RATIO = 0.045     # 최고 RMS 대비 이 아래면 무음
 MIN_SEG = 0.12            # 이보다 짧은 구간은 소음으로 버린다
+MIN_GAP = 0.08            # 이보다 짧은 골은 간섭 딥 — 이웃과 합친다
+                          # (진짜 경계 골은 GAP=0.13s 이상이다)
 NOTE_FLOOR = 0.20         # 구간 최강음 대비 이 아래면 음이 아니다
 HARMONIC_MARGIN = 2.2     # 배음 예측치의 몇 배를 넘어야 진짜 음인가
 
@@ -72,7 +74,16 @@ def _segments(samples: list[float], sr: int) -> list[tuple[int, int]]:
             start = None
     if start is not None:
         segs.append((start * win, n * win))
-    return [(a, b) for a, b in segs if (b - a) / sr >= MIN_SEG]
+
+    # 간섭으로 생긴 짧은 골은 이어붙인다 — 여러 음이 함께 울리면 위상
+    # 상쇄로 순간 진폭이 문턱 아래로 꺼질 수 있다.
+    merged: list[tuple[int, int]] = []
+    for a, b in segs:
+        if merged and (a - merged[-1][1]) / sr < MIN_GAP:
+            merged[-1] = (merged[-1][0], b)
+        else:
+            merged.append((a, b))
+    return [(a, b) for a, b in merged if (b - a) / sr >= MIN_SEG]
 
 
 def _goertzel(samples: list[float], sr: int, freq: float) -> float:

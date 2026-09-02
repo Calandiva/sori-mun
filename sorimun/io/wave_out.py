@@ -23,8 +23,8 @@ SAMPLE_RATE = 44100
 # 배음 세기. 2배음을 절제해 옥타브 화음(0,12)과 헷갈리지 않게 한다.
 PARTIALS = ((1, 1.00), (2, 0.28), (3, 0.14), (4, 0.06))
 ATTACK = 0.012
-RELEASE = 0.06       # 여운이 무음 골을 메우지 않게 짧게
-GAP = 0.13           # 화음 사이 무음 — 되읽기의 경계
+RELEASE = 0.05       # 여운이 무음 골을 메우지 않게 짧게
+GAP = 0.17           # 화음 사이 무음 — 되읽기의 경계 (간섭 딥과 구별될 만큼)
 MIN_DUR = 0.30       # 화음 하나의 최소 길이
 
 
@@ -63,7 +63,7 @@ def render(piece: Piece, tempo: int | None = None) -> array.array:
                 elif t < hold:
                     env = 1.0 - 0.25 * (t - ATTACK) / max(1e-6, hold - ATTACK)
                 else:
-                    env = 0.75 * math.exp(-(t - hold) * 60.0)
+                    env = 0.75 * math.exp(-(t - hold) * 80.0)
                     if env <= 0.0005:
                         break    # 여운이 다한 뒤에만 끊는다
                 v = 0.0

@@ -105,7 +105,7 @@ def main() -> int:
             continue
         e = entries[0]
         g = encode(ROLES[3], Kind.WORD, e.tier, e.quality, e.index,
-                   lang="ko", close=1)
+                   lang="ko")
         reps[quad] = (e.form, tuple(g.melody))
     mels = [m for _f, m in reps.values()]
     check(len(set(mels)) == len(mels),

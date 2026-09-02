@@ -50,13 +50,12 @@ def glyph_space():
     """글리프가 담을 수 있는 값의 조합을 훑는다."""
     for role in ROLES:
         for flag in (0, 1):
-            for close in (C.CLOSE_CONTINUE, C.CLOSE_BREAK):
-                for kind, lang in ((Kind.CONCEPT, None),
+            for kind, lang in ((Kind.CONCEPT, None),
                                    (Kind.WORD, "ko"), (Kind.WORD, "en")):
                     for tier in range(6):
                         for q in Quality:
                             for idx in SAMPLE_INDEX:
-                                yield role, flag, close, kind, lang, tier, q, idx
+                                yield role, flag, kind, lang, tier, q, idx
 
 
 def main() -> int:
@@ -73,12 +72,11 @@ def main() -> int:
     n = bad = 0
     worst = None
     for params in glyph_space():
-        role, flag, close, kind, lang, tier, q, idx = params
-        g = encode(role, kind, tier, q, idx, lang=lang, close=close, flag=flag)
+        role, flag, kind, lang, tier, q, idx = params
+        g = encode(role, kind, tier, q, idx, lang=lang, flag=flag)
         b, nxt = decode(g.chords)
         n += 1
-        ok = (b.role is role and b.flag == flag and b.close == close
-              and b.kind is kind and b.lang == lang and b.tier == tier
+        ok = (b.role is role and b.flag == flag and b.kind is kind and b.lang == lang and b.tier == tier
               and b.quality is q and b.index == idx and nxt == len(g.chords))
         if not ok:
             bad += 1
@@ -92,8 +90,8 @@ def main() -> int:
     out = 0
     lo, hi = 128, 0
     for params in glyph_space():
-        role, flag, close, kind, lang, tier, q, idx = params
-        g = encode(role, kind, tier, q, idx, lang=lang, close=close, flag=flag)
+        role, flag, kind, lang, tier, q, idx = params
+        g = encode(role, kind, tier, q, idx, lang=lang, flag=flag)
         for e in g.events:
             for p in e.pitches:
                 lo, hi = min(lo, p), max(hi, p)

@@ -123,7 +123,7 @@ def main() -> int:
         "role": [list(BANKS.role[i].voicing) for i in range(8)],
         "language": {k: list(v.voicing) for k, v in BANKS.language.items()},
         "letter": {k: list(v.voicing) for k, v in BANKS.letter.items()},
-        "close": [list(s.voicing) for s in BANKS.close],
+        "join": list(BANKS.join.voicing),
         "term": [list(s.voicing) for s in BANKS.term],
     }
 
@@ -136,6 +136,7 @@ def main() -> int:
         "qualitySig": {q.value: v for q, v in C.QUALITY_SIG.items()},
         "tierLeap": list(C.TIER_LEAP),
         "scale": {q.value: list(v) for q, v in C.SCALE.items()},
+        "digitOrder": {q.value: list(v) for q, v in C.DIGIT_ORDER.items()},
         "terminators": list(C.TERMINATORS),
         "lowest": pitch.LOWEST, "highest": pitch.HIGHEST,
         "tierLabel": list(TIER_LABEL), "tierLabelEn": list(TIER_LABEL_EN),
@@ -296,13 +297,15 @@ def main() -> int:
         "theory": theory,
         "durations": {
             "role": CC.DUR_ROLE, "head": CC.DUR_HEAD, "sig": CC.DUR_SIG,
-            "digit": CC.DUR_DIGIT, "close": CC.DUR_CLOSE,
-            "term": CC.DUR_TERM,
+            "sigEnd": CC.DUR_SIG_END, "digit": CC.DUR_DIGIT,
+            "digitOff": CC.DUR_DIGIT_OFF, "join": CC.DUR_JOIN,
+            "term": CC.DUR_TERM, "restWord": CC.REST_WORD,
+            "restGlyph": CC.REST_GLYPH,
             "scale": {r.value: list(CC.ROLE_DURATION_SCALE[r])
                       for r in CC.ROLE_DURATION_SCALE},
             "vel": {"role": CC.VEL_ROLE, "head": CC.VEL_HEAD,
                     "sig": CC.VEL_SIG, "digit": CC.VEL_DIGIT,
-                    "close": CC.VEL_CLOSE, "term": CC.VEL_TERM,
+                    "join": CC.VEL_JOIN, "term": CC.VEL_TERM,
                     "accent": CC.POLARITY_ACCENT},
         },
         "meta": {
