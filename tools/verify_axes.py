@@ -21,7 +21,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from sorimun.core import pitch  # noqa: E402
-from sorimun.core.banks import BANKS  # noqa: E402
 from sorimun.core.harmony import Quality, dissonance, quality  # noqa: E402
 from sorimun.dictionary import Dictionary, TIER_LABEL  # noqa: E402
 
@@ -50,8 +49,11 @@ def main() -> int:
           "(완전4도 0.12 → 단2도 1.00)")
     check(rough[-1] / rough[0] > 4,
           "0등급과 5등급의 거칢 차이가 4배 이상 — 귀로 또렷이 갈린다")
-    check(all(2 <= len(sh.voicing) <= 3 for sh in BANKS.all_shapes()),
-          "구조 화음은 전부 2~3음 — 홑음 멜로디와 절대 겹치지 않는다")
+    inner = list(CO.ROLE_INNER.values())
+    check(len(set(inner)) == len(inner) and inner[:2] == [7, 5]
+          and inner[-1] == 1,
+          "역할 내성 — 가장 흔한 표지·주어가 완전5·4도, 가장 드문 "
+          "독립어가 단2도")
 
     print("\n주장 2 — 장/단/중성이 멜로디에서 음악 이론대로 갈리는가")
     sig_ok = (CO.QUALITY_SIG[Quality.MAJOR] == 4
@@ -66,8 +68,8 @@ def main() -> int:
           "자연단음계 — 단3도·단6도를 품고 장3도·이끔음이 없다")
     check(all(x % 2 == 0 for x in neu),
           "온음계 — 반음이 없어 어느 조성에도 기울지 않는다")
-    check(all(CO.MEL_BASE + max(sc) <= 72 for sc in CO.SCALE.values()),
-          "세 음계 모두 2옥타브 상한 안에 있다")
+    check(all(max(CO.TONICS) + max(sc) <= 72 for sc in CO.SCALE.values()),
+          "가장 높은 으뜸음에서도 세 음계가 2옥타브 상한 안에 있다")
 
     print("\n주장 3 — 네 사분면이 실제 낱말로 채워져 있는가")
     quadrants = {

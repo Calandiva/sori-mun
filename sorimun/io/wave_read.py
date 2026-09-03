@@ -99,7 +99,7 @@ def _goertzel(samples: list[float], sr: int, freq: float) -> float:
 
 
 def _pitches_of(samples: list[float], sr: int) -> tuple[int, ...]:
-    """구간 하나에서 2~3개 음을 뽑는다."""
+    """구간 하나에서 1~4개 음을 뽑는다."""
     # 구간 가운데를 쓴다 — 들머리와 여운을 피한다
     n = len(samples)
     a, b = int(n * 0.15), int(n * 0.85)
@@ -128,7 +128,7 @@ def _pitches_of(samples: list[float], sr: int) -> tuple[int, ...]:
         if expected > 0 and p < expected * HARMONIC_MARGIN:
             continue
         chosen.append(m)
-        if len(chosen) == 3:
+        if len(chosen) == 4:      # 종지1 + 표지 셋이 최대
             break
     return tuple(chosen)
 

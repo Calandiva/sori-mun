@@ -22,7 +22,6 @@ sys.path.insert(0, str(ROOT))
 from sorimun.compose import Composer  # noqa: E402
 from sorimun.concepts import Concepts  # noqa: E402
 from sorimun.core import codes as C, pitch  # noqa: E402
-from sorimun.core.banks import BANKS  # noqa: E402
 from sorimun.core.glyph import Kind, decode, encode, terminator  # noqa: E402
 from sorimun.core.harmony import Quality  # noqa: E402
 from sorimun.core.roles import ORDER as ROLES  # noqa: E402
@@ -42,41 +41,51 @@ def check(ok: bool, label: str, detail: str = "") -> None:
         print(f"  ✗ {label}" + (f"\n      {detail}" if detail else ""))
 
 
-SAMPLE_INDEX = (0, 1, 11, 12, 155, 156, 1883, 1884, 22619,
-                22620, 185_930)
+SAMPLE_INDEX = (0, 1, 6, 7, 55, 56, 391, 392, 19_607, 185_930)
 
 
 def glyph_space():
     """글리프가 담을 수 있는 값의 조합을 훑는다."""
     for role in ROLES:
         for flag in (0, 1):
-            for kind, lang in ((Kind.CONCEPT, None),
+            for join in (False, True):
+                for kind, lang in ((Kind.CONCEPT, None),
                                    (Kind.WORD, "ko"), (Kind.WORD, "en")):
                     for tier in range(6):
                         for q in Quality:
                             for idx in SAMPLE_INDEX:
-                                yield role, flag, kind, lang, tier, q, idx
+                                yield role, flag, join, kind, lang, tier, q, idx
 
 
 def main() -> int:
     print("═" * 62)
-    print("1. 은행 — 자리마다 쓰는 화음이 서로소인가")
-    v = [s.voicing for s in BANKS.all_shapes()]
-    check(len(set(v)) == len(v), f"예약 화음 {len(v)}개가 모두 다르다")
-    check(all(2 <= len(s.voicing) <= 3 for s in BANKS.all_shapes()),
-          "모든 화음이 2음 또는 3음이다")
-    check(all(2 <= len(s.voicing) <= 3 for s in BANKS.all_shapes()),
-          "은행 화음은 전부 2~3음 — 홑음(이름 멜로디)과 절대 겹치지 않는다")
+    print("1. 화성 규칙 — 베이스·내성이 서로소인 규칙을 갖는가")
+    ri = list(C.ROLE_INNER.values())
+    check(len(set(ri)) == len(ri), "여덟 역할 내성이 모두 다른 음정이다")
+    check(all(1 <= v <= 11 for v in ri),
+          "역할 내성은 페달 위 한 옥타브 안의 음정이다")
+    marks = sorted(set(C.KIND_MARK.values()) | {C.FLAG_MARK, C.JOIN_MARK})
+    check(len(marks) == len(C.KIND_MARK) + 2, "표지 내성이 서로 겹치지 않는다")
+    check(all(C.PEDAL < m <= 56 for m in marks),
+          "표지 내성은 페달 위, 어떤 으뜸음 아래 창(49~56)에 산다")
+    terms = [frozenset(v) for v in C.TERM_SET.values()]
+    check(len(set(terms)) == len(terms)
+          and all(max(v) <= 56 for v in C.TERM_SET.values()),
+          "네 종결 이중음이 서로 다르고 모두 멜로디 창 밖(≤56)이다")
+    check(all(t in C.TONICS for t in C.TONICS) and min(C.TONICS) > 56,
+          "다섯 으뜸음이 표지 창 위(>56)에 산다 — 머리를 오독할 수 없다")
 
     print("\n2. 코덱 — 적은 것이 그대로 돌아오는가 (전수)")
     n = bad = 0
     worst = None
     for params in glyph_space():
-        role, flag, kind, lang, tier, q, idx = params
-        g = encode(role, kind, tier, q, idx, lang=lang, flag=flag)
+        role, flag, join, kind, lang, tier, q, idx = params
+        g = encode(role, kind, tier, q, idx, lang=lang, flag=flag,
+                   join=join)
         b, nxt = decode(g.chords)
         n += 1
-        ok = (b.role is role and b.flag == flag and b.kind is kind and b.lang == lang and b.tier == tier
+        ok = (b.role is role and b.flag == flag and b.join == join
+              and b.kind is kind and b.lang == lang and b.tier == tier
               and b.quality is q and b.index == idx and nxt == len(g.chords))
         if not ok:
             bad += 1
@@ -90,8 +99,9 @@ def main() -> int:
     out = 0
     lo, hi = 128, 0
     for params in glyph_space():
-        role, flag, kind, lang, tier, q, idx = params
-        g = encode(role, kind, tier, q, idx, lang=lang, flag=flag)
+        role, flag, join, kind, lang, tier, q, idx = params
+        g = encode(role, kind, tier, q, idx, lang=lang, flag=flag,
+                   join=join)
         for e in g.events:
             for p in e.pitches:
                 lo, hi = min(lo, p), max(hi, p)

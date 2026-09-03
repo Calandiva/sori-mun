@@ -11,7 +11,7 @@
 (function () {
   "use strict";
   const D = window.SORIMUN;
-  const K = D.codes, B = D.banks, DUR = D.durations;
+  const K = D.codes, DUR = D.durations;
   const ET = D.enTagger, KT = D.koTags;
   const R_IDX = {}; K.roles.forEach((n, i) => R_IDX[n] = i);
   const Q_NAME = ["major", "minor", "neutral"];
@@ -74,56 +74,51 @@
     const [num, den] = DUR.scale[K.roles[roleIdx]];
     return Math.max(1, Math.floor(d * num / den));
   }
-  function chordAt(voicing, root) {
-    return voicing.map(v => root + v);
-  }
-  function clampRoot(voicing, root) {
-    const span = voicing[voicing.length - 1];
-    return Math.min(root, K.highest - span);
+  function tonicOf(tier, qi, index) {
+    const n = K.tonics.length;
+    return K.tonics[(index + 3 * Math.max(0, tier) + 5 * qi) % n];
   }
 
-  // kind: 0=개념 1=낱말 2=글자.  가락이 먼저, 종지가 맺는다.
-  function encodeGlyph(roleIdx, kind, lang, tier, qi, index, _close, flag, pol) {
+  // kind: 0=개념 1=낱말 2=글자.
+  // 멜로디가 낱말이고, 함께 울리는 화성이 역할이다.
+  //   [으뜸음+베이스+역할내성] [자릿음…] [종지1(+표지내성)] [종지2]
+  function encodeGlyph(roleIdx, kind, lang, tier, qi, index, join, flag, pol) {
     const accent = DUR.vel.accent * Math.abs(pol || 0);
     let q = Q_NAME[qi], t = tier;
-    if (kind === 2) { q = "neutral"; t = 0; }   // 글자의 고정 종지
+    if (kind === 2) { q = "neutral"; t = 0; qi = 2; }   // 글자의 고정 조
+    const tonic = tonicOf(t, qi, index);
     const ev = [];
-    const put = (voicing, root, d, v, slot) =>
-      ev.push({ p: chordAt(voicing, root), d: scaled(d, roleIdx),
-                v: Math.min(127, v), slot, rest: 0 });
-    const single = (p, d, v, slot) =>
-      ev.push({ p: [p], d: scaled(d, roleIdx), v: Math.min(127, v),
-                slot, rest: 0 });
+    const put = (ps, d, v, slot) =>
+      ev.push({ p: ps.slice().sort((a, b) => a - b),
+                d: scaled(d, roleIdx), v: Math.min(127, v), slot, rest: 0 });
 
-    put(B.role[roleIdx], K.rolePitch[roleIdx] + K.flagOffsets[flag ? 1 : 0],
-        DUR.role, DUR.vel.role + accent, "역할");
-    if (kind === 1)
-      put(B.language[lang], clampRoot(B.language[lang], 48),
-          DUR.head, DUR.vel.head, "언어");
-    if (kind === 2)
-      put(B.letter[lang], clampRoot(B.letter[lang], 48),
-          DUR.head, DUR.vel.head, "받아적기");
+    // 1. 으뜸음 — 베이스 C3 페달과 역할 내성이 아래에 깔린다
+    put([K.pedal, K.pedal + K.roleInner[roleIdx], tonic],
+        DUR.tonic, DUR.vel.sig + accent, "으뜸");
 
+    // 2. 자릿음 — 지그재그 계단. 자릿값이 리듬(3~5)을 만든다
     const scale = K.scale[q], order = K.digitOrder[q], base = scale.length;
-    digitsOf(index, base).forEach((d, i2) =>
-      single(K.melBase + scale[order[d]],
-             i2 % 2 === 0 ? DUR.digit : DUR.digitOff,
-             DUR.vel.digit + accent, "이름"));
+    digitsOf(index, base).forEach(d =>
+      put([tonic + scale[order[d]]], DUR.digit + d % 3,
+          DUR.vel.digit + accent, "이름"));
 
-    const sig1 = K.melBase + K.qualitySig[q];
-    single(sig1, DUR.sig, DUR.vel.sig + accent, "종지");
-    single(sig1 + K.tierLeap[t], DUR.sigEnd, DUR.vel.sig + accent, "종지");
+    // 3. 종지1 — 으뜸음 위 3도. 표지 내성(갈래·대문자·이음)이 아래 선다
+    const sig1 = tonic + K.qualitySig[q];
+    const marks = [];
+    if (kind === 1) marks.push(K.kindMark["WORD|" + lang]);
+    if (kind === 2) marks.push(K.kindMark["LETTER|" + lang]);
+    if (flag) marks.push(K.flagMark);
+    if (join) marks.push(K.joinMark);
+    put(marks.concat([sig1]), DUR.sig, DUR.vel.sig + accent, "종지");
+
+    // 4. 종지2 — 아래로 해결. 도약의 거칢이 등급이다
+    put([sig1 - K.tierLeap[t]], DUR.sigEnd, DUR.vel.sig + accent, "종지");
     return ev;
   }
-  function joinEventJs(roleIdx) {
-    return { p: chordAt(B.join, clampRoot(B.join, 48)),
-             d: scaled(DUR.join, roleIdx), v: DUR.vel.join,
-             slot: "이음", rest: DUR.restGlyph };
-  }
   function terminatorEvent(mark) {
-    const i = Math.max(0, K.terminators.indexOf(mark));
-    return { p: chordAt(B.term[i], clampRoot(B.term[i], 48)),
-             d: DUR.term, v: DUR.vel.term, slot: "종결", rest: 8 };
+    const ps = K.termSet[mark] || K.termSet["."];
+    return { p: ps.slice(), d: DUR.term, v: DUR.vel.term,
+             slot: "종결", rest: 8 };
   }
 
   /* ══ 한국어 — 사전 앞머리 맞추기 ══ */
@@ -210,10 +205,24 @@
     }
     return best ? best[0] : null;
   }
-  // 모음조화 이형태 — kiwi 는 었/어 로 눌러 적고 mecab 표는 았/아 를
-  // 그대로 둔다. 두 표기를 잇는 다리.
+  // 모음조화·받침 이형태 — kiwi 는 었/은 으로 눌러 적고 mecab 표는
+  // 았/ᆫ 을 그대로 둔다. 두 표기를 잇는 다리.
   const ALLO = { "었/EP": "았/EP", "어/EC": "아/EC", "어서/EC": "아서/EC",
-                 "었었/EP": "았었/EP" };
+                 "었었/EP": "았었/EP", "은/ETM": "ᆫ/ETM",
+                 "을/ETM": "ᆯ/ETM", "음/ETN": "ᆷ/ETN" };
+  // 부호에 담는 것은 kiwi 표기다 — 파이썬 층과 같은 소리가 나도록.
+  const NORM = { "았/EP": "었/EP", "아/EC": "어/EC", "아서/EC": "어서/EC",
+                 "았었/EP": "었었/EP" };
+  // kiwi 가 붙여 지을 때만 나오는 불규칙 결합.
+  const JOIN_IRR = { "나/NP 가/JKS": "내가", "저/NP 가/JKS": "제가",
+                     "누구/NP 가/JKS": "누가" };
+  const HARMONIC = { "었": "았", "어": "아", "어서": "아서", "었었": "았었" };
+  const brightVowel = (ch) => {
+    const c = ch.charCodeAt(0) - 0xAC00;
+    if (c < 0 || c > 11171) return false;
+    const jung = Math.floor(c / 28) % 21;
+    return jung === 0 || jung === 8;      // ㅏ, ㅗ
+  };
   function joinKo(morphs) {
     // 형태소열에서 어절을 되짓는다. parseEojeol 의 역.
     let out = "", i = 0;
@@ -221,6 +230,8 @@
       let used = false;
       for (let j = Math.min(morphs.length, i + 4); j > i + 1; j--) {
         const parts = morphs.slice(i, j).map(m => m[0] + "/" + m[1]);
+        const irr = JOIN_IRR[parts.join(" ")];
+        if (irr) { out += irr; i = j; used = true; break; }
         let inv = INV_INFLECT.get(parts.join(" "));
         if (!inv) {
           const alt = parts.map(x => ALLO[x] || x);
@@ -229,7 +240,12 @@
         if (inv) { out += inv[0]; i = j; used = true; break; }
       }
       if (!used) {
-        const [f] = morphs[i];
+        let [f, t] = morphs[i];
+        // 모음조화 되살리기 — 밝은 홀소리(ㅏ·ㅗ) 어간 뒤의 었/어 는
+        // 았/아 로 소리 난다. kiwi 표기를 표면형으로 돌리는 걸음.
+        if ((t === "EP" || t === "EC") && HARMONIC[f]
+            && out && out.slice(-1) !== "하" && brightVowel(out.slice(-1)))
+          f = HARMONIC[f];
         if (!SYL.test(f) && HANGUL.test(out.slice(-1))) return null; // 자모 융합 불가
         out += f; i++;
       }
@@ -653,7 +669,9 @@
         const parts = [...c.morphs.map(m => ({ m, punct: false })),
                        ...c.punct.map(p => ({ m: [p, "SYM"], punct: true }))];
         parts.forEach((part, j) => {
-          const [f, t] = part.m;
+          let [f, t] = part.m;
+          const nk = NORM[f + "/" + t];
+          if (nk) { const c2 = nk.split("/"); f = c2[0]; t = c2[1]; }
           const joinAfter = j < parts.length - 1;
           const rIdx = GRAMMATICAL_KO.has(t) || t === "SYM"
             ? R_IDX["표지"] : roleIdx;
@@ -750,7 +768,7 @@
       const sNotes = [];
       for (const g of s.glyphs) {
         const ev = encodeGlyph(g.roleIdx, g.kind, g.lang, g.tier, g.qi,
-                               g.index, 0, g.flag, g.pol);
+                               g.index, g.joinAfter ? 1 : 0, g.flag, g.pol);
         for (const e of ev) {
           sNotes.push({ p: e.p, s: cursor, d: e.d, v: e.v, slot: e.slot,
                         src: g.label, role: K.roles[g.roleIdx],
@@ -759,13 +777,7 @@
                         idx: g.index });
           cursor += e.d + e.rest;
         }
-        if (g.joinAfter) {
-          const je = joinEventJs(g.roleIdx);
-          sNotes.push({ p: je.p, s: cursor, d: je.d, v: je.v, slot: "이음",
-                        src: "이음", role: K.roles[g.roleIdx],
-                        w: g.word, si: sentences.length, kind: -1 });
-          cursor += je.d + je.rest;
-        } else cursor += DUR.restWord;
+        cursor += g.joinAfter ? DUR.restGlyph : DUR.restWord;
       }
       const t = terminatorEvent(term);
       sNotes.push({ p: t.p, s: cursor, d: t.d, v: t.v, slot: "종결",
@@ -776,11 +788,9 @@
       sentences.push(s);
     }
     // 글리프 번호 다시 매기기 (피아노롤 띠용)
-    let gi = -1, lastSrc = null;
+    let gi = -1;
     for (const n of notes) {
-      if (n.slot === "역할" || (n.slot === "받아적기" && n.src !== lastSrc)
-          || n.slot === "종결") gi++;
-      lastSrc = n.src;
+      if (n.slot === "으뜸" || n.slot === "종결") gi++;
       n.g = n.slot === "종결" ? -1 : gi;
     }
     const allGlyphs = sentences.flatMap(s => s.glyphs);
@@ -859,6 +869,18 @@
     const e = (lang === "ko" ? KO : EN).get(form + "|" + tag);
     return e || null;
   }
+  // 전체 사전(tsv 행)을 되찾기표에 흘려 넣는다 — 부분집합 밖의 드문
+  // 낱말이 든 소리도 정확히 풀리도록.
+  function feedFull(lang, lines) {
+    const rev = lang === "ko" ? KO_REV : EN_REV;
+    for (const line of lines) {
+      const c = line.split("\t");   // 표제어 품사 빈도 순위 등급 극성 성질 번호
+      if (c.length < 8) continue;
+      const k = c[4] + "/" + c[6] + "/" + c[7];
+      if (!rev.has(k)) rev.set(k, c[0] + "|" + c[1]);
+    }
+  }
+
   function lookupRev(lang, tier, quality, index) {
     const rev = lang === "ko" ? KO_REV : EN_REV;
     const v = rev.get(tier + "/" + quality + "/" + index);
@@ -878,7 +900,7 @@
   }
 
   window.SoriWrite = { compose, analyzeKo, analyzeEn, joinKo, joinEn,
-                       synth, wavBlob, schedule, SR, lookupRev, approxOf,
+                       synth, wavBlob, schedule, SR, lookupRev, feedFull, approxOf,
                        isConcept, inDict, entryOf, encodeGlyph,
                        terminatorEvent,
                        detect: t => /[가-힣ᄀ-ᇿ]/.test(t) ? "ko" : "en" };

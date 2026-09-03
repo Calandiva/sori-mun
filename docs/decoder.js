@@ -1,26 +1,23 @@
 /* 되읽기 — 브라우저에서 소리를 뜻으로.
  *
  * 파이썬의 sorimun.core.glyph.decode / sorimun.generate 를 그대로 옮긴
- * 것이다. 되읽기에는 형태소 분석기가 필요 없고 화음 은행과 개념표만
- * 있으면 되므로 브라우저에서도 똑같이 돌아간다.
+ * 것이다. 되읽기에는 형태소 분석기가 필요 없고 개념표만 있으면 되므로
+ * 브라우저에서도 똑같이 돌아간다.
  *
- * 보는 것은 화음의 차례뿐이다. 길이는 보지 않는다. */
+ * 보는 것은 화음의 차례뿐이다. 길이는 보지 않는다.
+ * 모든 소리의 꼭대기가 멜로디다 — 베이스 C3 이 울리면 낱말의 머리,
+ * 마지막 두 멜로디 음이 종지, 멜로디 없는 저음 이중음이 문장의 끝. */
 (function () {
   "use strict";
   const D = window.SORIMUN;
-  const K = D.codes, B = D.banks;
+  const K = D.codes;
 
-  const key = (ps) => { const s = [...ps].sort((a, b) => a - b);
-    return s.map(p => p - s[0]).join(","); };
-  const root = (ps) => Math.min(...ps);
+  const srt = (ps) => [...ps].sort((a, b) => a - b);
 
-  const ROLE = {}, LANG = {}, LETTER = {}, TERM = {};
-  B.role.forEach((v, i) => ROLE[v.join(",")] = i);
-  Object.entries(B.language).forEach(([k, v]) => LANG[v.join(",")] = k);
-  Object.entries(B.letter).forEach(([k, v]) => LETTER[v.join(",")] = k);
-  const JOIN_KEY = B.join.join(",");
-  B.term.forEach((v, i) => TERM[v.join(",")] = K.terminators[i]);
-  // 종지·음계 되찾기표 (지그재그 순열의 역 포함)
+  const ROLE_BY_INNER = {}, TERM = {}, KIND_BY_MARK = {};
+  K.roleInner.forEach((v, i) => ROLE_BY_INNER[v] = i);
+  Object.entries(K.termSet).forEach(([m, ps]) => TERM[srt(ps).join(",")] = m);
+  Object.entries(K.kindMark).forEach(([kl, v]) => KIND_BY_MARK[v] = kl);
   const QUAL_BY_SIG = {}, TIER_BY_LEAP = {}, DEGREE = {};
   Object.entries(K.qualitySig).forEach(([q, v]) => QUAL_BY_SIG[v] = q);
   K.tierLeap.forEach((v, t) => TIER_BY_LEAP[v] = t);
@@ -28,6 +25,18 @@
     DEGREE[q] = {};
     K.digitOrder[q].forEach((deg, d) => DEGREE[q][sc[deg]] = d);
   });
+  const TONIC_SET = new Set(K.tonics);
+
+  const readTerm = (ps) =>
+    (ps.length >= 2 && Math.max(...ps) <= 56)
+      ? TERM[srt(ps).join(",")] : undefined;
+  const isStart = (ps) =>
+    ps.length >= 2 && Math.min(...ps) === K.pedal
+      && TONIC_SET.has(Math.max(...ps));
+  const tonicOf = (tier, qi, index) => {
+    const n = K.tonics.length;
+    return K.tonics[(index + 3 * Math.max(0, tier) + 5 * qi) % n];
+  };
 
   function indexOf(digits, base) {
     let m = 0;
@@ -36,44 +45,63 @@
   }
 
   function decodeGlyph(chords, i) {
-    if (chords[i].length === 1)
-      throw new Error(`${i}번째는 홑음입니다 — 글리프는 역할 화음으로 시작합니다`);
-    const r = ROLE[key(chords[i])];
-    if (r === undefined) throw new Error(`${i}번째 화음은 역할 화음이 아닙니다`);
-    const off = root(chords[i]) - K.rolePitch[r];
-    const flagIdx = K.flagOffsets.indexOf(off);
-    if (flagIdx < 0) throw new Error(`${i}번째 역할 화음의 근음이 맞지 않습니다`);
+    const head = srt(chords[i]);
+    if (!isStart(head))
+      throw new Error(`${i}번째 소리는 낱말의 머리(베이스 C3 + 으뜸음)가 아닙니다`);
+    const tonic = head[head.length - 1];
+    if (head.length !== 3)
+      throw new Error(`${i}번째 머리의 내성이 맞지 않습니다`);
+    const r = ROLE_BY_INNER[head[1] - K.pedal];
+    if (r === undefined)
+      throw new Error(`${i}번째 머리의 역할 내성이 맞지 않습니다`);
+
+    // 몸통 — 다음 머리나 종결까지. 꼭대기가 멜로디다.
     let j = i + 1;
-
-    let kind = "개념", lang = null;
-    if (j < chords.length && chords[j].length > 1) {
-      const k = key(chords[j]);
-      if (LANG[k] !== undefined) { kind = "낱말"; lang = LANG[k]; j++; }
-      else if (LETTER[k] !== undefined) { kind = "글자"; lang = LETTER[k]; j++; }
-      else throw new Error(`${j}번째 화음은 갈래 화음이 아닙니다`);
+    const body = [];
+    while (j < chords.length) {
+      const c = srt(chords[j]);
+      if (isStart(c) || readTerm(c) !== undefined) break;
+      body.push(c); j++;
     }
+    if (body.length < 3)
+      throw new Error("멜로디가 짧습니다 — 자릿음 하나와 종지 둘은 있어야 합니다");
+    for (let k2 = 0; k2 < body.length; k2++)
+      if (body[k2].length > 1 && k2 !== body.length - 2)
+        throw new Error("표지 내성은 종지1 에만 설 수 있습니다");
 
-    // 홑음의 연속 — 마지막 두 음이 종지, 앞이 자릿음이다
-    let j2 = j;
-    while (j2 < chords.length && chords[j2].length === 1) j2++;
-    const mel = [];
-    for (let k2 = j; k2 < j2; k2++) mel.push(chords[k2][0]);
-    if (mel.length < 3)
-      throw new Error("멜로디가 세 음은 되어야 합니다 (자릿음 + 종지 둘)");
-    const quality = QUAL_BY_SIG[mel[mel.length - 2] - K.melBase];
-    if (quality === undefined) throw new Error("종지 첫 음이 성질이 아닙니다");
-    const tier = TIER_BY_LEAP[mel[mel.length - 1] - mel[mel.length - 2]];
-    if (tier === undefined) throw new Error("종지 도약이 등급이 아닙니다");
-    const base = K.scale[quality].length, table = DEGREE[quality];
+    const sig1ev = body[body.length - 2];
+    const sig1 = sig1ev[sig1ev.length - 1];
+    let quality = QUAL_BY_SIG[sig1 - tonic];
+    if (quality === undefined) throw new Error("종지1 이 으뜸음 위 3도류가 아닙니다");
+    let tier = TIER_BY_LEAP[sig1 - body[body.length - 1][0]];
+    if (tier === undefined) throw new Error("종지 하행이 등급이 아닙니다");
+
+    let kind = 0, lang = null, flag = 0, join = false;
+    for (const m of sig1ev.slice(0, -1)) {
+      const kl = KIND_BY_MARK[m];
+      if (kl !== undefined) {
+        const [kn, lg] = kl.split("|");
+        kind = kn === "WORD" ? 1 : 2; lang = lg;
+      } else if (m === K.flagMark) flag = 1;
+      else if (m === K.joinMark) join = true;
+      else throw new Error(`모르는 표지 내성 ${m}`);
+    }
+    let qi = { major: 0, minor: 1, neutral: 2 }[quality];
+    if (kind === 2) { tier = 0; quality = "neutral"; qi = 2; }
+
+    const table = DEGREE[quality], base = K.scale[quality].length;
     const digits = [];
-    for (let k2 = 0; k2 < mel.length - 2; k2++) {
-      const d = table[mel[k2] - K.melBase];
+    for (let k2 = 0; k2 < body.length - 2; k2++) {
+      const d = table[body[k2][0] - tonic];
       if (d === undefined)
-        throw new Error(`홑음 ${mel[k2]} 이 ${quality} 음계에 없습니다`);
+        throw new Error(`홑음 ${body[k2][0]} 이 이 조의 ${quality} 음계에 없습니다`);
       digits.push(d);
     }
-    return { role: r, kind, lang, tier, quality,
-             flag: flagIdx, index: indexOf(digits, base), next: j2 };
+    const index = indexOf(digits, base);
+    if (tonicOf(tier, qi, index) !== tonic)
+      throw new Error("으뜸음이 낱말의 정체와 맞지 않습니다");
+    return { role: r, kind: ["개념", "낱말", "글자"][kind], lang, tier,
+             quality, flag, join, index, next: j };
   }
 
   function read(chords) {
@@ -83,15 +111,13 @@
       items.push({ kind: "글자", form: chars.join(""), role: charRole,
                    lang: charLang, group }); chars = []; } };
     while (i < chords.length) {
-      const t = chords[i].length > 1 ? TERM[key(chords[i])] : undefined;
+      const t = readTerm(chords[i]);
       if (t !== undefined) { flush(); term = t; i++; continue; }
       let g;
       try { g = decodeGlyph(chords, i); }
       catch (e) { warn.push(e.message); break; }
       i = g.next;
-      const joined = i < chords.length && chords[i].length > 1
-        && key(chords[i]) === JOIN_KEY;
-      if (joined) i++;
+      const joined = g.join;
       if (g.kind === "글자") {
         let ch = D.alphabet[g.lang][g.index] || "?";
         if (g.flag && !chars.length) ch = ch.toUpperCase();
@@ -122,7 +148,7 @@
     let cur = [];
     for (const c of chords) {
       cur.push(c);
-      if (c.length > 1 && TERM[key(c)] !== undefined) {
+      if (readTerm(c) !== undefined) {
         parts.push(cur); cur = [];
       }
     }
@@ -446,15 +472,29 @@
         }
         if (expected > 0 && p < expected * AR.margin) continue;
         chosen.push(m);
-        if (chosen.length === 3) break;
+        if (chosen.length === 4) break;   // 종지1 + 표지 셋이 최대
       }
       if (chosen.length) out.push(chosen);
     }
     return out;
   }
 
+  /* 부분집합에 없는 낱말이 든 문장인가 — 있으면 그 말의 전체 사전을
+     내려받아 feedFull 로 채운 뒤 다시 읽으면 된다. */
+  function unresolvedLangs(readings) {
+    const W = window.SoriWrite, langs = new Set();
+    if (!W) return [];
+    for (const r of readings)
+      for (const it of r.items)
+        if (it.kind === "낱말"
+            && !W.lookupRev(it.lang, it.tier, it.quality, it.index))
+          langs.add(it.lang);
+    return [...langs];
+  }
+
   window.SoriRead = { read, readAll, decodeGlyph, toKorean, toEnglish,
-                      toSame, crossItems, chordsFromSamples, key, root,
-                      tables: { ROLE, LANG, LETTER, JOIN_KEY, TERM,
+                      toSame, crossItems, chordsFromSamples,
+                      readTerm, isStart, tonicOf, unresolvedLangs,
+                      tables: { ROLE_BY_INNER, KIND_BY_MARK, TERM,
                                 QUAL_BY_SIG, TIER_BY_LEAP, DEGREE } };
 })();

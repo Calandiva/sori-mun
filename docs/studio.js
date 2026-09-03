@@ -20,6 +20,10 @@
                   marker:"#4a5a6d" };
   const Q_NAME = ["major", "minor", "neutral"];
   const Q_KO = { major:"장", minor:"단", neutral:"중성" };
+  const tonicOfNote = n => (n.qi == null || n.idx == null)
+    ? K.tonics[0]
+    : K.tonics[(n.idx + 3 * Math.max(0, n.tier || 0) + 5 * n.qi)
+               % K.tonics.length];
 
   /* ── 화음 하나 울리기 ── */
   let ctx = null;
@@ -47,17 +51,20 @@
 
   /* ── 이펙터 — 재생에만 얹는다. 내려받는 WAV 는 언제나 마른 소리다. ──
      공간계 위주의 단순한 세팅: 홑음 멜로디도 아름답게 울리도록. */
-  window.__fx = { revType: "hall", revMix: .4, preDelay: .02, tone: 4200,
+  window.__fx = { revType: "bloom", revMix: .5, preDelay: .03, tone: 3600,
                   dlyDiv: 0, dlyFb: .38, dlyMix: .28,
-                  chorus: false, chorusMix: .25,
+                  chorus: true, chorusMix: .22,
                   loop: false, tempo: 72 };
   const _imp = {};
   function impulse(c, type) {
     if (_imp[type]) return _imp[type];
-    // 종류마다 길이·감쇠·질감이 다르다
+    // 종류마다 길이·감쇠·질감이 다르다.
+    // 질감 0 보통 · 1 밝게(고역) · 2 어둡게(저역) · 3 피어남(느린 부풂+저역)
     const spec = { room: [1.0, 3.6, 0], chamber: [0.55, 4.6, 0],
                    hall: [3.0, 2.1, 0], cathedral: [5.6, 1.7, 0],
-                   plate: [1.7, 1.5, 1] }[type] || [2.4, 2.2, 0];
+                   plate: [1.7, 1.5, 1],
+                   glacial: [8.5, 1.35, 2], bloom: [6.0, 1.8, 3],
+                 }[type] || [2.4, 2.2, 0];
     const n = Math.floor(c.sampleRate * spec[0]);
     const b = c.createBuffer(2, n, c.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
@@ -65,7 +72,14 @@
       let prev = 0;
       for (let i = 0; i < n; i++) {
         let v = (Math.random() * 2 - 1) * Math.pow(1 - i / n, spec[1]);
-        if (spec[2]) { const hp = v - prev; prev = v; v = hp; } // 플레이트는 밝게
+        const mode = spec[2];
+        if (mode === 1) { const hp = v - prev; prev = v; v = hp; }
+        else if (mode === 2) { v = prev + (v - prev) * .07; prev = v; v *= 4; }
+        else if (mode === 3) {
+          v = prev + (v - prev) * .11; prev = v; v *= 3.4;
+          const u = i / n;
+          if (u < .16) v *= u / .16;           // 늦게 피어오른다
+        }
         d[i] = v;
       }
     }
@@ -170,7 +184,7 @@
     const box = $("#theoryBody");
     if (!box) return;
 
-    // 서명 도약의 거칢 사다리
+    // 종지 하행의 거칢 사다리
     const svg = sv("svg", { viewBox: "0 0 640 200", class: "roll",
                             style: "min-width:520px" });
     const X = t => 80 + t * 100, Y = d => 172 - d * 140;
@@ -193,17 +207,17 @@
         style: "cursor:pointer" });
       c.addEventListener("click", () => {
         const p1 = K.melBase + K.qualitySig.major;
-        playMelody([p1, p1 + K.tierLeap[t]], .4, .45);
+        playMelody([p1, p1 - K.tierLeap[t]], .4, .45);
       });
       const ti = document.createElementNS(NS, "title");
-      ti.textContent = `${t}등급 — 서명 도약 +${K.tierLeap[t]}반음, 거칢 ${d}`;
+      ti.textContent = `${t}등급 — 종지 하행 −${K.tierLeap[t]}반음, 거칢 ${d}`;
       c.appendChild(ti);
       svg.appendChild(c);
     });
     const cap = sv("text", { x: 80, y: 16, fill: "#9fb0c4",
       "font-size": "11.5" });
     cap.textContent =
-      "서명 도약의 거칢 — 익숙한 낱말은 부드럽게, 생소한 낱말은 튀게 (점을 누르면 그 도약이 들린다)";
+      "종지 하행의 거칢 — 익숙한 낱말은 부드럽게, 생소한 낱말은 튀게 (점을 누르면 그 도약이 들린다)";
     svg.appendChild(cap);
     box.appendChild(svg);
 
@@ -344,98 +358,92 @@
 
   function expectation(chords) {
     const T = R.tables;
-    let i = 0, state = "role", run = [];
+    let i = 0, state = "start", run = [], tonic = null;
+    const cadence = () => {
+      if (run.length < 3) return false;
+      const q = T.QUAL_BY_SIG[run[run.length - 2] - tonic];
+      return q !== undefined && T.TIER_BY_LEAP[
+        run[run.length - 2] - run[run.length - 1]] !== undefined;
+    };
     while (i < chords.length) {
-      const c = chords[i];
-      if (state === "role") {
-        if (c.length === 1) return { state: "오류",
-          hint: `${i + 1}번째 — 글리프는 역할 화음으로 시작한다` };
-        const k = R.key(c);
-        if (T.TERM[k] !== undefined) { i++; continue; }
-        if (T.ROLE[k] === undefined) return { state: "오류",
-          hint: `${i + 1}번째 화음이 역할 화음이 아니다` };
-        state = "mel"; run = []; i++; continue;
+      const c = [...chords[i]].sort((x, y) => x - y);
+      if (state === "start") {
+        if (R.readTerm(c) !== undefined) { i++; continue; }
+        if (!R.isStart(c) || c.length !== 3
+            || T.ROLE_BY_INNER[c[1] - K.pedal] === undefined)
+          return { state: "오류",
+            hint: `${i + 1}번째 — 낱말은 머리(베이스 C3 + 역할 내성 + 으뜸음)로 시작한다` };
+        tonic = c[2]; state = "mel"; run = []; i++; continue;
       }
-      if (state === "mel") {
-        if (c.length > 1) {
-          const k = R.key(c);
-          if (!run.length
-              && (T.LANG[k] !== undefined || T.LETTER[k] !== undefined)) {
-            i++; continue;              // 갈래 화음
-          }
-          // 멜로디가 끝났다 — 종지가 유효해야 한다
-          if (run.length < 3) return { state: "오류",
-            hint: "멜로디는 자릿음 하나와 종지 두 음은 있어야 한다" };
-          const q = T.QUAL_BY_SIG[run[run.length - 2] - K.melBase];
-          const lp = q !== undefined
-            && T.TIER_BY_LEAP[run[run.length - 1] - run[run.length - 2]] !== undefined;
-          if (!lp) return { state: "오류", hint: "종지 두 음이 어긋난다" };
-          if (k === T.JOIN_KEY || T.ROLE[R.key(c)] !== undefined
-              || T.TERM[k] !== undefined) { state = "role"; continue; }
-          return { state: "오류", hint: `${i + 1}번째 화음이 경계가 아니다` };
-        }
-        run.push(c[0]); i++; continue;
+      // state === "mel"
+      if (R.isStart(c) || R.readTerm(c) !== undefined) {
+        if (!cadence()) return { state: "오류",
+          hint: "종지 두 음(3도 → 하행 도약)이 어긋난다" };
+        state = "start"; continue;      // 이 화음을 머리로 다시 읽는다
       }
+      if (c.length > 1) {
+        // 표지 내성을 거느린 종지1 — 꼭대기가 멜로디다
+        const ok = c[c.length - 1] > 56
+          && c.slice(0, -1).every(m =>
+               T.KIND_BY_MARK[m] !== undefined
+               || m === K.flagMark || m === K.joinMark);
+        if (!ok) return { state: "오류",
+          hint: `${i + 1}번째 — 내성은 표지(49~56)만 설 수 있다` };
+      }
+      run.push(c[c.length - 1]); i++; continue;
     }
-    if (state === "role") return { state: "role" };
-    // 홑음 런 진행 중 — 종지가 이미 유효한지 본다
-    let cadenceOk = false, quality = null;
-    if (run.length >= 3) {
-      const q = T.QUAL_BY_SIG[run[run.length - 2] - K.melBase];
-      if (q !== undefined
-          && T.TIER_BY_LEAP[run[run.length - 1] - run[run.length - 2]] !== undefined) {
-        cadenceOk = true; quality = q;
-      }
-    }
-    // 방금 성질 서명을 눌렀다면 다음은 등급 도약
+    if (state === "start" || tonic == null) return { state: "start" };
     const sigPending = run.length >= 1
-      && T.QUAL_BY_SIG[run[run.length - 1] - K.melBase] !== undefined;
-    return { state: "mel", run, cadenceOk, sigPending,
+      && T.QUAL_BY_SIG[run[run.length - 1] - tonic] !== undefined;
+    return { state: "mel", run, tonic, cadenceOk: cadence(), sigPending,
              sig1: run.length ? run[run.length - 1] : null };
   }
 
   function candidates(exp) {
     const out = [];
     if (exp.state === "오류") return out;
-    if (exp.state === "role") {
+    if (exp.state === "start") {
+      // 머리: 베이스 C3 + 역할 내성 + 으뜸음. 으뜸음은 낱말이 정한다 —
+      // 다섯 으뜸음이 모두 문이 된다.
       K.roles.forEach((r, i) => out.push({
-        label: r, cls: "marker", p: at(B.role[i], K.rolePitch[i]) }));
-      K.terminators.forEach((t, i) => out.push({
-        label: "종결 " + t, cls: "marker",
-        p: at(B.term[i], clampRoot(B.term[i], 48)) }));
+        label: r, cls: "marker",
+        p: [K.pedal, K.pedal + K.roleInner[i], K.tonics[0]],
+        alt: K.tonics.map(t => [K.pedal, K.pedal + K.roleInner[i], t]) }));
+      K.terminators.forEach(t => out.push({
+        label: "종결 " + t, cls: "marker", p: [...K.termSet[t]] }));
       return out;
     }
-    // 멜로디 진행 중
-    if (!exp.run.length)
-      for (const lg of ["ko", "en"]) {
-        out.push({ label: lg + " 전용", cls: "marker",
-          p: at(B.language[lg], clampRoot(B.language[lg], 48)) });
-        out.push({ label: lg + " 글자", cls: "marker",
-          p: at(B.letter[lg], clampRoot(B.letter[lg], 48)) });
-      }
+    const tonic = exp.tonic;
     if (exp.sigPending)
       K.tierLeap.forEach((leap, t) => out.push({
-        label: `${t}등급 도약 (+${leap})`, cls: "marker",
-        p: [exp.sig1 + leap] }));
-    // 자릿음 (어느 성질의 계단이든 가능 — 종지가 성질을 확정한다)
+        label: `${t}등급 하행 (−${leap})`, cls: "marker",
+        p: [exp.sig1 - leap] }));
+    // 자릿음 — 으뜸음 위 계단 (종지가 성질을 확정한다)
     for (const q of Q_NAME)
       K.scale[q].forEach((off, deg) => {
         const d = K.digitOrder[q].indexOf(deg);
-        out.push({ label: Q_KO[q] + "·" + d, cls: q,
-          p: [K.melBase + off] });
+        out.push({ label: Q_KO[q] + "·" + d, cls: q, p: [tonic + off] });
       });
     for (const q of Q_NAME)
       out.push({ label: "종지 " + Q_KO[q], cls: q,
-        p: [K.melBase + K.qualitySig[q]] });
+        p: [tonic + K.qualitySig[q]] });
+    if (exp.run.length >= 1) {
+      // 표지 내성을 거느린 종지1 — 낱말 갈래·이음은 여기 함께 울린다
+      for (const [kl, m] of Object.entries(K.kindMark)) {
+        const [kn, lg] = kl.split("|");
+        out.push({ label: (kn === "WORD" ? lg + " 전용" : lg + " 글자")
+                     + " 종지장", cls: "marker",
+          p: [m, tonic + K.qualitySig.major] });
+      }
+      out.push({ label: "이음 종지장 (낱말 계속)", cls: "marker",
+        p: [K.joinMark, tonic + K.qualitySig.major] });
+    }
     if (exp.cadenceOk) {
-      out.push({ label: "이음 (낱말 계속)", cls: "marker",
-        p: at(B.join, clampRoot(B.join, 48)) });
       K.roles.forEach((r, i) => out.push({
         label: "다음 낱말 · " + r, cls: "marker",
-        p: at(B.role[i], K.rolePitch[i]) }));
-      K.terminators.forEach((t, i) => out.push({
-        label: "종결 " + t, cls: "marker",
-        p: at(B.term[i], clampRoot(B.term[i], 48)) }));
+        p: [K.pedal, K.pedal + K.roleInner[i], K.tonics[0]] }));
+      K.terminators.forEach(t => out.push({
+        label: "종결 " + t, cls: "marker", p: [...K.termSet[t]] }));
     }
     return out;
   }
@@ -512,10 +520,18 @@
     liveDecode();
   }
 
+  const fedFull = new Set();
   function liveDecode() {
     const out = $("#pianoOut");
     if (!seq.length) { out.textContent = ""; return; }
     const readings = R.readAll(seq);
+    const miss = R.unresolvedLangs(readings).filter(l => !fedFull.has(l));
+    if (miss.length) {
+      miss.forEach(l => fedFull.add(l));
+      Promise.all(miss.map(l =>
+        loadFull(l).then(ls => window.SoriWrite.feedFull(l, ls))))
+        .then(() => liveDecode()).catch(() => {});
+    }
     const parts = [];
     for (const r of readings) {
       const langs = new Set();
@@ -535,13 +551,10 @@
 
   /* ══ 4. 시각화 — 30초 기계적 예술 ══ */
   const SLOT_RULE = {
-    "역할": "저음 화음 — 모양이 문장 성분을 말한다",
-    "언어": "저음 화음 — 이 말에만 있는 낱말",
-    "받아적기": "저음 화음 — 글자를 하나씩 적는다",
-    "종지": "멜로디의 맺음 — 3도가 감정을, 도약이 익숙함을",
+    "으뜸": "낱말의 머리 — 으뜸음이 조를 열고, 베이스 C3 위 내성이 역할이다",
+    "종지": "멜로디의 맺음 — 3도가 감정을, 하행 도약이 익숙함을",
     "이름": "멜로디 자릿음 — 음계 계단이 진법 한 자리",
-    "이음": "저음 화음 — 한 낱말이 다음 글리프로 이어진다",
-    "종결": "저음 화음 — 문장의 끝",
+    "종결": "멜로디 없는 저음 이중음 — 문장의 끝",
   };
   let cine = { raf: null, src: null, stop: null };
 
@@ -671,7 +684,7 @@
     const rects = [];
     sched.forEach(([t0, dur, n], i) => {
       const q = Q_NAME[n.qi];
-      const col = (n.slot === "서명" || n.slot === "이름") && q
+      const col = (n.slot === "종지" || n.slot === "이름") && q
         ? COLOR[q] : "#3d4b5c";
       for (const p of n.p) {
         const r = sv("rect", { x: tx(t0), y: ty(p) - 2.6,
@@ -780,12 +793,14 @@
       put(6, 44, n.slot + " — " + (SLOT_RULE[n.slot] || ""), 10, "#67788c");
       let desc = "";
       if (n.slot === "종지") {
-        const off = n.p[0] - K.melBase;
+        const off = n.p[n.p.length - 1] - tonicOfNote(n);
         desc = { 4: "종지 = 장 (장3도)", 3: "종지 = 단 (단3도)",
                  6: "종지 = 중성 (삼전음)" }[off]
-          || "종지 도약 — 거칢이 익숙함을 말한다";
+          || "종지 하행 — 거칢이 익숙함을 말한다";
       } else if (n.slot === "이름") desc = Q_KO[q] + " 음계 · 지그재그 계단";
-      else if (n.slot === "역할") desc = n.role;
+      else if (n.slot === "으뜸")
+        desc = n.role + " — 베이스 위 +"
+          + (n.p.length >= 2 ? n.p[1] - n.p[0] : "?") + "반음";
       put(6, 66, desc, 10.5, "#9fb0c4");
       if (n.idx !== undefined && (n.kind === 0 || n.kind === 1))
         put(6, 84, "#" + n.idx, 10, "#67788c");
@@ -903,7 +918,7 @@
   window.__cnOrbitOn = true;
   window.__cnMatrixOn = false;
 
-  window.SoriStudio = { renderTheory, searchFull, refreshPiano,
+  window.SoriStudio = { renderTheory, searchFull, refreshPiano, loadFull,
                         openCinema, closeCinema, playChord, playMelody,
                         playBuffer, fxInput, applyFx,
                         cineToggle: () => cine.toggle && cine.toggle(),

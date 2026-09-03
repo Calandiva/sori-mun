@@ -159,8 +159,15 @@ class KoreanAnalyzer:
         toks = list(self._kiwi.tokenize(text))
         term = "."
         for t in reversed(toks):
-            if T.normalize(t.tag) == "SF":
-                term = t.form if t.form in (".", "?", "!") else "."
+            tag = T.normalize(t.tag)
+            if tag == "SE":
+                term = "…"
+                break
+            if tag == "SF":
+                if t.form in (".", "?", "!"):
+                    term = t.form
+                elif t.form.startswith(".."):
+                    term = "…"
                 break
 
         chunks: list[_Chunk] = []
@@ -173,7 +180,7 @@ class KoreanAnalyzer:
             if tag in T.SYMBOL:
                 # 문장 끝 부호는 종결 화음이 맡는다. 문장 안쪽 부호(쉼표
                 # 따위)는 앞 어절에 달아 두어야 원문이 그대로 돌아온다.
-                if tag != "SF" and t.form.strip():
+                if tag not in ("SF", "SE") and t.form.strip():
                     idx = len(chunks) if cur else max(0, len(chunks) - 1)
                     marks.setdefault(idx, []).append(t.form)
                 continue

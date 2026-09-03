@@ -1,19 +1,21 @@
 """글리프 — 낱말 하나를 적고 되읽는다.
 
-    [역할 화음] ([언어·받아적기 화음]) [자릿음 1~8] [종지 2음]
+멜로디만 들으면 낱말이고, 함께 울리는 화성을 들으면 역할이다.
 
-낱말의 가락이 먼저 나온다. 자릿음들이 지그재그 순열로 계단을 밟아
-번호마다 전혀 다른 윤곽을 그리고, 마지막 두 음의 **종지**가 성질(3도)과
-등급(도약의 거칢)으로 그 낱말의 성격을 요약하며 맺는다.
+    [으뜸음+화성] [자릿음 …] [종지1(+표지 내성)] [종지2]
 
-글리프의 끝은 다음 화음이 말한다 — 홑음의 연속이 끊기는 곳이 곧
-경계다. 한 낱말이 여러 글리프로 이어질 때만 사이에 이음 화음이 선다.
+모든 소리의 꼭대기가 멜로디다. 화성은 셋뿐이고 전부 규칙이 있다 —
+베이스는 언제나 C3 페달, 역할 내성은 베이스 위 몇 반음(흔한 역할일수록
+협화), 표지 내성은 종지1 아래 49~56 창의 절대음(갈래·대문자·이음).
 
 되읽을 수 있는 까닭
-    1. 은행이 서로소라 화음 하나만 보아도 어느 자리인지 안다.
-    2. 홑음의 연속에서 마지막 두 음이 종지, 앞이 자릿음이다 — 경계가
-       화음으로 닫히므로 자리가 어긋날 길이 없다.
-    3. 종지가 성질을 밝히므로 자릿음의 음계와 순열도 정해진다.
+    1. 베이스 C3 이 울리면 새 낱말이다 — 다른 어떤 소리도 48 을 품지
+       않는다. 홑음의 연속은 언제나 한 글리프의 몸통이다.
+    2. 마지막 두 멜로디 음이 종지 — 으뜸음에서 3도를 읽어 성질을,
+       하행 도약에서 등급을 읽는다.
+    3. 으뜸음은 낱말의 정체에서 다시 계산해 대조한다 — 조가 어긋난
+       소리는 거부된다.
+    4. 멜로디 없는 저음 이중음은 문장의 끝이다.
 """
 
 from __future__ import annotations
@@ -23,14 +25,12 @@ from enum import Enum
 
 from . import codes as C
 from . import pitch
-from .banks import BANKS
 from .harmony import Quality
-from .roles import INDEX as ROLE_INDEX
-from .roles import ORDER as ROLE_ORDER
 from .roles import Role
 
-Voicing = tuple[int, ...]
 Chord = tuple[int, ...]
+
+_QUALITIES = list(Quality)
 
 
 class Kind(str, Enum):
@@ -39,15 +39,11 @@ class Kind(str, Enum):
     LETTER = "글자"
 
 
-# ── 되찾기표 ─────────────────────────────────────────────────────────
-_ROLE_BY_V = {BANKS.role[ROLE_INDEX[r]].voicing: r for r in ROLE_ORDER}
-_LANG_BY_V = {sh.voicing: lg for lg, sh in BANKS.language.items()}
-_LETTER_BY_V = {sh.voicing: lg for lg, sh in BANKS.letter.items()}
-_JOIN_V = BANKS.join.voicing
-_TERM_BY_V = {BANKS.term[i].voicing: t for i, t in enumerate(C.TERMINATORS)}
+_ROLE_BY_INNER = {v: r for r, v in C.ROLE_INNER.items()}
 _QUALITY_BY_SIG = {v: q for q, v in C.QUALITY_SIG.items()}
 _TIER_BY_LEAP = {v: t for t, v in enumerate(C.TIER_LEAP)}
-# 지그재그 순열의 역 — (성질, 음계어긋남) → 자릿값
+_KIND_BY_MARK = {v: k for k, v in C.KIND_MARK.items()}
+_TERM_BY_SET = {frozenset(v): k for k, v in C.TERM_SET.items()}
 _DIGIT_BY_OFFSET = {
     q: {C.SCALE[q][C.DIGIT_ORDER[q][d]]: d
         for d in range(len(C.SCALE[q]))}
@@ -55,21 +51,12 @@ _DIGIT_BY_OFFSET = {
 }
 
 
-def voicing_of(pitches) -> Voicing:
-    ps = sorted(pitches)
-    return tuple(p - ps[0] for p in ps)
-
-
-def root_of(pitches) -> int:
-    return min(pitches)
-
-
 @dataclass(frozen=True, slots=True)
 class Event:
-    pitches: Chord
+    pitches: Chord     # 정렬됨. 꼭대기가 멜로디다 (종결만 예외).
     duration: int
     velocity: int
-    slot: str          # 역할/언어/받아적기/이름/종지/이음/종결
+    slot: str          # 으뜸/이름/종지/종결
     rest_after: int = 0
 
 
@@ -83,6 +70,7 @@ class Glyph:
     index: int
     events: tuple[Event, ...]
     flag: int = 0
+    join: bool = False      # 같은 낱말이 다음 글리프로 이어지는가
 
     @property
     def chords(self) -> list[Chord]:
@@ -90,7 +78,7 @@ class Glyph:
 
     @property
     def melody(self) -> list[int]:
-        return [e.pitches[0] for e in self.events if len(e.pitches) == 1]
+        return [e.pitches[-1] for e in self.events]
 
     @property
     def n_digits(self) -> int:
@@ -112,6 +100,7 @@ def encode(
     lang: str | None = None,
     polarity: int = 0,
     flag: int = 0,
+    join: bool = False,
 ) -> Glyph:
     if kind is not Kind.CONCEPT and lang is None:
         raise ValueError(f"{kind.value} 글리프에는 언어가 있어야 한다")
@@ -119,137 +108,140 @@ def encode(
         tier, quality = C.LETTER_TIER, C.LETTER_QUALITY
 
     accent = C.POLARITY_ACCENT * abs(polarity)
+    qi = _QUALITIES.index(quality)
+    tonic = C.tonic_of(tier, qi, index)
     ev: list[Event] = []
 
-    def chord(shape, root, dur, vel, slot, exact=False):
-        r = root if exact else min(root, pitch.HIGHEST - shape.span)
-        ps = shape.at(r)
+    def put(pitches, dur, vel, slot):
+        ps = tuple(sorted(pitches))
         pitch.assert_in_range(ps)
         ev.append(Event(ps, C.scaled(dur, role), min(127, vel), slot))
 
-    def single(p, dur, vel, slot):
-        pitch.assert_in_range((p,))
-        ev.append(Event((p,), C.scaled(dur, role), min(127, vel), slot))
+    # 1. 으뜸음 + 화성 — 멜로디가 꼭대기, 베이스와 역할 내성이 아래.
+    put((C.PEDAL, C.PEDAL + C.ROLE_INNER[role], tonic),
+        C.DUR_TONIC, C.VEL_SIG + accent, "으뜸")
 
-    # 1. 역할 — 구조의 저음. 근음 어긋남 한 칸이 대문자 표시다.
-    chord(BANKS.role[ROLE_INDEX[role]],
-          C.ROLE_PITCH[role] + C.FLAG_OFFSETS[flag],
-          C.DUR_ROLE, C.VEL_ROLE + accent, "역할", exact=True)
-
-    # 2. 갈래 화음 (개념이면 없다)
-    if kind is Kind.WORD:
-        chord(BANKS.language[lang], C.HEAD_PITCH, C.DUR_HEAD,
-              C.VEL_HEAD, "언어")
-    elif kind is Kind.LETTER:
-        chord(BANKS.letter[lang], C.HEAD_PITCH, C.DUR_HEAD,
-              C.VEL_HEAD, "받아적기")
-
-    # 3. 자릿음 — 낱말 고유의 가락이 먼저 나온다.
+    # 2. 자릿음 — 지그재그 계단, 자릿값이 리듬을 만든다.
     base = C.base_of(quality)
     digits = C.digits_of(index, base)
     if len(digits) > C.MELODY_MAX_DIGITS:
         raise ValueError(f"번호 {index:,} 는 자릿음 {C.MELODY_MAX_DIGITS}개를 넘는다")
     scale, order = C.SCALE[quality], C.DIGIT_ORDER[quality]
-    for i, d in enumerate(digits):
-        dur = C.DUR_DIGIT if i % 2 == 0 else C.DUR_DIGIT_OFF
-        single(C.MEL_BASE + scale[order[d]], dur,
-               C.VEL_DIGIT + accent, "이름")
+    for d in digits:
+        put((tonic + scale[order[d]],), C.DUR_DIGIT + d % 3,
+            C.VEL_DIGIT + accent, "이름")
 
-    # 4. 종지 — 성질과 등급으로 맺는다.
-    sig1 = C.MEL_BASE + C.QUALITY_SIG[quality]
-    single(sig1, C.DUR_SIG, C.VEL_SIG + accent, "종지")
-    single(sig1 + C.TIER_LEAP[tier], C.DUR_SIG_END,
-           C.VEL_SIG + accent, "종지")
+    # 3. 종지1 — 3도 위. 표지 내성(갈래·대문자·이음)이 이 아래 선다.
+    sig1 = tonic + C.QUALITY_SIG[quality]
+    marks = []
+    if kind is not Kind.CONCEPT:
+        marks.append(C.KIND_MARK[(kind.name, lang)])
+    if flag:
+        marks.append(C.FLAG_MARK)
+    if join:
+        marks.append(C.JOIN_MARK)
+    put(tuple(marks) + (sig1,), C.DUR_SIG, C.VEL_SIG + accent, "종지")
 
-    return Glyph(role, kind, lang, tier, quality, index, tuple(ev), flag)
+    # 4. 종지2 — 아래로 해결. 도약의 거칢이 등급이다.
+    put((sig1 - C.TIER_LEAP[tier],), C.DUR_SIG_END,
+        C.VEL_SIG + accent, "종지")
 
-
-def join_event(role: Role) -> Event:
-    """한 낱말 안에서 글리프를 잇는 작은 다리."""
-    sh = BANKS.join
-    ps = sh.at(min(C.HEAD_PITCH, pitch.HIGHEST - sh.span))
-    return Event(ps, C.scaled(C.DUR_JOIN, role), C.VEL_JOIN, "이음")
+    return Glyph(role, kind, lang, tier, quality, index, tuple(ev),
+                 flag, join)
 
 
 def terminator(mark: str) -> Event:
-    if mark not in C.TERMINATORS:
+    if mark not in C.TERM_SET:
         mark = "."
-    sh = BANKS.term[C.TERMINATORS.index(mark)]
-    ps = sh.at(min(C.HEAD_PITCH, pitch.HIGHEST - sh.span))
+    ps = C.TERM_SET[mark]
     pitch.assert_in_range(ps)
     return Event(ps, C.DUR_TERM, C.VEL_TERM, "종결", C.REST_SENTENCE)
 
 
 # ── 되읽기 ───────────────────────────────────────────────────────────
 def read_terminator(chord: Chord) -> str | None:
-    if len(chord) == 1:
+    if len(chord) < 2 or max(chord) > 56:
         return None
-    return _TERM_BY_V.get(voicing_of(chord))
+    return _TERM_BY_SET.get(frozenset(chord))
 
 
-def is_join(chord: Chord) -> bool:
-    return len(chord) > 1 and voicing_of(chord) == _JOIN_V
+def is_start(chord: Chord) -> bool:
+    """베이스 C3 을 품고 멜로디 꼭대기가 으뜸음이면 새 낱말이다."""
+    return (len(chord) >= 2 and min(chord) == C.PEDAL
+            and max(chord) in C.TONICS)
 
 
 def decode(chords: list[Chord], start: int = 0) -> tuple[Glyph, int]:
     n = len(chords)
     if start >= n:
         raise DecodeError("읽을 것이 없다")
+    head = tuple(sorted(chords[start]))
+    if not is_start(head):
+        raise DecodeError(
+            f"{start}번째 소리 {head} 는 낱말의 머리(베이스 C3 + 으뜸음)가 아니다")
+    tonic = head[-1]
+    inners = [p - C.PEDAL for p in head[1:-1]]
+    if len(inners) != 1 or inners[0] not in _ROLE_BY_INNER:
+        raise DecodeError(f"역할 내성이 어긋난다: {head}")
+    role = _ROLE_BY_INNER[inners[0]]
 
-    if len(chords[start]) == 1:
-        raise DecodeError(f"{start}번째는 홑음이다 — 글리프는 역할 화음으로 시작한다")
-    role = _ROLE_BY_V.get(voicing_of(chords[start]))
-    if role is None:
-        raise DecodeError(f"{start}번째 화음 {chords[start]} 는 역할 화음이 아니다")
-    off = root_of(chords[start]) - C.ROLE_PITCH[role]
-    if off not in C.FLAG_OFFSETS:
-        raise DecodeError(f"역할 화음의 근음 어긋남 {off} 이 옳지 않다")
-    flag = C.FLAG_OFFSETS.index(off)
-    i = start + 1
-
-    kind = Kind.CONCEPT
-    lang: str | None = None
-    if i < n and len(chords[i]) > 1:
-        v = voicing_of(chords[i])
-        if v in _LANG_BY_V:
-            kind, lang = Kind.WORD, _LANG_BY_V[v]
-            i += 1
-        elif v in _LETTER_BY_V:
-            kind, lang = Kind.LETTER, _LETTER_BY_V[v]
-            i += 1
-        else:
-            raise DecodeError(f"{i}번째 화음 {chords[i]} 는 갈래 화음이 아니다")
-
-    # 홑음의 연속 — 다음 화음(또는 끝)까지가 이 글리프의 멜로디다.
-    j = i
-    while j < n and len(chords[j]) == 1:
+    # 몸통 — 다음 머리/종결/끝까지.
+    j = start + 1
+    body: list[Chord] = []
+    while j < n:
+        c = tuple(sorted(chords[j]))
+        if is_start(c) or read_terminator(c) is not None:
+            break
+        body.append(c)
         j += 1
-    melody = [chords[k][0] for k in range(i, j)]
-    if len(melody) < C.MELODY_MIN:
-        raise DecodeError(f"멜로디가 {len(melody)}음뿐이다 — 자릿음 하나와 종지 둘은 있어야 한다")
+    if len(body) < C.MELODY_MIN - 1:
+        raise DecodeError(f"멜로디가 짧다 — 자릿음 하나와 종지 둘은 있어야 한다")
 
-    # 마지막 두 음이 종지: 성질과 등급
-    quality = _QUALITY_BY_SIG.get(melody[-2] - C.MEL_BASE)
+    # 종지: 마지막 둘. 종지1 에만 표지 내성이 붙을 수 있다.
+    for k, c in enumerate(body):
+        if len(c) > 1 and k != len(body) - 2:
+            raise DecodeError(f"표지 내성은 종지1 에만 선다: {c}")
+        if len(c) == 1 and not (48 <= c[0] <= 72):
+            raise DecodeError(f"음역 밖: {c}")
+    sig1_ev = body[-2]
+    sig1, marks = sig1_ev[-1], sig1_ev[:-1]
+    quality = _QUALITY_BY_SIG.get(sig1 - tonic)
     if quality is None:
-        raise DecodeError(f"종지 첫 음 {melody[-2]} 이 성질이 아니다")
-    tier = _TIER_BY_LEAP.get(melody[-1] - melody[-2])
+        raise DecodeError(f"종지1 {sig1} 이 으뜸음 위 3도류가 아니다")
+    leap = sig1 - body[-1][0]
+    tier = _TIER_BY_LEAP.get(leap)
     if tier is None:
-        raise DecodeError(f"종지 도약 {melody[-1] - melody[-2]} 이 등급이 아니다")
+        raise DecodeError(f"종지 하행 {leap} 이 등급이 아니다")
+
+    kind, lang, flag, join = Kind.CONCEPT, None, 0, False
+    for m in marks:
+        if m in _KIND_BY_MARK:
+            kname, lang = _KIND_BY_MARK[m]
+            kind = Kind[kname]
+        elif m == C.FLAG_MARK:
+            flag = 1
+        elif m == C.JOIN_MARK:
+            join = True
+        else:
+            raise DecodeError(f"모르는 표지 내성 {m}")
+    if kind is Kind.LETTER:
+        tier, quality = C.LETTER_TIER, C.LETTER_QUALITY
+        if sig1 - tonic != C.QUALITY_SIG[quality]:
+            raise DecodeError("받아적기의 종지가 어긋난다")
 
     table = _DIGIT_BY_OFFSET[quality]
     base = C.base_of(quality)
     digits: list[int] = []
-    for p in melody[:-2]:
-        d = table.get(p - C.MEL_BASE)
+    for c in body[:-2]:
+        d = table.get(c[0] - tonic)
         if d is None:
-            raise DecodeError(f"홑음 {p} 은 {quality.value} 음계에 없다")
+            raise DecodeError(f"홑음 {c[0]} 은 이 조의 {quality.value} 음계에 없다")
         digits.append(d)
+    if not digits:
+        raise DecodeError("자릿음이 없다")
+    idx = C.index_of(digits, base)
+    qi = _QUALITIES.index(quality)
+    if C.tonic_of(tier, qi, idx) != tonic:
+        raise DecodeError("으뜸음이 낱말의 정체와 맞지 않는다")
 
-    if kind is Kind.LETTER and (quality, tier) != (C.LETTER_QUALITY, C.LETTER_TIER):
-        raise DecodeError("받아적기의 종지가 어긋난다")
-
-    return (
-        Glyph(role, kind, lang, tier, quality,
-              C.index_of(digits, base), (), flag),
-        j,
-    )
+    return Glyph(role, kind, lang, tier, quality, idx, (), flag, join), j

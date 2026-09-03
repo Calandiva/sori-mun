@@ -84,25 +84,36 @@ def rules_text() -> str:
     L.append("소리문 — 하나의 소리, 두 개의 말\n")
     L.append(f"■ 음역 — {pitch.name(pitch.LOWEST)} ~ {pitch.name(pitch.HIGHEST)}"
              f" (정확히 2옥타브)")
-    L.append("  저음의 화음(2~3음)이 구조를, 고음의 홑음 멜로디가 낱말을 나른다.\n")
+    L.append("  모든 소리의 꼭대기가 멜로디다. 멜로디만 들으면 낱말이고,")
+    L.append("  함께 우는 화성을 들으면 그 낱말의 역할이다.\n")
 
     L.append("■ 글리프 — 낱말 하나가 이렇게 적힌다")
-    L.append("    [역할 화음] ([언어·받아적기 화음]) [이름 멜로디 3~10음] [맺음 화음]")
-    L.append("  화음이면 구조, 홑음이면 이름 — 헷갈릴 길이 없다.\n")
+    L.append("    [으뜸음+베이스 C3+역할 내성] [자릿음 1~8] [종지1(+표지 내성)] [종지2]")
+    L.append("  베이스 C3 이 울리면 새 낱말 — 경계 표시가 따로 없다.\n")
 
     L.append("■ 이름 멜로디 — 익숙함과 감정을 멜로디가 직접 노래한다")
-    L.append("  서명1  성질   기준음(G3) 위 장3도=장, 단3도=단, 삼전음=중성")
-    L.append("  서명2  등급   서명1에서 뛰는 음정: "
-             + " ".join(f"{t}등급 +{v}반음" for t, v in enumerate(C.TIER_LEAP)))
-    L.append("  자릿음 번호   그 성질의 음계 위 계단 = 전단사 진법 한 자리")
+    L.append("  으뜸음  조    다섯 조 " 
+             + " ".join(pitch.name(t) for t in C.TONICS)
+             + " — (번호+3×등급+5×성질)%5")
+    L.append("  종지1  성질   으뜸음 위 장3도=장, 단3도=단, 삼전음=중성")
+    L.append("  종지2  등급   종지1에서 아래로 해결: "
+             + " ".join(f"{t}등급 −{v}반음" for t, v in enumerate(C.TIER_LEAP)))
+    L.append("  자릿음 번호   으뜸음 위 그 성질의 음계 계단 = 전단사 진법 한 자리")
     for q in Quality:
         L.append(f"    {q.value:<8} 음계 {C.SCALE[q]}  (진법 {C.base_of(q)})")
     L.append("")
 
-    L.append("■ 문장 성분 — 저음 화음의 자리")
-    for role in C.ROLE_PITCH:
+    L.append("■ 문장 성분 — 베이스 C3 위 역할 내성")
+    for role, iv in C.ROLE_INNER.items():
         L.append(f"  {role.value:<7}{ENGLISH_NAME[role]:<13}"
-                 f"근음 {pitch.name(C.ROLE_PITCH[role])}")
+                 f"내성 +{iv} ({pitch.name(C.PEDAL + iv)})")
+    L.append("")
+    L.append("■ 표지 내성 — 종지1 아래 (없으면 개념)")
+    for (kind, lg), m in C.KIND_MARK.items():
+        nm = "전용" if kind == "WORD" else "글자"
+        L.append(f"  {lg} {nm:<4} {pitch.name(m)}")
+    L.append(f"  대문자   {pitch.name(C.FLAG_MARK)}")
+    L.append(f"  이음     {pitch.name(C.JOIN_MARK)}")
     L.append("")
 
     L.append("■ 하나의 말")
@@ -110,7 +121,7 @@ def rules_text() -> str:
     L.append("  조사·어미와 관사·어순은 소리에 담지 않고 읽어 낼 때 새로 짓는다.\n")
 
     L.append("■ 겹치지 않음")
-    L.append("  되읽기가 (자리·대문자·갈래·말·등급·성질·번호·맺음)을 남김없이")
+    L.append("  되읽기가 (자리·대문자·이음·갈래·말·등급·성질·번호)를 남김없이")
     L.append("  되찾는다. tools/verify.py 가 전수로 확인한다.")
     return "\n".join(L)
 

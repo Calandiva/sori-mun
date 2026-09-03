@@ -26,7 +26,6 @@ from sorimun.compose import Composer  # noqa: E402
 from sorimun.core import tags as KT  # noqa: E402
 from sorimun.concepts import Concepts  # noqa: E402
 from sorimun.core import codes as C, pitch  # noqa: E402
-from sorimun.core.banks import BANKS  # noqa: E402
 from sorimun.core.glyph import Kind  # noqa: E402
 from sorimun.core.harmony import Quality  # noqa: E402
 from sorimun.core.roles import ENGLISH_NAME, ORDER as ROLES  # noqa: E402
@@ -119,25 +118,24 @@ def main() -> int:
             ],
         })
 
-    banks = {
-        "role": [list(BANKS.role[i].voicing) for i in range(8)],
-        "language": {k: list(v.voicing) for k, v in BANKS.language.items()},
-        "letter": {k: list(v.voicing) for k, v in BANKS.letter.items()},
-        "join": list(BANKS.join.voicing),
-        "term": [list(s.voicing) for s in BANKS.term],
-    }
-
     codes = {
         "roles": [r.value for r in ROLES],
         "rolesEn": [ENGLISH_NAME[r] for r in ROLES],
-        "rolePitch": [C.ROLE_PITCH[r] for r in ROLES],
-        "flagOffsets": list(C.FLAG_OFFSETS),
-        "melBase": C.MEL_BASE,
+        "pedal": C.PEDAL,
+        "roleInner": [C.ROLE_INNER[r] for r in ROLES],
+        "kindMark": {f"{k}|{l}": v for (k, l), v in C.KIND_MARK.items()},
+        "flagMark": C.FLAG_MARK,
+        "joinMark": C.JOIN_MARK,
+        "termSet": {k: list(v) for k, v in C.TERM_SET.items()},
+        "tonics": list(C.TONICS),
         "qualitySig": {q.value: v for q, v in C.QUALITY_SIG.items()},
         "tierLeap": list(C.TIER_LEAP),
         "scale": {q.value: list(v) for q, v in C.SCALE.items()},
         "digitOrder": {q.value: list(v) for q, v in C.DIGIT_ORDER.items()},
         "terminators": list(C.TERMINATORS),
+        "durTonic": C.DUR_TONIC, "durDigit": C.DUR_DIGIT,
+        "durSig": C.DUR_SIG, "durSigEnd": C.DUR_SIG_END,
+        "durTerm": C.DUR_TERM,
         "lowest": pitch.LOWEST, "highest": pitch.HIGHEST,
         "tierLabel": list(TIER_LABEL), "tierLabelEn": list(TIER_LABEL_EN),
     }
@@ -287,7 +285,7 @@ def main() -> int:
     from sorimun.core import alphabet
     from sorimun.core import codes as CC
     payload = {
-        "codes": codes, "banks": banks, "examples": examples,
+        "codes": codes, "examples": examples,
         "concepts": concepts,
         "dict": {"ko": ko_rows, "en": en_rows},
         "enTagger": en_tagger, "koTags": ko_tags,
@@ -296,24 +294,21 @@ def main() -> int:
         "approx": approx_rows,
         "theory": theory,
         "durations": {
-            "role": CC.DUR_ROLE, "head": CC.DUR_HEAD, "sig": CC.DUR_SIG,
+            "tonic": CC.DUR_TONIC, "sig": CC.DUR_SIG,
             "sigEnd": CC.DUR_SIG_END, "digit": CC.DUR_DIGIT,
-            "digitOff": CC.DUR_DIGIT_OFF, "join": CC.DUR_JOIN,
             "term": CC.DUR_TERM, "restWord": CC.REST_WORD,
             "restGlyph": CC.REST_GLYPH,
             "scale": {r.value: list(CC.ROLE_DURATION_SCALE[r])
                       for r in CC.ROLE_DURATION_SCALE},
-            "vel": {"role": CC.VEL_ROLE, "head": CC.VEL_HEAD,
-                    "sig": CC.VEL_SIG, "digit": CC.VEL_DIGIT,
-                    "join": CC.VEL_JOIN, "term": CC.VEL_TERM,
-                    "accent": CC.POLARITY_ACCENT},
+            "vel": {"sig": CC.VEL_SIG, "digit": CC.VEL_DIGIT,
+                    "term": CC.VEL_TERM, "accent": CC.POLARITY_ACCENT},
         },
         "meta": {
             "concepts": len(cx),
             "ko": len(ko_dic), "en": len(en_dic),
             "koShipped": len(ko_rows), "enShipped": len(en_rows),
             "inflect": len(inflect_rows),
-            "reserved": len(BANKS.all_shapes()),
+            "reserved": len(C.TERM_SET) + len(C.KIND_MARK) + 2,
         },
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)

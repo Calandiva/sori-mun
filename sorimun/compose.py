@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from .concepts import Concept, Concepts
 from .core import alphabet, codes as C, pitch
-from .core.glyph import Event, Glyph, Kind, encode, join_event, terminator
+from .core.glyph import Event, Glyph, Kind, encode, terminator
 from .core.harmony import Quality
 from .core.roles import Role
 from .dictionary import Dictionary
@@ -117,9 +117,7 @@ class Composer:
                 continue
             for j, tok in enumerate(group):
                 last = j + 1 >= len(group)
-                cursor = self._one(piece, tok, cursor)
-                if not last:
-                    cursor = self._join(piece, tok.role, cursor)
+                cursor = self._one(piece, tok, cursor, join=not last)
             cursor += C.REST_WORD
 
         e = terminator(analysis.terminator)
@@ -128,41 +126,36 @@ class Composer:
                                 "맺음", -1))
         return piece
 
-    def _join(self, piece: Piece, role: Role, cursor: int) -> int:
-        e = join_event(role)
-        gi = len(piece.glyphs) - 1
-        piece.notes.append(Note(e.pitches, cursor, e.duration, e.velocity,
-                                e.slot, "이음", role.value, gi))
-        return cursor + e.duration + C.REST_GLYPH
-
-    def _one(self, piece: Piece, tok: Token, cursor: int) -> int:
+    def _one(self, piece: Piece, tok: Token, cursor: int,
+             join: bool = False) -> int:
         flag = 1 if tok.surface[:1].isupper() else 0
         c = self.concepts.of(self.lang, tok.form, tok.tag)
         if c is not None and c.form(self.lang) == (tok.form, tok.tag):
             g = encode(tok.role, Kind.CONCEPT, c.tier, c.quality, c.index,
-                       polarity=c.polarity, flag=flag)
+                       polarity=c.polarity, flag=flag, join=join)
             return self._emit(piece, g, cursor, f"{tok} ≡{c}", tok.role)
 
         e = self.dict.get(tok.form, tok.tag)
         if e is not None:
             g = encode(tok.role, Kind.WORD, e.tier, e.quality, e.index,
-                       lang=self.lang, polarity=e.polarity, flag=flag)
+                       lang=self.lang, polarity=e.polarity, flag=flag,
+                       join=join)
             return self._emit(piece, g, cursor, str(tok), tok.role)
 
         # 형태소 하나를 받아 적을 때는 그 형태소의 꼴을 쓴다.
-        return self._spell(piece, tok.role, tok.form, cursor, flag)
+        return self._spell(piece, tok.role, tok.form, cursor, flag, join)
 
     def _spell(self, piece: Piece, role: Role, text: str,
-               cursor: int, flag: int = 0) -> int:
+               cursor: int, flag: int = 0, join: bool = False) -> int:
         chars = [ch for ch in text
                  if alphabet.to_index(self.lang, ch) is not None] or ["?"]
         for j, ch in enumerate(chars):
+            last = j + 1 >= len(chars)
             g = encode(role, Kind.LETTER, -1, Quality.NEUTRAL,
                        alphabet.to_index(self.lang, ch), lang=self.lang,
-                       flag=flag if j == 0 else 0)
+                       flag=flag if j == 0 else 0,
+                       join=join if last else True)
             cursor = self._emit(piece, g, cursor, f"글자 {ch}", role)
-            if j + 1 < len(chars):
-                cursor = self._join(piece, role, cursor)
         return cursor
 
     @staticmethod
@@ -176,7 +169,7 @@ class Composer:
                                     ev.velocity, ev.slot, label,
                                     role.value, gi))
             cursor += ev.duration + ev.rest_after
-        return cursor
+        return cursor + C.REST_GLYPH
 
 
 def combine(pieces: list[Piece]) -> Piece:
