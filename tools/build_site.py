@@ -30,37 +30,13 @@ from sorimun.core.glyph import Kind  # noqa: E402
 from sorimun.core.harmony import Quality  # noqa: E402
 from sorimun.core.roles import ENGLISH_NAME, ORDER as ROLES  # noqa: E402
 from sorimun.decompose import read, render  # noqa: E402
+from sorimun.lang import inflect_en as EI  # noqa: E402
 from sorimun.dictionary import TIER_LABEL, TIER_LABEL_EN  # noqa: E402
 from sorimun.generate import _korean_one  # noqa: E402
 from sorimun.lang import get, inflect_en as INF  # noqa: E402
 
 OUT = ROOT / "docs" / "data.js"
 
-EXAMPLES = [
-    ("ko", "아이가 조용히 웃었다.",
-     "일곱 자리 가운데 셋이 나온다. 소리에는 '아이·웃다·과거·조용히' 라는 "
-     "개념만 담기고 조사와 어미는 담기지 않는다. 그래서 영어로도 읽힌다."),
-    ("en", "The child laughed quietly.",
-     "위와 똑같은 소리다. 영어로 적었지만 소리는 같은 개념을 담으므로 "
-     "한국어로 읽어 내면 '아이가 조용히 웃었다' 가 나온다."),
-    ("ko", "바람이 꽃을 흔들었다.",
-     "주어·목적어·서술어가 모두 개념으로 적힌다. 자리는 역할 화음이, "
-     "뜻은 의미 화음과 자릿 화음이 나른다."),
-    ("en", "The water was dark.",
-     "영어의 'was' 는 한국어에 없다. 그래서 소리에 담기지 않고, 과거라는 "
-     "개념만 담긴다. 한국어로 읽으면 '어두웠다' 로 되살아난다."),
-    ("ko", "아름다운 노래가 어두운 밤을 천천히 어루만졌다.",
-     "'어루만지다' 는 개념표에 없어 한국어 전용으로 적힌다. 그런 낱말은 "
-     "다른 말로 옮겨지지 않는다 — 소리에 옮겨진 몫이 표시된다."),
-    ("ko", "쀍뿕뿅이 우두두두 쏟아졌다.",
-     "사전에도 없는 말은 글자를 하나씩 받아 적는다. 길고 더듬거리지만 "
-     "글자 하나 틀리지 않고 돌아온다."),
-    ("en", "Love is stronger than death.",
-     "비교급과 전치사는 영어의 것이라 소리에 담기지 않는다. 개념으로 "
-     "옮겨진 몫이 낮아지는 것이 그대로 드러난다."),
-    ("en", "Zxqwv frobnicates the widget.",
-     "사전에 없는 영어 낱말도 글자로 받아 적힌다."),
-]
 
 
 # 체언은 받침만 보면 조사를 붙일 수 있으므로 브라우저가 짓는다.
@@ -86,37 +62,6 @@ def main() -> int:
     ka, ea = get("ko"), get("en")
     kiwi = getattr(ka, "_kiwi", None)
     cx = Concepts.load()
-
-    examples = []
-    for lang, text, note in EXAMPLES:
-        an = ka if lang == "ko" else ea
-        p = Composer(lang, analyzer=an).compose(an.analyze(text))
-        r = read(p.chords)
-        examples.append({
-            "lang": lang, "text": text, "note": note,
-            "tempo": p.tempo,
-            "translatable": round(p.translatable, 3),
-            "ko": render(r, "ko", ka),
-            "en": render(r, "en", ea),
-            "tokens": [
-                {"form": t.form, "tag": t.tag, "role": t.role.value,
-                 "group": t.group}
-                for t in p.analysis.tokens
-            ],
-            "notes": [
-                {"p": list(n.pitches), "s": n.start, "d": n.duration,
-                 "v": n.velocity, "slot": n.slot, "src": n.source,
-                 "role": n.role, "g": n.glyph}
-                for n in sorted(p.notes, key=lambda x: x.start)
-            ],
-            "glyphs": [
-                {"role": g.role.value, "kind": g.kind.value,
-                 "lang": g.lang, "tier": g.tier,
-                 "quality": g.quality.value, "index": g.index,
-                 "label": lab}
-                for g, lab in zip(p.glyphs, p.labels)
-            ],
-        })
 
     codes = {
         "roles": [r.value for r in ROLES],
@@ -285,10 +230,12 @@ def main() -> int:
     from sorimun.core import alphabet
     from sorimun.core import codes as CC
     payload = {
-        "codes": codes, "examples": examples,
+        "codes": codes,
         "concepts": concepts,
         "dict": {"ko": ko_rows, "en": en_rows},
         "enTagger": en_tagger, "koTags": ko_tags,
+        "enIrr": {"past": EI.IRREGULAR_PAST,
+                  "plural": EI.IRREGULAR_PLURAL},
         "alphabet": {k: "".join(v) for k, v in alphabet.ALPHABET.items()},
         "inflect": inflect_rows,
         "approx": approx_rows,
@@ -317,7 +264,7 @@ def main() -> int:
         + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         + ";\n", encoding="utf-8")
     print(f"→ {OUT.relative_to(ROOT)} ({OUT.stat().st_size:,}B)")
-    print(f"  예제 {len(examples)}, 개념 {len(concepts):,}, "
+    print(f"  개념 {len(concepts):,}, "
           f"ko 낱말 {len(ko_rows):,}, en 낱말 {len(en_rows):,}, "
           f"활용 {len(inflect_rows):,}, 근사 {len(approx_rows):,}")
     return 0

@@ -328,25 +328,21 @@
 
   const NO_ART = new Set(["love","death","life","time","peace","war","hope",
     "fear","sadness","joy","beauty","music","money","work","blood","air"]);
-  const IRR = {be:"was",become:"became",come:"came",go:"went",see:"saw",
-    hear:"heard",know:"knew",make:"made",take:"took",give:"gave",find:"found",
-    feel:"felt",hold:"held",sing:"sang",run:"ran",sit:"sat",stand:"stood",
-    write:"wrote",read:"read",eat:"ate",drink:"drank",sleep:"slept",
-    fall:"fell",fly:"flew",shake:"shook",shine:"shone",say:"said",
-    think:"thought",begin:"began",break:"broke",bring:"brought",buy:"bought",
-    catch:"caught",teach:"taught",tell:"told",win:"won",lose:"lost"};
-  const IRR_PL = {child:"children",man:"men",woman:"women",person:"people",
-    foot:"feet",tooth:"teeth",mouse:"mice",goose:"geese",life:"lives",
-    leaf:"leaves",knife:"knives",wife:"wives"};
+  const IRR = (D.enIrr && D.enIrr.past) || {};
+  const IRR_PL = (D.enIrr && D.enIrr.plural) || {};
   const addS = (w) => /(s|x|z|ch|sh)$/.test(w) ? w + "es"
     : /[^aeiou]y$/.test(w) ? w.slice(0, -1) + "ies" : w + "s";
   function inflect(w, g) {
-    if (g === "past") return IRR[w] || (/e$/.test(w) ? w + "d"
-      : /[^aeiou]y$/.test(w) ? w.slice(0, -1) + "ied" : w + "ed");
-    if (g === "plural" && IRR_PL[w]) return IRR_PL[w];
-    if (g === "third" || g === "plural") return addS(w);
-    if (g === "ing") return /e$/.test(w) && !/ee$/.test(w)
-      ? w.slice(0, -1) + "ing" : w + "ing";
+    // 대문자는 지키고, 표는 소문자로 찾는다
+    const up = /^[A-Z]/.test(w);
+    const lw = up ? w[0].toLowerCase() + w.slice(1) : w;
+    const cap = x => up ? x[0].toUpperCase() + x.slice(1) : x;
+    if (g === "past") return cap(IRR[lw] || (/e$/.test(lw) ? lw + "d"
+      : /[^aeiou]y$/.test(lw) ? lw.slice(0, -1) + "ied" : lw + "ed"));
+    if (g === "plural" && IRR_PL[lw]) return cap(IRR_PL[lw]);
+    if (g === "third" || g === "plural") return cap(addS(lw));
+    if (g === "ing") return cap(/e$/.test(lw) && !/ee$/.test(lw)
+      ? lw.slice(0, -1) + "ing" : lw + "ing");
     return w;
   }
 

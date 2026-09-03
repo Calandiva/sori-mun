@@ -8,534 +8,148 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#0d1014; --bg2:#141920; --bg3:#1b222b; --line:#28313d; --line2:#374252;
-  --ink:#e6edf5; --ink2:#9fb0c4; --ink3:#67788c;
-  --major:#e9b44c; --minor:#9b8ec4; --neutral:#5f8fa6; --marker:#4a5a6d;
-  --ko:#7fb3d5; --en:#e0a3a3; --accent:#e9b44c;
-  --serif:"Noto Serif KR",ui-serif,Georgia,serif;
-  --sans:"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
-  font-weight:300;line-height:1.75;-webkit-font-smoothing:antialiased;
-  font-size:16.5px}
-.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
-section{padding:64px 0;border-top:1px solid var(--line)}
-nav.top{position:sticky;top:0;z-index:50;background:rgba(13,16,20,.92);
-  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-nav.top .wrap{display:flex;align-items:center;gap:22px;padding-top:12px;
-  padding-bottom:12px}
-nav.top b{font-family:var(--serif);letter-spacing:.2em;font-size:1.05rem}
-nav.top a{color:var(--ink2);font-size:.9rem;border:none}
-nav.top a:hover{color:var(--accent);text-decoration:none}
-header{padding:44px 0 8px;text-align:center}
-h1{font-family:var(--serif);font-weight:600;font-size:clamp(2.2rem,7vw,3.4rem);
-  margin:0;letter-spacing:.22em;text-indent:.22em;line-height:1.1}
-.lede{font-size:.98rem;color:var(--ink2);max-width:52ch;margin:14px auto 0}
-h2{font-family:var(--serif);font-weight:600;font-size:1.6rem;margin:0 0 8px}
-h2 .en{font-family:var(--mono);font-size:.64rem;color:var(--ink3);
-  letter-spacing:.3em;display:block;font-weight:400;margin-bottom:10px}
-.sub{color:var(--ink2);margin:0 0 28px;max-width:66ch;font-size:.93rem}
-.panel{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
-  padding:20px 22px;margin-bottom:18px}
-.panel h3{font-size:.73rem;font-weight:500;color:var(--ink3);margin:0 0 15px;
-  letter-spacing:.18em;text-transform:uppercase}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:.85rem;white-space:nowrap}
-th{text-align:left;font-weight:500;color:var(--ink3);font-size:.71rem;
-  letter-spacing:.1em;padding:0 14px 9px 0;border-bottom:1px solid var(--line)}
-td{padding:7px 14px 7px 0;border-bottom:1px solid var(--bg3);vertical-align:top}
-td.txt{white-space:normal;min-width:190px}
-.mono{font-family:var(--mono);font-size:.8rem}
-.dim{color:var(--ink3)}
-textarea{width:100%;min-height:96px;background:var(--bg2);color:var(--ink);
-  border:1px solid var(--line);border-radius:10px;padding:14px 16px;
-  font-family:var(--sans);font-size:1.02rem;line-height:1.8;resize:vertical}
-textarea:focus{outline:none;border-color:var(--accent)}
-textarea.notes{font-family:var(--mono);font-size:.8rem;min-height:80px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0 6px}
-.count{font-family:var(--mono);font-size:.74rem;color:var(--ink3);margin-left:auto}
-button.act{font-family:var(--sans);font-size:.88rem;background:var(--bg3);
-  color:var(--ink);border:1px solid var(--line2);border-radius:999px;
-  padding:9px 20px;cursor:pointer;transition:.15s}
-button.act:hover{border-color:var(--accent);color:var(--accent)}
-button.act.primary{background:var(--accent);color:#1a1207;border-color:var(--accent);
-  font-weight:600;font-size:.95rem;padding:10px 26px}
-button.act.primary:hover{filter:brightness(1.1);color:#1a1207}
-.chip{font-family:var(--sans);font-size:.78rem;color:var(--ink3);
-  background:none;border:1px solid var(--line);border-radius:999px;
-  padding:5px 12px;cursor:pointer}
-.chip:hover{color:var(--ink);border-color:var(--line2)}
-.err{color:#e08a8a;font-size:.85rem;font-family:var(--mono)}
-.readings{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:14px;margin:16px 0}
-.reading{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:15px 18px}
-.reading .tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.2em;
-  color:var(--ink3);display:block;margin-bottom:7px}
-.reading .body{font-family:var(--serif);font-size:1.1rem;line-height:1.65}
-.reading.k{border-left:3px solid var(--ko)} .reading.e{border-left:3px solid var(--en)}
-.rollbox{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
-  padding:16px 18px 12px;margin:16px 0}
-.rollhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
-.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:.74rem;color:var(--ink3)}
-.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
-svg.roll{display:block;width:100%;height:auto;min-width:600px}
-.rollfoot{font-size:.72rem;color:var(--ink3);margin-top:9px}
-#tip{position:fixed;pointer-events:none;background:#1b222bee;color:var(--ink);
-  border:1px solid var(--line2);border-radius:7px;padding:8px 11px;
-  font-size:.78rem;line-height:1.55;max-width:280px;z-index:200;display:none}
-#tip b{color:var(--accent)}
-#wordChips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
-.wchip{font-family:var(--sans);font-size:.82rem;color:var(--ink2);
-  background:var(--bg3);border:1px solid var(--line);border-radius:999px;
-  padding:4px 12px;cursor:pointer;transition:.14s}
-.wchip:hover{border-color:var(--line2);color:var(--ink)}
-.wchip.sel{background:var(--accent);border-color:var(--accent);color:#1a1207;
-  font-weight:500}
-.fxbar{display:flex;gap:10px;align-items:center;font-size:.78rem;color:var(--ink3);
-  flex-wrap:wrap}
-.fxbar select{background:var(--bg3);color:var(--ink);border:1px solid var(--line);
-  border-radius:6px;padding:3px 6px;font-size:.76rem}
-.fxbar label{display:flex;gap:5px;align-items:center;cursor:pointer}
-.fxbar input{accent-color:var(--accent)}
-.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-.howcard{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
-  padding:18px 20px}
-.howcard h4{margin:0 0 10px;font-size:1rem;font-weight:500}
-.howcard h4 .n{display:inline-grid;place-items:center;width:24px;height:24px;
-  border-radius:50%;border:1px solid var(--accent);color:var(--accent);
-  font-family:var(--mono);font-size:.76rem;margin-right:8px}
-.howcard p{margin:0;color:var(--ink2);font-size:.88rem}
-.howcard .mono{display:block;margin-top:8px;color:var(--ink3);font-size:.74rem}
-.excard{background:var(--bg2);border-left:3px solid var(--accent);
-  border-radius:8px;padding:14px 18px;margin:10px 0;font-size:.9rem}
-.excard b{font-family:var(--serif);font-size:1.02rem}
-.excard .mono{color:var(--ink2)}
-.cntoggles{display:flex;gap:12px;font-size:.74rem;color:#5b6b7f}
-.cntoggles label{display:flex;gap:4px;align-items:center;cursor:pointer}
-#cnStage{display:flex;gap:14px;align-items:flex-start;max-width:1100px;
-  margin:6px auto;width:100%}
-#cnOrbit{flex:0 0 160px}
-.stats{font-size:.82rem;color:var(--ink2);margin:10px 0 0}
-.stats b{color:var(--accent);font-weight:500}
-.senthead{font-family:var(--serif);font-size:1.05rem;margin:26px 0 10px;color:var(--ink2)}
-.senthead b{color:var(--ink)}
-input[type=search]{font-family:var(--sans);font-size:.92rem;color:var(--ink);
-  background:var(--bg2);border:1px solid var(--line);border-radius:7px;
-  padding:10px 14px;flex:1;min-width:200px}
-input[type=search]:focus{outline:none;border-color:var(--accent)}
-input[type=file]{display:none}
-label.file{font-family:var(--sans);font-size:.88rem;background:var(--bg3);
-  color:var(--ink);border:1px solid var(--line2);border-radius:999px;
-  padding:9px 20px;cursor:pointer}
-label.file:hover{border-color:var(--accent);color:var(--accent)}
-.hit{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;
-  padding:10px 0;border-bottom:1px solid var(--bg3);font-size:.92rem}
-ol.proof{counter-reset:p;list-style:none;padding:0;margin:0}
-ol.proof li{counter-increment:p;position:relative;padding:0 0 18px 44px;
-  color:var(--ink2);font-size:.94rem}
-ol.proof li::before{content:counter(p);position:absolute;left:0;top:1px;
-  width:27px;height:27px;border-radius:50%;border:1px solid var(--line2);
-  display:grid;place-items:center;font-family:var(--mono);font-size:.75rem;color:var(--accent)}
-.verify{background:#0a0d10;border:1px solid var(--line);border-radius:8px;
-  padding:16px 18px;font-family:var(--mono);font-size:.77rem;color:#7fd18c;
-  white-space:pre;overflow-x:auto;line-height:1.85}
-.caveat{border-left:2px solid var(--line2);padding-left:18px;color:var(--ink2);
-  font-size:.9rem;margin-top:26px}
-footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--ink3);font-size:.83rem}
-a{color:var(--accent);text-decoration:none}
-a:hover{text-decoration:underline}
-footer a{color:var(--ink2)}
-audio{width:100%;margin-top:10px}
-.quad{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:18px}
-.quadcell{border:1px solid var(--line);border-left-width:3px;border-radius:8px;
-  padding:12px 14px;background:var(--bg2)}
-.quadhead{margin-bottom:4px}
-.hit4{grid-template-columns:minmax(110px,auto) 1fr auto auto}
-#keys{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;padding:8px 0}
-.key{flex:0 0 34px;height:74px;border-radius:0 0 5px 5px;cursor:pointer;
-  background:#dde4ec;border:1px solid #0d1014;position:relative;
-  display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px}
-.key span{font-family:var(--mono);font-size:.56rem;color:#3a4655}
-.key.black{background:#232c37;height:52px;flex-basis:26px;margin:0 -7px;z-index:2}
-.key.black span{color:#8fa3b8}
-.key.on{background:var(--accent)}
-.key.black.on{background:#b98a2c}
-.key.on span{color:#1a1207}
-.seqchip{display:inline-block;background:var(--bg3);border:1px solid var(--line);
-  border-radius:5px;padding:2px 7px;margin:2px 3px 2px 0;font-size:.68rem;
-  cursor:pointer;color:var(--ink2)}
-#candBox{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}
-.cand{font-family:var(--mono);font-size:.68rem;border-radius:5px;cursor:pointer;
-  padding:3px 8px;background:var(--bg3);border:1px solid var(--line);color:var(--ink2)}
-.cand:hover{border-color:var(--accent);color:var(--accent)}
-.cand.major{border-left:3px solid var(--major)}
-.cand.minor{border-left:3px solid var(--minor)}
-.cand.neutral{border-left:3px solid var(--neutral)}
-#pianoOut{font-family:var(--serif);font-size:1rem;white-space:pre-wrap;
-  color:var(--ink);margin-top:10px;line-height:1.7}
-#cinema{position:fixed;inset:0;background:#05070a;z-index:999;
-  display:flex;flex-direction:column;padding:22px 28px;gap:8px}
-#cinema[hidden]{display:none}
-.cnbar{display:flex;align-items:center;gap:16px}
-#cnWords{font-family:var(--serif);font-size:clamp(1.5rem,3vw,2.2rem);
-  line-height:1.9;text-align:center;padding:10px 0 2px}
-.cnword{margin:0 .3em;color:#4c5a6d;border-bottom:2px solid transparent;
-  display:inline-block;transition:color .2s,border-color .2s,transform .22s;
-  transform-origin:center bottom}
-.cnword.on{color:#f2f6fa;border-bottom-color:#e9b44c;transform:scale(1.3)}
-.cnword.end{border:none}
-#cnSeg{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;
-  min-height:44px;padding:8px 0 4px}
-.cnseg{display:inline-flex;flex-direction:column;align-items:center;
-  border:1px solid #2c3745;border-bottom-width:3px;border-radius:6px;
-  padding:3px 9px;transition:opacity .12s,background .12s}
-.cnseg b{font-size:.66rem;font-weight:500;color:#9fb0c4}
-.cnseg i{font-style:normal;font-family:var(--mono);font-size:.6rem;color:#5b6b7f}
-.cnseg.todo{opacity:.32}
-.cnseg.done{opacity:.6}
-.cnseg.now{opacity:1;background:#1b222b}
-.cnseg.now b{color:#e9b44c}
-.cnplay{background:var(--accent);color:#1a1207;border:none;border-radius:999px;
-  width:44px;height:36px;font-size:1rem;cursor:pointer}
-#cnMatrix{flex:1;display:flex;flex-direction:column;gap:10px;
-  justify-content:center;max-width:1050px;margin:0 auto;width:100%}
-#cnMatrix[hidden]{display:none}
-.mxrow{display:flex;gap:10px;align-items:stretch}
-.mxhead .mxlab{font-family:var(--mono);font-size:.72rem;color:#5b6b7f;
-  border:none;display:flex;align-items:flex-end;justify-content:center}
-.mxlab{flex:0 0 64px;display:flex;align-items:center;justify-content:center;
-  font-size:.85rem}
-.mxcell{flex:1;min-height:74px;border:1px solid #2c3745;border-radius:8px;
-  padding:6px 8px;display:flex;flex-wrap:wrap;gap:4px 10px;
-  align-content:flex-start}
-.mxword{font-family:var(--serif);font-size:.95rem;color:#3d4b5c;
-  transition:color .15s,transform .15s;display:inline-block}
-.mxword.was{color:#8fa3b8}
-.mxword.on{transform:scale(1.35);font-weight:600}
-#cnClock{font-family:var(--mono);font-size:.75rem;color:#5b6b7f}
-#cnAsm{width:100%;max-width:900px;margin:6px auto;flex:0 0 auto;display:block}
-#cnRoll{width:100%;flex:1;min-height:0;display:block}
-.cnclose{background:none;border:1px solid var(--line2);color:var(--ink2);
-  border-radius:999px;padding:5px 16px;cursor:pointer;font-size:.82rem}
-.cnclose:hover{border-color:var(--accent);color:var(--accent)}
-.cnfoot{font-size:.7rem;color:#43536a;font-family:var(--mono)}
-#cnFx{position:absolute;top:56px;right:26px;background:#0d1218f2;
-  border:1px solid var(--line2);border-radius:10px;padding:14px 18px;
-  display:flex;flex-direction:column;gap:10px;z-index:5;font-size:.78rem}
-#cnFx[hidden]{display:none}
-.cnfxrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:var(--ink2)}
-.cnfxrow b{font-size:.72rem;color:var(--accent);min-width:70px;font-weight:500}
-.cnfxrow select{background:var(--bg3);color:var(--ink);border:1px solid var(--line);
-  border-radius:6px;padding:3px 6px;font-size:.74rem}
-.cnfxrow label{display:flex;gap:5px;align-items:center}
-.cnfxrow input[type=range]{width:72px;accent-color:var(--accent)}
-@media(max-width:640px){section{padding:48px 0}.hit{grid-template-columns:1fr auto}}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="stage">
+<nav class="top"><div class="wrap">
+  <a class="brand" href="./">소리문</a>
+  <span class="dim" style="font-size:.78rem">문장은 음악이 되고, 음악은 다시 문장이 된다</span>
+  <span style="flex:1"></span>
+  <a class="sm" href="guide.html">설명·이론</a>
+  <a class="sm" href="dict.html">사전</a>
+  <a class="sm" href="input.html">음 입력</a>
+  <a class="sm" href="https://github.com/Calandiva/sori-mun">github</a>
+</div></nav>
 
-<nav class="top">
-  <div class="wrap">
-    <b>소리문</b>
-    <a href="#guide">설명</a>
-    <a href="#write">생성</a>
-    <a href="#readback">입력</a>
-    <a href="#dict">사전</a>
-    <a href="#theory">이론</a>
-  </div>
-</nav>
-<header>
-  <div class="wrap">
-    <h1>소리문</h1>
-    <p class="lede">문장은 음악이 되고, 음악은 다시 문장이 된다.
-      한국어로도, 영어로도. 사전과 나눗셈만 있으면 사람 손으로도 된다.</p>
-  </div>
-</header>
-
-<section id="guide" style="border-top:none">
-  <div class="wrap">
-    <h2><span class="en">HOW A HUMAN DOES IT</span>설명 — 사람이 하는 법</h2>
-    <p class="sub">여섯 걸음. 기계가 하는 그대로다. 전문은
-      <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/HOWTO.md">HOWTO.md</a>.</p>
-    <div class="howto">
-      <div class="howcard"><h4><span class="n">1</span>자리를 정한다</h4>
-        <p>한국어는 조사가 말한다 — 이/가=주어, 을/를=목적어. 영어는
-        어순이 말한다. 자리는 <b>화성</b>이다: 베이스 C3 위 내성이 몇
-        반음인가. 흔한 자리일수록 협화롭다.</p>
-        <span class="mono">표지 +7(G3) · 주어 +5(F3) · 목적어 +4(E3) · 서술어 +3(D#3) …</span></div>
-      <div class="howcard"><h4><span class="n">2</span>사전에서 찾는다</h4>
-        <p>낱말의 칸(등급×성질)과 번호를 얻는다. ≡ 이면 두 말 공통
-        개념 — 소리에 언어가 담기지 않는다. 전용·받아적기는 나중에
-        종지 아래 표지로 운다.</p>
-        <span class="mono">사랑/NNG → 개념 #50 · 0등급 · 장</span></div>
-      <div class="howcard"><h4><span class="n">3</span>조를 정한다</h4>
-        <p>낱말의 정체가 조를 고른다 — <b>으뜸음</b>은 A3 부터 다섯 조
-        (A3 A#3 B3 C4 C#4) 가운데 (번호+3×등급+5×성질)÷5 의 나머지.
-        성질 번호는 장0·단1·중성2. 머리는 <b>C3+내성+으뜸음</b> 이 함께
-        울린다 — 꼭대기가 멜로디의 첫 음이다.</p>
-        <span class="mono">사랑: (50+0+0)÷5 나머지 0 → A3 · 머리 C3+F3+A3</span></div>
-      <div class="howcard"><h4><span class="n">4</span>번호를 가락으로</h4>
-        <p>번호+1 을 진법(장·단 7진, 중성 6진)으로 풀고 각 자리에서 1을
-        뺀다. 자릿수를 으뜸음 위 그 성질의 음계에서 짚되 <b>지그재그
-        순열</b>(장·단 0→4→2→6→1→5→3, 중성 0→3→1→5→2→4)을 거친다 —
-        이웃한 번호가 전혀 다른 윤곽이 되도록. 자릿값은 리듬(3~5)까지
-        정한다.</p>
-        <span class="mono">50+1=51 → [6,1] → 순열 3·4 → +5·+7반음 → D4 E4</span></div>
-      <div class="howcard"><h4><span class="n">5</span>종지 두 음으로 맺는다</h4>
-        <p>으뜸음 위 <b>3도가 감정</b>(장3도=장, 단3도=단, 삼전음=중성)
-        으로 올라섰다가, <b>하행 도약이 익숙함</b>(0등급 완전4도 …
-        5등급 단2도)으로 해결한다. 전용·글자·대문자·이음 표지가 있다면
-        종지 첫 음 <b>아래 낮은 내성</b>으로 함께 운다 — ko낱말 C#3 ·
-        en낱말 D3 · ko글자 D#3 · en글자 E3 · 대문자 F#3 · 이음 G#3.</p>
-        <span class="mono">장·0등급 종지: C#4 → G#3 (완전4도 아래)</span></div>
-      <div class="howcard"><h4><span class="n">6</span>경계와 끝</h4>
-        <p>맺음 화음은 없다 — <b>베이스 C3 이 다시 울리면 새 낱말</b>이다.
-        다른 어떤 소리도 C3 을 품지 않는다. 문장의 끝은 멜로디 없는
-        저음 이중음: <span class="mono">. C3+G3 · ? C3+F3 · ! C3+D#3 · … C3+C#3</span></p></div>
-      <div class="howcard"><h4><span class="n">↺</span>되읽기</h4>
-        <p><b>모든 소리의 꼭대기가 멜로디다.</b> C3 이 울리면 머리 —
-        내성이 자리, 꼭대기가 으뜸음. 마지막 두 음이 종지 — 3도가 성질,
-        하행이 등급. 사이 계단을 순열로 되돌리면 번호다. 으뜸음이 조
-        공식과 맞는지 검산까지 된다. 절대음감은 필요 없다 — 낮은 C
-        하나만 짚으면 나머지는 상대음정이다.</p></div>
-    </div>
-    <h3 style="font-family:var(--serif);font-weight:600;font-size:1.15rem;margin:34px 0 8px">
-      풀이 예 — 네 사분면을 손으로</h3>
-    <div class="excard"><b>사랑</b> <span class="dim">(흔함×장, 개념 #50 · 주어로)</span><br>
-      <span class="mono">조 (50+0+0)%5=0 → A3 · 머리 C3+F3+A3 · 51→[6,1]→D4 E4
-      · 종지 C#4 → G#3 (완전4도, 익숙)</span><br>
-      멜로디 <b class="mono">A3 · D4 E4 · C#4 G#3</b> — A장조를 걷다 순하게 해결한다.
-      <b>love 도 같은 개념 #50 — 멜로디가 똑같다.</b> 자리가 바뀌면 화성만 바뀐다.</div>
-    <div class="excard" style="border-color:var(--minor)"><b>죽음</b>
-      <span class="dim">(흔함×단, 개념 #197 · 주어로)</span><br>
-      <span class="mono">조 (197+5)%5=2 → B3 · 머리 C3+F3+B3 · 198→[2,6,1]→D4 E4 F#4
-      · 종지 D4 → A3</span><br>
-      멜로디 <b class="mono">B3 · D4 E4 F#4 · D4 A3</b> — B단조로 걷다 단3도로 맺는다.</div>
-    <div class="excard" style="border-color:var(--neutral)"><b>밤 ↔ night</b>
-      <span class="dim">(흔함×중성, 개념 #75 · 부사어로)</span><br>
-      <span class="mono">조 (75+10)%5=0 → A3 · 머리 C3+G#3+A3 · 76→[0,5,3]→A3 F4 G4
-      · 종지 D#4 → A#3</span><br>
-      멜로디 <b class="mono">A3 · A3 F4 G4 · D#4 A#3</b> — 온음계, 어느 조성에도 안 기운다.</div>
-    <div class="excard" style="border-color:var(--neutral)"><b>어루만지</b>
-      <span class="dim">(생소한 ko 전용, 3등급 #13132 · 서술어로)</span><br>
-      <span class="mono">조 (13132+9+10)%5=1 → A#3 · 머리 C3+D#3+A#3 ·
-      13133→[0,2,5,3,3,4]→A#3 C4 F#4 G#4 G#4 D4 · 종지1 C#3+E4 — ko 낱말
-      표지가 아래에서 운다 · 종지2 F#3 (단7도 하행, 거친 해결)</span><br>
-      멜로디 <b class="mono">A#3 · A#3 C4 F#4 G#4 G#4 D4 · E4 F#3</b> — 9음, 크게
-      튀며 긴장으로 맺는다. 영어로 읽을 땐 ≈ touch.</div>
-  </section>
-
-<section id="write">
-  <div class="wrap">
-    <h2><span class="en">WRITE</span>생성 — 글을 음악으로</h2>
-    <textarea id="src" maxlength="500" spellcheck="false"
-      placeholder="한국어나 영어 문장을 넣어 보세요 (500자까지) — 예: 아름다운 노래가 어두운 밤을 천천히 어루만졌다. The child laughed quietly."></textarea>
-    <div class="row">
+<main class="stagewrap">
+  <div class="hero">
+    <textarea id="src" maxlength="2000" rows="3" spellcheck="false"
+      placeholder="한국어나 영어 문장을 넣어 보세요 (2,000자까지) — 예: 아름다운 노래가 어두운 밤을 천천히 어루만졌다. The child laughed quietly."></textarea>
+    <div class="row" style="margin-top:8px">
       <button class="act primary" id="go">♪ 음악으로</button>
-      <span class="dim" style="font-size:.8rem" id="exlabel">예문:</span>
       <span id="chips"></span>
-      <span class="count"><span id="cnt">0</span>/500</span>
+      <span class="count"><span id="cnt">0</span>/2000</span>
     </div>
     <div class="err" id="werr"></div>
-    <div id="result" hidden>
-      <p class="stats" id="wstats"></p>
-      <div class="readings">
-        <div class="reading k"><span class="tag">한국어로 읽으면</span>
-          <div class="body" id="wko"></div></div>
-        <div class="reading e"><span class="tag">IN ENGLISH</span>
-          <div class="body" id="wen"></div></div>
+    <div class="readline" id="rline"></div>
+    <p class="stats" id="wstats" style="margin:2px 0 0"></p>
+  </div>
+
+  <div id="cinema" hidden>
+    <div class="cnbar">
+      <button class="cnplay" id="cnPlay">▶</button>
+      <span class="cntoggles">
+        <label><input type="checkbox" id="cnLoopT">루퍼</label>
+        <label><input type="checkbox" id="cnTrail" checked>잔상</label>
+        <label><input type="checkbox" id="cnOrbitT" checked>궤도</label>
+        <label><input type="checkbox" id="cnMatrixT">매트릭스</label>
+      </span>
+      <button class="cnclose" id="cnFxT">이펙터</button>
+      <label class="dim" style="font-size:.75rem;display:flex;align-items:center;gap:7px">
+        ♩ <input type="range" id="wtempo" min="40" max="132" value="72"
+          style="width:90px;accent-color:var(--accent)">
+        <span class="mono" id="wtempoV">72</span></label>
+      <button class="cnclose" id="wdl">⬇ WAV</button>
+      <span style="flex:1"></span>
+      <canvas id="meter" width="66" height="17" title="출력 레벨 (좌·우)"></canvas>
+      <span id="cnClock"></span>
+    </div>
+    <div id="cnWords"></div>
+    <div id="cnSeg"></div>
+    <div id="cnStage">
+      <svg id="cnAsm" xmlns="http://www.w3.org/2000/svg" style="flex:1"></svg>
+      <svg id="cnOrbit" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <svg id="cnRoll" xmlns="http://www.w3.org/2000/svg"
+         preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="cnMatrix" hidden></div>
+
+    <div id="cnFx" hidden>
+      <div class="cnfxrow"><b>프리셋</b>
+        <select id="fxPreset">
+          <option value="custom">직접</option>
+          <option value="dry">드라이</option>
+          <option value="stage">무대</option>
+          <option value="ambient" selected>앰비언트</option>
+          <option value="mosaic">모자이크</option>
+          <option value="arp">아르페지오</option>
+          <option value="glitch">글리치</option>
+          <option value="tunnel">터널</option>
+          <option value="strum">스트럼</option>
+          <option value="cathedral">성당</option>
+          <option value="glacial">빙하</option>
+          <option value="dream">꿈</option></select>
+        <span class="dim">소우주의 출발점 — 손잡이를 만지면 '직접'</span>
       </div>
-      <div class="rollbox">
-        <div class="rollhead">
-          <button class="act primary" id="wplay">▶ 들어보기</button>
-          <label class="dim" style="font-size:.78rem;display:flex;align-items:center;gap:8px">
-            빠르기 <input type="range" id="wtempo" min="40" max="132" value="72"
-              style="width:110px;accent-color:var(--accent)">
-            <span class="mono" id="wtempoV">♩=72</span></label>
-          <button class="act" id="wdl">⬇ WAV 내려받기</button>
-          <button class="act" id="wcine">◈ 시각화</button>
-          <span class="fxbar">
-            <label>프리셋 <select id="fxPreset">
-              <option value="custom">직접</option>
-              <option value="dry">드라이</option>
-              <option value="stage">무대</option>
-              <option value="ambient" selected>앰비언트</option>
-              <option value="cathedral">성당</option>
-              <option value="glacial">빙하</option>
-              <option value="dream">꿈</option></select></label>
-            <label>리버브 <select id="fxRev">
-              <option value="off">끄기</option>
-              <option value="room">룸</option>
-              <option value="hall">홀</option>
-              <option value="plate">플레이트</option>
-              <option value="chamber">챔버</option>
-              <option value="cathedral">성당</option>
-              <option value="glacial">빙하</option>
-              <option value="bloom" selected>피어남</option></select></label>
-            <input type="range" id="fxRevMix" min="0" max="80" value="50"
-              title="리버브 양" style="width:64px;accent-color:var(--accent)">
-            <label>딜레이 <select id="fxDly">
-              <option value="0" selected>끄기</option>
-              <option value="0.5">8분</option>
-              <option value="0.75">점8분</option>
-              <option value="1">4분</option></select></label>
-            <input type="range" id="fxDlyFb" min="0" max="65" value="38"
-              title="피드백" style="width:56px;accent-color:var(--accent)">
-            <label><input type="checkbox" id="fxLoop">루퍼</label>
-            <span class="dim">재생 전용 · WAV 는 드라이</span>
-          </span>
-          <div class="legend">
-            <span><i class="sw" style="background:var(--major)"></i>장 · 긍정</span>
-            <span><i class="sw" style="background:var(--minor)"></i>단 · 부정</span>
-            <span><i class="sw" style="background:var(--neutral)"></i>중성</span>
-            <span><i class="sw" style="background:var(--marker)"></i>구조 화음 (저음)</span>
-          </div>
-        </div>
-        <div id="wordChips"></div>
-      <div class="scroll"><svg class="roll" id="wroll"></svg></div>
-        <div class="rollfoot">세로 = 음높이(C3~C5) · 홑음 = 낱말의 멜로디(색은 성질) · 회색 화음 = 구조(저음)
-          · 아래 띠 = 낱말 하나 · 가로 폭은 뜻과 무관 — 부호는 음높이와 화성뿐이다.
-          내려받은 WAV 를 아래 「소리 읽기」에 다시 넣으면 글로 정확히 돌아온다.</div>
+      <div class="cnfxrow"><b>그레인</b>
+        <select id="fxProg">
+          <option value="off">끄기</option>
+          <option value="mosaic">모자이크 (조각 되풂)</option>
+          <option value="sequence">아르페지오</option>
+          <option value="glitch">글리치</option>
+          <option value="haze" selected>아지랑이</option>
+          <option value="tunnel">터널</option>
+          <option value="strum">스트럼</option></select>
+        <select id="fxDiv">
+          <option value="0.25">16분</option>
+          <option value="0.5" selected>8분</option>
+          <option value="0.75">점8분</option>
+          <option value="1">4분</option>
+          <option value="2">2분</option></select>
+        <label>활동 <input type="range" id="fxAct" min="5" max="100" value="55"></label>
+        <label>모양 <input type="range" id="fxShape" min="0" max="100" value="60"></label>
+        <select id="fxPitch">
+          <option value="unison">제자리</option>
+          <option value="octave">옥타브</option>
+          <option value="shimmer" selected>쉬머</option>
+          <option value="fifth">5도</option>
+          <option value="sub">아래 옥타브</option>
+          <option value="spread">펼침</option></select>
+        <label>양 <input type="range" id="fxGMix" min="0" max="100" value="45"></label>
       </div>
-      <div id="wsent"></div>
-    </div>
-  </div>
-</section>
-
-<section id="readback">
-  <div class="wrap">
-    <h2><span class="en">READ</span>입력 — 소리를 글로</h2>
-    <p class="sub">WAV든 음이름이든, 넣으면 두 언어로 돌아온다.
-      판독이 보는 것은 음높이와 화성뿐이다.</p>
-    <div class="row">
-      <label class="file">🎵 소리 파일 넣기 (.wav)
-        <input type="file" id="afile" accept="audio/*"></label>
-      <span class="dim" style="font-size:.82rem">또는 음이름으로:</span>
-    </div>
-    <textarea id="chordIn" class="notes" spellcheck="false"
-      placeholder="D#3+F#3+A3  B3  E4  D4 …  (화음은 + 로, 홑음은 그대로, 사이는 빈칸)"></textarea>
-    <div class="row">
-      <button class="act primary" id="doRead">읽기</button>
-      <span class="err" id="rerr"></span>
-    </div>
-    <div class="panel" style="margin-top:26px">
-      <h3>화음을 눌러 낱말 짓기 — 안내형 입력</h3>
-      <p class="sub" style="font-size:.85rem;margin-bottom:12px">
-        지금 올 수 있는 소리가 단추로 나온다. 차례로 누르면 낱말이
-        완성되고, 아래에 두 언어로 읽힌다. 건반은 자유 입력.</p>
-      <div id="pianoState" class="dim" style="font-size:.85rem"></div>
-      <div id="candBox"></div>
-      <div id="keys"></div>
-      <div class="row">
-        <span class="mono dim" style="font-size:.78rem">고른 음: <span id="pickShow">—</span></span>
-        <button class="act" id="addChord">이 화음 넣기</button>
-        <button class="act" id="undoChord">하나 지우기</button>
-        <button class="act" id="clearChord">모두 지우기</button>
+      <div class="cnfxrow"><b>딜레이</b>
+        <select id="fxDly">
+          <option value="0" selected>끄기</option><option value="0.5">8분</option>
+          <option value="0.75">점8분</option><option value="1">4분</option>
+          <option value="1.5">점4분</option></select>
+        <label>피드백 <input type="range" id="fxFb" min="0" max="70" value="38"></label>
+        <label>양 <input type="range" id="fxDlyMix" min="0" max="70" value="28"></label>
       </div>
-      <div id="seqShow" style="margin:6px 0"></div>
-      <div id="pianoOut"></div>
-    </div>
-    <div id="rout" hidden>
-      <div class="readings">
-        <div class="reading k"><span class="tag">한국어로</span>
-          <div class="body" id="rko"></div></div>
-        <div class="reading e"><span class="tag">IN ENGLISH</span>
-          <div class="body" id="ren"></div></div>
+      <div class="cnfxrow"><b>필터</b>
+        <label>컷오프 <input type="range" id="fxCut" min="600" max="9000" value="5200"></label>
+        <label>공명 <input type="range" id="fxRes" min="0" max="100" value="8"></label>
+        <label>변조 <input type="range" id="fxModD" min="0" max="100" value="25"></label>
+        <label>속도 <input type="range" id="fxModR" min="2" max="300" value="18"></label>
       </div>
-      <div class="panel"><h3>되찾은 것</h3>
-        <div class="scroll"><table id="tblRead"></table></div></div>
+      <div class="cnfxrow"><b>공간</b>
+        <select id="fxRev">
+          <option value="off">끄기</option><option value="chamber">챔버</option>
+          <option value="room">룸</option><option value="plate">플레이트</option>
+          <option value="hall">홀</option>
+          <option value="cathedral">성당</option>
+          <option value="glacial">빙하</option>
+          <option value="bloom" selected>피어남</option></select>
+        <label>양 <input type="range" id="fxRevMix" min="0" max="85" value="50"></label>
+        <label>프리딜레이 <input type="range" id="fxPre" min="0" max="120" value="30"></label>
+        <label>톤 <input type="range" id="fxTone" min="1200" max="8000" value="3600"></label>
+      </div>
+      <div class="cnfxrow"><span class="dim">그레인 → 딜레이 → 필터 → 공간 ·
+        재생 전용 — 내려받는 WAV 는 드라이</span></div>
     </div>
+    <div class="cnfoot">해체 — 번호 — 가락과 종지 · 꼭대기가 멜로디, 아래가 화성 · C3–C5</div>
   </div>
-</section>
 
-<section id="theory">
-  <div class="wrap">
-    <h2><span class="en">WHY THESE RULES</span>이론적 배경 — 두 축의 조화</h2>
-    <p class="sub">멜로디가 두 축을 노래한다. 자릿음들이 그 성질의 음계
-      위에서 번호를 그리고, 종지 두 음이 감정(3도)과 익숙함(도약의 거칢,
-      Plomp–Levelt 1965)으로 맺는다. 흔한 긍정어는 짧고 순하게 해결되는
-      장조, 생소한 부정어는 길고 긴장으로 맺는 단조다. 아래 수치는
-      <code class="mono">verify_axes</code> 가 재는 값이고, 점과 단추는
-      그 소리를 그대로 낸다. 전문은
-      <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/THEORY.md">THEORY.md</a>.</p>
-    <div class="panel" id="theoryBody">
-      <h3>검증 — 익숙함의 사다리, 그리고 네 사분면</h3>
-    </div>
-    <div class="verify" id="axesOut"></div>
-  </div>
-</section>
-
-<section id="rules">
-  <div class="wrap">
-    <h2><span class="en">RULES</span>규칙</h2>
-    <p class="sub">낱말 하나가 글리프 하나 — [으뜸음+화성][자릿음들][종지].
-      멜로디만 들으면 낱말이고, 함께 울리는 화성을 들으면 그 낱말의
-      역할이다. 부호는 음높이와 화성뿐, 길이를 흔들어도 뜻은 그대로다.</p>
-    <div class="panel"><h3>글리프의 짜임</h3>
-      <div class="scroll"><table id="tblParts"></table></div></div>
-    <div class="panel"><h3>역할 내성 — 여덟 자리를 두 말이 함께 쓴다</h3>
-      <div class="scroll"><table id="tblRoles"></table></div></div>
-    <div class="panel"><h3>종지 하행 — 거칢은 빈도가, 3도는 감정이 정한다</h3>
-      <div class="scroll"><table id="tblTier"></table></div></div>
-  </div>
-</section>
-
-<section id="dict">
-  <div class="wrap">
-    <h2><span class="en">DICTIONARY</span>사전 — 전부 찾고, 미리 듣는다</h2>
-    <p class="sub">546,068 항목 전체. 등급·성질·개념 이음이 보이고,
-      미리보기가 그 낱말을 들려준다. 첫 검색 때 사전을 한 번 내려받는다.</p>
-    <div class="row"><input id="dictQ" type="search"
-      placeholder="아무 낱말이나 — 어루만지다의 어간 '어루만지', 밤, serendipity …"
-      autocomplete="off"></div>
-    <div id="dictHits"></div>
-  </div>
-</section>
-
-<section id="concepts">
-  <div class="wrap">
-    <h2><span class="en">CONCEPTS</span>개념 — 두 말을 잇는 자리</h2>
-    <p class="sub" id="cxSub"></p>
-    <div class="row"><input id="q" type="search"
-      placeholder="한국어나 영어로 — 사랑, love, 밤, night …" autocomplete="off"></div>
-    <div id="hits"></div>
-  </div>
-</section>
-
-<section id="proof">
-  <div class="wrap">
-    <h2><span class="en">VERIFICATION</span>겹치지 않음, 그리고 되돌아옴</h2>
-    <ol class="proof">
-      <li>화성의 창이 <b>서로소</b>다. 베이스 C3 은 낱말의 머리에만 울리고,
-        표지 내성(C#3~G#3)은 종지 아래에만, 으뜸음(A3~C#4)은 그 위에만 산다.
-        소리 하나만 보아도 그것이 머리인지 몸통인지 끝인지 안다.</li>
-      <li>베이스가 다시 울리면 새 낱말이다. <b>길이를 재지 않아도</b> 끊긴다.</li>
-      <li>되읽기가 (자리·대문자·갈래·말·등급·성질·번호·맺음)을 <b>남김없이</b>
-        되찾는다. 서로 다른 낱말이 같은 소리를 가질 수 없다.</li>
-      <li>사전에 없는 말은 글자를 하나씩 받아 적는다. 어떤 문장이든 빠짐없이
-        적히고 빠짐없이 돌아온다.</li>
-      <li>두 말에 다 있는 낱말은 <b>개념</b>으로, 한쪽에만 있는 낱말은 <b>가장
-        가까운 개념</b>으로 이어진다(어루만지다 ≈ touch). 그래서 영어→소리→
-        한국어→소리→영어 를 돌아도 핵심 낱말이 살아남는다.</li>
-    </ol>
-    <div class="verify" id="verifyOut"></div>
-    <p class="caveat">한계도 분명하다. 성분 판별과 품사 붙이기는 규칙
-      어림이라 복문은 단순해진다. 브라우저의 한국어 가르기는 형태소
-      분석기보다 거칠어, 갈리지 않는 어절은 글자로 받아 적는다 — 길어질
-      뿐 틀리지는 않는다. 소리 판독은 이 페이지가 만드는 음원 기준이다.</p>
-  </div>
-</section>
+  <details class="anls" id="anlsBox" hidden>
+    <summary>어절과 규칙 — 이 문장이 어떻게 적혔는가</summary>
+    <div id="wsent"></div>
+  </details>
+</main>
 
 <footer>
   <div class="wrap">
-    <p><a href="https://github.com/Calandiva/sori-mun">github.com/Calandiva/sori-mun</a>
-      · <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/RULES.md">규칙 전체</a>
-      · <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/DATA.md">자료 출처</a></p>
+    <p><a href="guide.html">설명·이론</a> · <a href="dict.html">사전</a>
+      · <a href="input.html">음 입력</a>
+      · <a href="https://github.com/Calandiva/sori-mun">github.com/Calandiva/sori-mun</a></p>
     <p class="dim">mecab-ko-dic (Apache-2.0) · FrequencyWords (CC-BY-SA) ·
       KNU 한국어 감성사전 · Moby POS (public domain) · VADER (MIT) · AFINN ·
       MUSE 대역쌍 · kiwipiepy. 코드는 MIT.</p>
@@ -543,71 +157,6 @@ audio{width:100%;margin-top:10px}
 </footer>
 
 <div id="tip"></div>
-
-<div id="cinema" hidden>
-  <div class="cnbar">
-    <button class="cnplay" id="cnPlay">⏸</button>
-    <span class="cntoggles">
-      <label><input type="checkbox" id="cnLoopT">반복</label>
-      <label><input type="checkbox" id="cnTrail" checked>잔상</label>
-      <label><input type="checkbox" id="cnOrbitT" checked>궤도</label>
-      <label><input type="checkbox" id="cnMatrixT">매트릭스</label>
-    </span>
-    <button class="cnclose" id="cnFxT">이펙터</button>
-    <span style="flex:1"></span>
-    <span id="cnClock"></span>
-    <button class="cnclose" id="cnClose">✕ 닫기</button>
-  </div>
-  <div id="cnWords"></div>
-  <div id="cnSeg"></div>
-  <div id="cnStage">
-    <svg id="cnAsm" xmlns="http://www.w3.org/2000/svg" style="flex:1"></svg>
-    <svg id="cnOrbit" xmlns="http://www.w3.org/2000/svg"></svg>
-  </div>
-  <svg id="cnRoll" xmlns="http://www.w3.org/2000/svg"
-       preserveAspectRatio="xMidYMid meet"></svg>
-  <div id="cnMatrix" hidden></div>
-  <div id="cnFx" hidden>
-    <div class="cnfxrow"><b>프리셋</b>
-      <select id="cxPreset">
-        <option value="custom">직접</option>
-        <option value="dry">드라이</option>
-        <option value="stage">무대</option>
-        <option value="ambient" selected>앰비언트</option>
-        <option value="cathedral">성당</option>
-        <option value="glacial">빙하</option>
-        <option value="dream">꿈</option></select>
-      <span class="dim">공간의 출발점 — 만지면 '직접' 이 된다</span>
-    </div>
-    <div class="cnfxrow"><b>공간</b>
-      <select id="cxRev">
-        <option value="off">끄기</option><option value="chamber">챔버</option>
-        <option value="room">룸</option><option value="plate">플레이트</option>
-        <option value="hall">홀</option>
-        <option value="cathedral">성당</option>
-        <option value="glacial">빙하</option>
-        <option value="bloom" selected>피어남</option></select>
-      <label>양 <input type="range" id="cxRevMix" min="0" max="85" value="50"></label>
-      <label>프리딜레이 <input type="range" id="cxPre" min="0" max="120" value="30"></label>
-      <label>톤 <input type="range" id="cxTone" min="1200" max="8000" value="3600"></label>
-    </div>
-    <div class="cnfxrow"><b>핑퐁 딜레이</b>
-      <select id="cxDly">
-        <option value="0" selected>끄기</option><option value="0.5">8분</option>
-        <option value="0.75">점8분</option><option value="1">4분</option>
-        <option value="1.5">점4분</option></select>
-      <label>피드백 <input type="range" id="cxFb" min="0" max="70" value="38"></label>
-      <label>양 <input type="range" id="cxDlyMix" min="0" max="70" value="28"></label>
-    </div>
-    <div class="cnfxrow"><b>합창</b>
-      <label><input type="checkbox" id="cxCh" checked>켜기</label>
-      <label>양 <input type="range" id="cxChMix" min="0" max="60" value="25"></label>
-      <span class="dim">재생 전용 — 내려받는 WAV 는 드라이</span>
-    </div>
-  </div>
-  <div class="cnfoot">해체 — 번호 — 가락과 종지 · 꼭대기가 멜로디, 아래가 화성 · C3–C5</div>
-</div>
-
 <script src="data.js"></script>
 <script src="decoder.js"></script>
 <script src="encoder.js"></script>
@@ -615,123 +164,46 @@ audio{width:100%;margin-top:10px}
 <script>
 (function(){
 "use strict";
-const D=window.SORIMUN, K=D.codes, R=window.SoriRead, W=window.SoriWrite;
+const D=window.SORIMUN,K=D.codes,R=window.SoriRead,W=window.SoriWrite,
+      ST=window.SoriStudio;
 const $=s=>document.querySelector(s);
 const el=(t,a,c)=>{const n=document.createElement(t);
   if(a)for(const k in a)n.setAttribute(k,a[k]);
   if(c!=null)n.textContent=c;return n;};
-const NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-const nm=m=>NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);
-const COLOR={major:"#e9b44c",minor:"#9b8ec4",neutral:"#5f8fa6",marker:"#4a5a6d"};
-const Q_NAME=["major","minor","neutral"];
-const TIERL=K.tierLabel;
 
-/* ── 소리 재생 ── */
-let actx=null,playing=null;
-function audio(){return actx||(actx=new (window.AudioContext||window.webkitAudioContext)());}
-function playPcm(pcm,onEnd){
-  const c=audio(); if(c.state==="suspended")c.resume();
-  const buf=c.createBuffer(1,pcm.length,W.SR);
-  const ch=buf.getChannelData(0);
-  for(let i=0;i<pcm.length;i++)ch[i]=pcm[i]/32768;
-  const srcN=c.createBufferSource(); srcN.buffer=buf;
-  srcN.connect(c.destination); srcN.onended=onEnd; srcN.start();
-  return srcN;
-}
-
-/* ── 피아노롤 ── */
-const NS="http://www.w3.org/2000/svg";
-const sv=(t,a)=>{const n=document.createElementNS(NS,t);
-  for(const k in a)n.setAttribute(k,a[k]);return n;};
-const SLOT_HELP={
-  "으뜸":"낱말의 머리 — 으뜸음이 조를 열고, 베이스 C3 위 내성이 문장 성분이다",
-  "종지":"멜로디의 맺음 — 3도가 감정을, 하행 도약이 익숙함을. 내성이 있다면 갈래·이음 표지다",
-  "이름":"멜로디 자릿음 — 그 성질의 음계 계단이 진법 한 자리",
-  "종결":"멜로디 없는 저음 이중음 — 문장의 끝"};
-let selGlyphWord=null;   // 선택된 낱말 (si/w)
-const tip=document.getElementById("tip");
-function showTip(ev,html){tip.innerHTML=html;tip.style.display="block";
-  const x=Math.min(ev.clientX+14,innerWidth-300),y=Math.min(ev.clientY+14,innerHeight-90);
-  tip.style.left=x+"px";tip.style.top=y+"px";}
-function hideTip(){tip.style.display="none";}
-function drawRoll(svgEl,notes,glyphMeta){
-  svgEl.textContent="";
-  const PL=44,PR=14,PT=12,LANE=30,H=290;
-  const total=Math.max(...notes.map(n=>n.s+n.d))+2;
-  const Wd=Math.max(700,total*6+PL+PR);
-  const rows=K.highest-K.lowest, rh=(H-PT-LANE-14)/rows;
-  const x=u=>PL+u*(Wd-PL-PR)/total, y=p=>PT+(K.highest-p)*rh;
-  svgEl.setAttribute("viewBox",`0 0 ${Wd} ${H}`);
-  svgEl.setAttribute("preserveAspectRatio","xMinYMid meet");
-  for(let p=K.lowest;p<=K.highest;p++){
-    if(p%12!==0&&p%12!==7)continue;const isC=p%12===0;
-    svgEl.appendChild(sv("line",{x1:PL,x2:Wd-PR,y1:y(p),y2:y(p),
-      stroke:isC?"#374252":"#222a34","stroke-width":isC?1:.5}));
-    if(isC){const t=sv("text",{x:PL-9,y:y(p)+4,fill:"#67788c","font-size":"10.5",
-      "text-anchor":"end","font-family":"ui-monospace,monospace"});
-      t.textContent=nm(p);svgEl.appendChild(t);}}
-  for(const n of notes){
-    let c=COLOR.marker;
-    if(n.slot==="종지"||n.slot==="이름"){
-      const meta=glyphMeta.get(n.g);
-      c=COLOR[(meta&&meta.q)||"neutral"];
-    }
-    const dimmed = selGlyphWord!==null &&
-      !(n.si===selGlyphWord[0] && n.w===selGlyphWord[1]);
-    for(const p of n.p){
-      const baseOp=n.slot==="종지"?1:n.slot==="이름"?.92:.4;
-      const r=sv("rect",{x:x(n.s),y:y(p)-rh*.42,
-        width:Math.max(3,x(n.s+n.d)-x(n.s)-1),height:Math.max(3,rh*.84),rx:2,
-        fill:c,"fill-opacity":dimmed?baseOp*.16:baseOp,
-        style:"cursor:crosshair"});
-      r.addEventListener("mousemove",ev=>showTip(ev,
-        `<b>${n.slot}</b> — ${SLOT_HELP[n.slot]||""}<br>`+
-        `${n.src} · ${n.role}<br>`+
-        `<span class="mono">${n.p.map(nm).join(" + ")}</span>`+
-        (n.p.length===1?" (홑음 = 멜로디)":" (꼭대기가 멜로디, 아래가 화성)")));
-      r.addEventListener("mouseleave",hideTip);
-      svgEl.appendChild(r);}}
-  const laneY=H-LANE+4;
-  const span=new Map();
-  for(const n of notes){if(n.g==null||n.g<0)continue;
-    const v=span.get(n.g);if(!v)span.set(n.g,{a:n.s,b:n.s+n.d,src:n.src,role:n.role});
-    else{v.a=Math.min(v.a,n.s);v.b=Math.max(v.b,n.s+n.d);}}
-  for(const [g,v] of span){
-    const meta=glyphMeta.get(g);
-    const col=meta?(meta.kind==="개념"?"#e9b44c":meta.kind==="낱말"?"#5f8fa6":"#67788c"):"#4a5a6d";
-    svgEl.appendChild(sv("rect",{x:x(v.a),y:laneY,width:Math.max(3,x(v.b)-x(v.a)-1.5),
-      height:13,rx:3,fill:col,"fill-opacity":.26,stroke:col,"stroke-opacity":.5}));
-    if(x(v.b)-x(v.a)>34){const t=sv("text",{x:x(v.a)+4,y:laneY+10,
-      fill:"#9fb0c4","font-size":"9"});t.textContent=v.role;svgEl.appendChild(t);}}
-}
-
-/* ── 변환기 ── */
+/* ── 변환 ── */
 let lastPcm=null,lastBlobUrl=null,curTempo=72;
 $("#src").addEventListener("input",()=>{$("#cnt").textContent=$("#src").value.length;});
-// 예문 칩
 const EX=["아름다운 노래가 어두운 밤을 천천히 어루만졌다.",
   "The beautiful song gently touched the dark night.",
   "봄이 왔다. 아이가 조용히 웃었다.",
-  "Love is stronger than death.","바람이 꽃을 흔들었다. 비가 조용히 내린다."];
+  "달빛이 강물 위에 부서졌다.",
+  "Love is stronger than death.",
+  "그리움이 파도처럼 밀려온다.",
+  "The train disappeared into the dark.",
+  "겨울 바다는 차갑고 쓸쓸하다.",
+  "Time flowed like deep water.",
+  "촛불이 바람 앞에서 흔들렸다. 우리는 함께 먼 길을 걸었다."];
 for(const t of EX){
   const b=el("button",{class:"chip",type:"button"},
-    t.length>22?t.slice(0,21)+"…":t);
+    t.length>19?t.slice(0,18)+"…":t);
+  b.title=t;
   b.addEventListener("click",()=>{$("#src").value=t;
-    $("#cnt").textContent=t.length;convert(false);});
+    $("#cnt").textContent=t.length;convert(true);});
   $("#chips").appendChild(b);
 }
-function convert(scroll){
+
+function convert(auto){
   const text=$("#src").value.trim();
   $("#werr").textContent="";
-  if(!text){$("#werr").textContent="문장을 넣어 주세요.";return;}
-  if(text.length>500){$("#werr").textContent="500자까지입니다.";return;}
+  if(!text)return;
+  if(text.length>2000){$("#werr").textContent="2,000자까지입니다.";return;}
   const lang=W.detect(text);
   let p;
   try{p=W.compose(text,lang);}
   catch(e){$("#werr").textContent="옮기지 못했다: "+e.message;return;}
-  $("#result").hidden=false;
 
-  // 되읽어 두 말로
+  // 두 말로 되읽기 — 변환기 바로 아래 한 줄씩
   const readings=R.readAll(p.chords);
   const same=readings.map(r=>R.toSame(r.items,r.terminator,lang)).join(" ");
   const other=lang==="ko"?"en":"ko";
@@ -739,8 +211,15 @@ function convert(scroll){
     const items=R.crossItems(r.items);
     return other==="ko"?R.toKorean(items,r.terminator):R.toEnglish(items,r.terminator);
   }).join(" ");
-  $("#wko").textContent=lang==="ko"?same:cross;
-  $("#wen").textContent=lang==="en"?same:cross;
+  const rl=$("#rline");rl.textContent="";
+  const mk=(lab,txt,strong)=>{
+    const sp=el("span",{class:"rl"});
+    sp.appendChild(el("span",{class:"lg"},lab));
+    sp.appendChild(el(strong?"b":"span",null,txt||"—"));
+    rl.appendChild(sp);
+  };
+  mk("한국어",lang==="ko"?same:cross,lang!=="ko");
+  mk("ENGLISH",lang==="en"?same:cross,lang!=="en");
 
   const nGlyphs=p.sentences.reduce((a,s)=>a+s.glyphs.length,0);
   const spelled=p.sentences.reduce((a,s)=>a+s.analysis.filter(x=>x.spelled).length,0);
@@ -750,50 +229,14 @@ function convert(scroll){
     `<b>${Math.round(p.translatable*100)}%</b>`+
     (spelled?` · 받아 적은 어절 ${spelled}개`:"");
 
-  // 낱말 칩 — 누르면 그 낱말의 소리만 밝게 남는다
-  selGlyphWord=null;
-  const chipsBox=$("#wordChips");chipsBox.textContent="";
-  p.sentences.forEach((sn,si)=>{
-    sn.analysis.forEach((a,wi)=>{
-      const b=el("button",{class:"wchip",type:"button"},a.surface);
-      b.title=a.role+" — 누르면 이 낱말의 소리만 밝게";
-      b.addEventListener("click",()=>{
-        const same=selGlyphWord&&selGlyphWord[0]===si&&selGlyphWord[1]===wi;
-        selGlyphWord=same?null:[si,wi];
-        document.querySelectorAll(".wchip").forEach(x=>x.classList.remove("sel"));
-        if(!same)b.classList.add("sel");
-        drawRoll($("#wroll"),p.notes,glyphMeta);
-        // 그 낱말만 들려주기
-        if(!same){
-          const mine=p.notes.filter(n=>n.si===si&&n.w===wi);
-          if(mine.length){
-            const base=mine[0].s;
-            const shifted=mine.map(n=>({...n,s:n.s-base}));
-            const pcm=W.synth(shifted,curTempo);
-            ST.playBuffer(pcm,W.SR,null);
-          }
-        }
-      });
-      chipsBox.appendChild(b);
-    });
-  });
-
-  // 글리프 메타 (피아노롤 색)
-  const glyphMeta=new Map();
-  let gi=0;
-  for(const s of p.sentences) for(const g of s.glyphs)
-    glyphMeta.set(gi++,{kind:["개념","낱말","글자"][g.kind],q:Q_NAME[g.qi]});
-  drawRoll($("#wroll"),p.notes,glyphMeta);
-
-  // 문장별 분석표
+  // 어절 분석표 (접힌 채로)
   const box=$("#wsent");box.textContent="";
+  $("#anlsBox").hidden=false;
   p.sentences.forEach((s,si)=>{
     const head=el("p",{class:"senthead"});
     head.innerHTML=`문장 ${si+1} — 핵심 성분: <b>${
       [...new Set(s.analysis.map(a=>a.role).filter(r=>r!=="표지"))].join(" · ")||"—"}</b>`;
     box.appendChild(head);
-    const panel=el("div",{class:"panel"});
-    panel.appendChild(el("h3",null,"어절과 규칙"));
     const sc=el("div",{class:"scroll"});
     const t=el("table");
     let tr=el("tr");
@@ -824,225 +267,40 @@ function convert(scroll){
       tr.appendChild(el("td",{class:"dim txt"},how));
       t.appendChild(tr);
     }
-    sc.appendChild(t);panel.appendChild(sc);box.appendChild(panel);
+    sc.appendChild(t);box.appendChild(sc);
   });
 
-  // 소리 준비
+  // 소리와 무대
   window.__lastPiece=p;
   lastPcm=W.synth(p.notes,curTempo);
   if(lastBlobUrl)URL.revokeObjectURL(lastBlobUrl);
   lastBlobUrl=URL.createObjectURL(W.wavBlob(lastPcm));
-  if(scroll)$("#result").scrollIntoView({behavior:"smooth",block:"nearest"});
+  ST.openCinema(p,curTempo,!!auto);
 }
 $("#go").addEventListener("click",()=>convert(true));
-$("#wplay").addEventListener("click",()=>{
-  if(playing){try{playing.stop()}catch(e){} playing=null;
-    $("#wplay").textContent="▶ 들어보기";return;}
-  if(!lastPcm)return;
-  $("#wplay").textContent="■ 멈추기";
-  playing=playPcm(lastPcm,()=>{playing=null;$("#wplay").textContent="▶ 들어보기";});
+$("#src").addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==="Enter")convert(true);
 });
-/* 공간 프리셋 — 앰비언트가 기본이다. 어느 손잡이든 만지면 '직접'. */
-const FX_PRESETS={
-  dry:      {revType:"off", revMix:0,   preDelay:0,   tone:4200, dlyDiv:0,   dlyFb:.3,  dlyMix:0,   chorus:false, chorusMix:0},
-  stage:    {revType:"room",revMix:.3,  preDelay:.012,tone:4600, dlyDiv:0,   dlyFb:.3,  dlyMix:.2,  chorus:false, chorusMix:.15},
-  ambient:  {revType:"bloom",revMix:.5, preDelay:.03, tone:3600, dlyDiv:0,   dlyFb:.38, dlyMix:.28, chorus:true,  chorusMix:.22},
-  cathedral:{revType:"cathedral",revMix:.6,preDelay:.04,tone:3000,dlyDiv:0,  dlyFb:.35, dlyMix:.2,  chorus:false, chorusMix:.15},
-  glacial:  {revType:"glacial",revMix:.65,preDelay:.05,tone:2400,dlyDiv:0,   dlyFb:.4,  dlyMix:.2,  chorus:true,  chorusMix:.28},
-  dream:    {revType:"hall",revMix:.5,  preDelay:.03, tone:3200, dlyDiv:1,   dlyFb:.55, dlyMix:.34, chorus:true,  chorusMix:.3},
-};
-function applyPreset(name){
-  const p=FX_PRESETS[name]; if(!p)return;
-  Object.assign(window.__fx,p);
-  const F=window.__fx;
-  $("#fxRev").value=F.revType; $("#fxRevMix").value=F.revMix*100;
-  $("#fxDly").value=String(F.dlyDiv); $("#fxDlyFb").value=F.dlyFb*100;
-  $("#cxRev").value=F.revType; $("#cxRevMix").value=F.revMix*100;
-  $("#cxPre").value=F.preDelay*1000; $("#cxTone").value=F.tone;
-  $("#cxDly").value=String(F.dlyDiv); $("#cxFb").value=F.dlyFb*100;
-  $("#cxDlyMix").value=F.dlyMix*100;
-  $("#cxCh").checked=F.chorus; $("#cxChMix").value=F.chorusMix*100;
-  $("#fxPreset").value=name; $("#cxPreset").value=name;
-  F.tempo=curTempo;
-  window.SoriStudio.applyFx();
-}
-$("#fxPreset").addEventListener("change",()=>applyPreset($("#fxPreset").value));
-$("#cxPreset").addEventListener("change",()=>applyPreset($("#cxPreset").value));
-function syncFx(from){
-  $("#fxPreset").value="custom"; $("#cxPreset").value="custom";
-  const F=window.__fx;
-  if(from==="cinema"){
-    F.revType=$("#cxRev").value; F.revMix=+$("#cxRevMix").value/100;
-    F.preDelay=+$("#cxPre").value/1000; F.tone=+$("#cxTone").value;
-    F.dlyDiv=+$("#cxDly").value; F.dlyFb=+$("#cxFb").value/100;
-    F.dlyMix=+$("#cxDlyMix").value/100;
-    F.chorus=$("#cxCh").checked; F.chorusMix=+$("#cxChMix").value/100;
-    $("#fxRev").value=F.revType; $("#fxRevMix").value=F.revMix*100;
-    $("#fxDly").value=String(F.dlyDiv); $("#fxDlyFb").value=F.dlyFb*100;
-  }else{
-    F.revType=$("#fxRev").value; F.revMix=+$("#fxRevMix").value/100;
-    F.dlyDiv=+$("#fxDly").value; F.dlyFb=+$("#fxDlyFb").value/100;
-    F.dlyMix=F.dlyMix||.28;
-    F.preDelay=+$("#cxPre").value/1000; F.tone=+$("#cxTone").value;
-    F.chorus=$("#cxCh").checked; F.chorusMix=+$("#cxChMix").value/100;
-    F.loop=$("#fxLoop").checked;
-    $("#cxRev").value=F.revType; $("#cxRevMix").value=F.revMix*100;
-    $("#cxDly").value=String(F.dlyDiv); $("#cxFb").value=F.dlyFb*100;
-  }
-  F.tempo=curTempo;
-  window.SoriStudio.applyFx();   // 재생 중이어도 즉시 반영
-}
-["fxRev","fxRevMix","fxDly","fxDlyFb","fxLoop"].forEach(id=>
-  $("#"+id).addEventListener("change",()=>syncFx()));
-["cxRev","cxRevMix","cxPre","cxTone","cxDly","cxFb","cxDlyMix","cxCh","cxChMix"]
-  .forEach(id=>$("#"+id).addEventListener("input",()=>syncFx("cinema")));
-$("#cnFxT").addEventListener("click",()=>{
-  const el2=$("#cnFx"); el2.hidden=!el2.hidden;
-});
-applyPreset("ambient");
-$("#wtempo").addEventListener("input",()=>{
+$("#wtempo").addEventListener("change",()=>{
   curTempo=+$("#wtempo").value;
-  $("#wtempoV").textContent="♩="+curTempo;
-  window.__fx.tempo=curTempo;
+  $("#wtempoV").textContent=curTempo;
+  window.__fx.tempo=curTempo;ST.applyFx();
   if(window.__lastPiece){
     lastPcm=W.synth(window.__lastPiece.notes,curTempo);
     if(lastBlobUrl)URL.revokeObjectURL(lastBlobUrl);
     lastBlobUrl=URL.createObjectURL(W.wavBlob(lastPcm));
+    ST.openCinema(window.__lastPiece,curTempo,false);
   }
 });
+$("#wtempo").addEventListener("input",()=>{
+  $("#wtempoV").textContent=$("#wtempo").value;});
 $("#wdl").addEventListener("click",()=>{
   if(!lastBlobUrl)return;
   const a=document.createElement("a");
   a.href=lastBlobUrl;a.download="sorimun.wav";a.click();
 });
 
-/* ── 소리 읽기 ── */
-async function showReading(chords){
-  $("#rerr").textContent="";
-  if(!chords.length){$("#rerr").textContent="화음을 찾지 못했다.";return;}
-  let readings=R.readAll(chords);
-  // 부분집합 밖의 드문 낱말 — 그 말의 전체 사전을 내려받아 채우고 다시 읽는다
-  const miss=R.unresolvedLangs(readings);
-  if(miss.length&&window.SoriStudio){
-    $("#rerr").textContent="드문 낱말이 있다 — 전체 사전을 여는 중 …";
-    try{
-      for(const lg of miss)
-        window.SoriWrite.feedFull(lg,await window.SoriStudio.loadFull(lg));
-    }catch(e){}
-    $("#rerr").textContent="";
-    readings=R.readAll(chords);
-  }
-  $("#rout").hidden=false;
-  const langs=new Set();
-  for(const r of readings)for(const it of r.items)if(it.lang)langs.add(it.lang);
-  const src=langs.size===1?[...langs][0]:null;
-  const outKo=readings.map(r=>src==="ko"?R.toSame(r.items,r.terminator,"ko")
-    :R.toKorean(R.crossItems(r.items),r.terminator)).join(" ");
-  const outEn=readings.map(r=>src==="en"?R.toSame(r.items,r.terminator,"en")
-    :R.toEnglish(R.crossItems(r.items),r.terminator)).join(" ");
-  $("#rko").textContent=outKo||"—";
-  $("#ren").textContent=outEn||"—";
-  const t=$("#tblRead");t.textContent="";
-  let tr=el("tr");
-  ["되찾은 것","자리","갈래"].forEach(h=>tr.appendChild(el("th",null,h)));
-  t.appendChild(tr);
-  readings.forEach((r,si)=>{
-    if(readings.length>1){
-      tr=el("tr");
-      const td=el("td",{class:"dim",colspan:"3"},`— 문장 ${si+1} —`);
-      tr.appendChild(td);t.appendChild(tr);
-    }
-    for(const it of r.items){
-      tr=el("tr");
-      if(it.kind==="개념"){
-        tr.appendChild(el("td",null,`${it.c[0]} ↔ ${it.c[2]}`));
-        tr.appendChild(el("td",null,K.roles[it.role]));
-        tr.appendChild(el("td",{class:"dim"},"개념 — 두 말 다"));
-      }else if(it.kind==="글자"){
-        tr.appendChild(el("td",{class:"mono"},it.form));
-        tr.appendChild(el("td",null,K.roles[it.role]));
-        tr.appendChild(el("td",{class:"dim"},`받아적기 (${it.lang})`));
-      }else{
-        const f=W.lookupRev(it.lang,it.tier,it.quality,it.index);
-        const ci=f?W.approxOf(it.lang,f[0],f[1]):null;
-        tr.appendChild(el("td",{class:"mono"},f?f[0]+"/"+f[1]:`#${it.index}`));
-        tr.appendChild(el("td",null,K.roles[it.role]));
-        tr.appendChild(el("td",{class:"dim"},
-          `${it.lang} 전용`+(ci!=null?` ≈ ${D.concepts[ci][0]}↔${D.concepts[ci][2]}`:"")));
-      }
-      t.appendChild(tr);
-    }
-    for(const w of r.warnings){
-      tr=el("tr");
-      tr.appendChild(el("td",{class:"err",colspan:"3"},"! "+w));
-      t.appendChild(tr);
-    }
-  });
-}
-$("#doRead").addEventListener("click",()=>{
-  const txt=$("#chordIn").value.trim();
-  if(!txt){$("#rerr").textContent="음이름을 넣거나 파일을 골라 주세요.";return;}
-  try{
-    const chords=[];
-    const alias={DB:"C#",EB:"D#",GB:"F#",AB:"G#",BB:"A#"};
-    for(const tok of txt.replace(/,/g," ").split(/\s+/)){
-      if(!tok)continue;const ps=[];
-      for(const part of tok.split("+")){
-        const s2=part.trim();if(!s2)continue;
-        if(/^\d+$/.test(s2)){ps.push(+s2);continue;}
-        const body=s2.slice(0,-1).toUpperCase(),oct=s2.slice(-1);
-        const b=alias[body]||body;const k=NAMES.indexOf(b);
-        if(k<0||!/^\d$/.test(oct))throw new Error("음이름을 알 수 없습니다: "+s2);
-        ps.push(k+(+oct+1)*12);}
-      if(ps.length)chords.push(ps.sort((a,b)=>a-b));}
-    showReading(chords);
-  }catch(e){$("#rerr").textContent=e.message;}
-});
-$("#afile").addEventListener("change",async ev=>{
-  const f=ev.target.files[0];
-  if(!f)return;
-  $("#rerr").textContent="읽는 중 …";
-  try{
-    const buf=await f.arrayBuffer();
-    const c=audio();
-    const ab=await c.decodeAudioData(buf);
-    const x=ab.getChannelData(0);
-    const chords=R.chordsFromSamples(x,ab.sampleRate);
-    $("#chordIn").value=chords.map(ch=>ch.map(nm).join("+")).join(" ");
-    showReading(chords);
-    $("#rerr").textContent="";
-  }catch(e){$("#rerr").textContent="소리를 읽지 못했다: "+e.message;}
-  ev.target.value="";
-});
-
-/* ── 스튜디오 배선 ── */
-const ST=window.SoriStudio;
-ST.renderTheory();
-$("#axesOut").textContent=
-`$ python tools/verify_axes.py
-
-✓ 여섯 등급의 종지 하행 거칢이 단조 증가
-    완전4도 0.12 → 단6도 0.24 → 장6도 0.28 → 단7도 0.62 → 삼전음 0.78 → 단2도 1.00
-✓ 0등급과 5등급의 거칢 차이 8배 — 귀로 또렷이 갈린다
-✓ 역할 내성 — 가장 흔한 표지·주어가 완전5·4도, 가장 드문 독립어가 단2도
-✓ 장음계·자연단음계·온음계가 음악 이론 그대로 갈린다
-✓ 가장 높은 으뜸음에서도 세 음계가 2옥타브 상한 안에 있다
-✓ 여덟 사분면(두 말 × 흔함/드묾 × 장/단)이 모두 실제 낱말로 차 있다
-✓ 등급별 빈도 중앙값 단조 감소 (ko 12,120 ≥ 1,240 ≥ 186 ≥ 18 ≥ 1 ≥ 0)
-✓ 극성 표본 24낱말의 방향이 원본 감성사전과 일치한다`;
-
-let dictTimer=null;
-$("#dictQ").addEventListener("input",()=>{
-  clearTimeout(dictTimer);
-  dictTimer=setTimeout(()=>ST.searchFull($("#dictQ").value),250);
-});
-
-ST.refreshPiano();
-
-$("#wcine").addEventListener("click",()=>{
-  if(window.__lastPiece) ST.openCinema(window.__lastPiece,curTempo);
-});
-$("#cnClose").addEventListener("click",()=>ST.closeCinema());
+/* ── 무대 조작 ── */
 $("#cnPlay").addEventListener("click",()=>ST.cineToggle());
 $("#cnLoopT").addEventListener("change",e=>window.__fx.loop=e.target.checked);
 $("#cnTrail").addEventListener("change",e=>window.__cnTrailOn=e.target.checked);
@@ -1054,77 +312,119 @@ $("#cnMatrixT").addEventListener("change",e=>{
   window.__cnMatrixOn=e.target.checked;
   ST.cineMatrix();
 });
+$("#cnFxT").addEventListener("click",()=>{
+  const p2=$("#cnFx");p2.hidden=!p2.hidden;
+});
 
-/* ── 규칙표 ── */
-(function(){const t=$("#tblParts");let tr=el("tr");
- ["자리","무엇을 담는가","어떻게"].forEach(h=>tr.appendChild(el("th",null,h)));t.appendChild(tr);
- [["으뜸음 (머리 멜로디)","조 — 낱말의 정체","다섯 조(A3~C#4) 중 하나. (번호+3×등급+5×성질) 나머지 5"],
-  ["베이스+역할 내성 (머리 화성)","문장 성분","베이스는 늘 C3 — 그 위 내성이 자리: 표지 완전5도 · 주어 완전4도 … 독립어 단2도"],
-  ["자릿음 (홑음 1~8)","번호","으뜸음 위 그 성질의 음계 계단 = 전단사 진법 한 자리 (장·단 7진, 중성 6진)"],
-  ["종지 1 (멜로디)","성질","으뜸음 위 장3도=장 · 단3도=단 · 삼전음=중성"],
-  ["표지 내성 (종지 1 아래)","갈래·대문자·이음","ko낱말 C#3 · en낱말 D3 · ko글자 D#3 · en글자 E3 · 대문자 F#3 · 이음 G#3 — 없으면 개념"],
-  ["종지 2 (멜로디)","등급","아래로 해결 — 하행 도약의 거칢 6단계, 완전4도(익숙)…단2도(생소)"],
-  ["종결 (저음 이중음)","문장의 끝",". C3+G3 · ? C3+F3 · ! C3+D#3 · … C3+C#3"]].forEach(r=>{
-   tr=el("tr");tr.appendChild(el("td",null,r[0]));
-   tr.appendChild(el("td",null,r[1]));tr.appendChild(el("td",{class:"dim txt"},r[2]));
-   t.appendChild(tr);});})();
-(function(){const t=$("#tblRoles");let tr=el("tr");
- const IV={7:"완전5도",5:"완전4도",4:"장3도",3:"단3도",8:"단6도",
-           6:"삼전음",2:"장2도",1:"단2도"};
- ["자리","english","베이스 C3 위 내성"].forEach(h=>tr.appendChild(el("th",null,h)));
- t.appendChild(tr);
- K.roles.forEach((r,i)=>{tr=el("tr");
-  tr.appendChild(el("td",null,r));
-  tr.appendChild(el("td",{class:"dim"},K.rolesEn[i]));
-  tr.appendChild(el("td",{class:"mono"},
-    "+"+K.roleInner[i]+" "+nm(48+K.roleInner[i])+" ("+IV[K.roleInner[i]]+")"));
-  t.appendChild(tr);});})();
-(function(){const t=$("#tblTier");let tr=el("tr");
- ["등급","뜻","종지 하행","거칢"].forEach(h=>tr.appendChild(el("th",null,h)));
- t.appendChild(tr);
- for(let i=0;i<6;i++){tr=el("tr");
-  tr.appendChild(el("td",{class:"mono"},String(i)));
-  tr.appendChild(el("td",null,TIERL[i]));
-  tr.appendChild(el("td",{class:"mono"},"−"+K.tierLeap[i]+"반음"));
-  tr.appendChild(el("td",{class:"mono dim"},String(D.theory.leapRoughness[i])));
-  t.appendChild(tr);}})();
+/* ── 이펙터 — Hologram Microcosm 의 짜임을 빌린 소우주 ──
+   그레인(마이크로루프·그래뉼·글리치) → 딜레이 → 공명 필터 → 공간 */
+const FX_PRESETS={
+  dry:      {prog:"off",grainMix:0,dlyDiv:0,dlyFb:.3,dlyMix:0,
+             cut:9000,res:.05,modDepth:0,modRate:.18,
+             revType:"off",revMix:0,preDelay:0,tone:4600},
+  stage:    {prog:"off",grainMix:0,dlyDiv:0,dlyFb:.3,dlyMix:.2,
+             cut:8200,res:.05,modDepth:0,modRate:.18,
+             revType:"room",revMix:.3,preDelay:.012,tone:4600},
+  ambient:  {prog:"haze",grainDiv:.5,activity:.45,shape:.7,pitchSet:"shimmer",grainMix:.4,
+             dlyDiv:0,dlyFb:.38,dlyMix:.28,
+             cut:5200,res:.08,modDepth:.25,modRate:.18,
+             revType:"bloom",revMix:.5,preDelay:.03,tone:3600},
+  mosaic:   {prog:"mosaic",grainDiv:.5,activity:.65,shape:.35,pitchSet:"unison",grainMix:.5,
+             dlyDiv:.75,dlyFb:.45,dlyMix:.24,
+             cut:6400,res:.12,modDepth:.1,modRate:.3,
+             revType:"hall",revMix:.4,preDelay:.02,tone:4200},
+  arp:      {prog:"sequence",grainDiv:.25,activity:.7,shape:.3,pitchSet:"octave",grainMix:.5,
+             dlyDiv:.5,dlyFb:.4,dlyMix:.22,
+             cut:7000,res:.18,modDepth:.12,modRate:.6,
+             revType:"plate",revMix:.35,preDelay:.015,tone:5200},
+  glitch:   {prog:"glitch",grainDiv:.25,activity:.6,shape:.15,pitchSet:"spread",grainMix:.55,
+             dlyDiv:.5,dlyFb:.5,dlyMix:.26,
+             cut:6800,res:.22,modDepth:.08,modRate:1.2,
+             revType:"room",revMix:.28,preDelay:.01,tone:4600},
+  tunnel:   {prog:"tunnel",grainDiv:.5,activity:.6,shape:.5,pitchSet:"sub",grainMix:.5,
+             dlyDiv:0,dlyFb:.4,dlyMix:.2,
+             cut:3200,res:.3,modDepth:.3,modRate:.12,
+             revType:"glacial",revMix:.55,preDelay:.05,tone:2600},
+  strum:    {prog:"strum",grainDiv:1,activity:.65,shape:.4,pitchSet:"unison",grainMix:.55,
+             dlyDiv:.75,dlyFb:.4,dlyMix:.2,
+             cut:6000,res:.1,modDepth:.15,modRate:.25,
+             revType:"hall",revMix:.45,preDelay:.02,tone:4200},
+  cathedral:{prog:"off",grainMix:0,dlyDiv:0,dlyFb:.35,dlyMix:.2,
+             cut:5600,res:.05,modDepth:.1,modRate:.1,
+             revType:"cathedral",revMix:.6,preDelay:.04,tone:3000},
+  glacial:  {prog:"haze",grainDiv:1,activity:.35,shape:.85,pitchSet:"octave",grainMix:.4,
+             dlyDiv:0,dlyFb:.4,dlyMix:.2,
+             cut:2400,res:.15,modDepth:.35,modRate:.07,
+             revType:"glacial",revMix:.65,preDelay:.05,tone:2400},
+  dream:    {prog:"haze",grainDiv:.75,activity:.5,shape:.7,pitchSet:"shimmer",grainMix:.45,
+             dlyDiv:1,dlyFb:.55,dlyMix:.34,
+             cut:4600,res:.12,modDepth:.3,modRate:.14,
+             revType:"hall",revMix:.5,preDelay:.03,tone:3200},
+};
+const FX_IDS=["fxProg","fxDiv","fxAct","fxShape","fxPitch","fxGMix",
+  "fxDly","fxFb","fxDlyMix","fxCut","fxRes","fxModD","fxModR",
+  "fxRev","fxRevMix","fxPre","fxTone"];
+function fxToPanel(){
+  const F=window.__fx;
+  $("#fxProg").value=F.prog;$("#fxDiv").value=String(F.grainDiv||.5);
+  $("#fxAct").value=F.activity*100;$("#fxShape").value=F.shape*100;
+  $("#fxPitch").value=F.pitchSet;$("#fxGMix").value=F.grainMix*100;
+  $("#fxDly").value=String(F.dlyDiv);$("#fxFb").value=F.dlyFb*100;
+  $("#fxDlyMix").value=F.dlyMix*100;
+  $("#fxCut").value=F.cut;$("#fxRes").value=F.res*100;
+  $("#fxModD").value=F.modDepth*100;$("#fxModR").value=F.modRate*100;
+  $("#fxRev").value=F.revType;$("#fxRevMix").value=F.revMix*100;
+  $("#fxPre").value=F.preDelay*1000;$("#fxTone").value=F.tone;
+}
+function panelToFx(){
+  const F=window.__fx;
+  F.prog=$("#fxProg").value;F.grainDiv=+$("#fxDiv").value;
+  F.activity=+$("#fxAct").value/100;F.shape=+$("#fxShape").value/100;
+  F.pitchSet=$("#fxPitch").value;F.grainMix=+$("#fxGMix").value/100;
+  F.dlyDiv=+$("#fxDly").value;F.dlyFb=+$("#fxFb").value/100;
+  F.dlyMix=+$("#fxDlyMix").value/100;
+  F.cut=+$("#fxCut").value;F.res=+$("#fxRes").value/100;
+  F.modDepth=+$("#fxModD").value/100;F.modRate=+$("#fxModR").value/100;
+  F.revType=$("#fxRev").value;F.revMix=+$("#fxRevMix").value/100;
+  F.preDelay=+$("#fxPre").value/1000;F.tone=+$("#fxTone").value;
+  F.tempo=curTempo;
+}
+function applyPreset(name){
+  const p=FX_PRESETS[name];if(!p)return;
+  Object.assign(window.__fx,p);
+  window.__fx.tempo=curTempo;
+  fxToPanel();
+  $("#fxPreset").value=name;
+  ST.applyFx();
+}
+$("#fxPreset").addEventListener("change",()=>applyPreset($("#fxPreset").value));
+FX_IDS.forEach(id=>$("#"+id).addEventListener("input",()=>{
+  $("#fxPreset").value="custom";panelToFx();ST.applyFx();
+}));
+applyPreset("ambient");
 
-/* ── 개념 찾기 ── */
-$("#cxSub").textContent=`개념 ${D.meta.concepts.toLocaleString()}개. `+
-  `소리에 적히는 것은 이 번호뿐 — 어느 말인지는 적히지 않는다. `+
-  `한쪽에만 있는 낱말은 근사 ${D.approx.length.toLocaleString()}개가 잇는다.`;
-function hits(){const q=$("#q").value.trim().toLowerCase();const box=$("#hits");
- box.textContent="";
- let rows=D.concepts.map((c,i)=>[c,i]);
- if(q)rows=rows.filter(([c])=>c[0].startsWith(q)||c[2].toLowerCase().startsWith(q));
- else rows=rows.slice(0,25);
- box.appendChild(el("p",{class:"dim",style:"font-size:.82rem"},
-   q?`${rows.length.toLocaleString()}개 중 앞의 ${Math.min(30,rows.length)}개`
-    :"앞자리 개념 — 가장 흔한 것부터 (이름이 가장 짧게 적힌다)"));
- for(const [c] of rows.slice(0,30)){const d=el("div",{class:"hit"});
-  d.appendChild(el("div",null,`${c[0]} / ${c[1]}`));
-  d.appendChild(el("div",null,`${c[2]} / ${c[3]}`));
-  d.appendChild(el("div",{class:"dim",style:"font-size:.8rem"},
-    `${TIERL[c[4]]}${c[5]?"  극성 "+(c[5]>0?"+":"")+c[5]:""}`));
-  box.appendChild(d);}}
-$("#q").addEventListener("input",hits);hits();
+/* ── 레벨미터 — 좌·우 RMS 막대와 피크 눈금 ── */
+const mcv=$("#meter"),mg=mcv.getContext("2d");
+const mpk=[0,0];
+const mgrad=mg.createLinearGradient(0,0,60,0);
+mgrad.addColorStop(0,"#4caf7d");mgrad.addColorStop(.68,"#e9b44c");
+mgrad.addColorStop(1,"#e05c5c");
+(function mloop(){
+  const lv=ST.meterLevel();
+  mg.clearRect(0,0,66,17);
+  const rows=lv?[[lv.l,lv.pl],[lv.r,lv.pr]]:[[0,0],[0,0]];
+  rows.forEach(([r,p],i)=>{
+    mpk[i]=Math.max(p,mpk[i]*.93);
+    mg.fillStyle="#161c24";mg.fillRect(0,2+i*8,60,5);
+    mg.fillStyle=mgrad;
+    mg.fillRect(0,2+i*8,Math.min(1,r*2.6)*60,5);
+    mg.fillStyle="#f2f6fa";
+    mg.fillRect(Math.min(59,mpk[i]*2.6*60),2+i*8,1.5,5);
+  });
+  requestAnimationFrame(mloop);
+})();
 
-$("#verifyOut").textContent=
-`$ python tools/verify.py && python tools/verify_axes.py
-
-✓ 화성의 창이 서로소 — 베이스 C3·표지 내성·으뜸음·멜로디가 겹치지 않는다
-✓ 글리프 17,280가지(역할×표지×이음×갈래×등급×성질×번호)가 값 그대로 돌아온다
-✓ 종지 하행의 거칢이 등급 따라 단조 증가 (0.12 → 1.00, 8배)
-✓ 장음계/자연단음계/온음계가 조성 이론대로 갈린다
-✓ 길이·세기를 마구 흔든 180번 모두 같은 뜻으로 읽힌다
-✓ ko 286,068 / en 260,000 항목이 번호로 되찾아진다
-✓ 개념 7,895 + 근사 6,245 가 두 말을 잇는다
-✓ ko 30/30, en 30/30 문장이 글자까지 그대로 돌아온다
-✓ 60/60 문장이 WAV(소리)를 거쳐 글자까지 그대로 돌아온다
-✓ 브라우저도 60/60 자체 왕복 — 파이썬 소리를 브라우저가, 브라우저
-  소리를 파이썬이 서로 60/60 되읽는다`;
-
-// 첫 예문 자동 실행
+/* 첫 예문 — 무대를 미리 차려 둔다 (소리는 ▶ 를 눌러야 난다) */
 $("#src").value=EX[0];$("#cnt").textContent=EX[0].length;convert(false);
 })();
 </script>

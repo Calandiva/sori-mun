@@ -74,7 +74,10 @@ def _add_s(w: str) -> str:
 
 
 def apply(word: str, gram: str) -> str:
-    """밑말에 굴절을 붙인다."""
+    """밑말에 굴절을 붙인다. 첫 대문자는 지키고 표는 소문자로 찾는다."""
+    if word[:1].isupper():
+        low = apply(word[0].lower() + word[1:], gram)
+        return low[:1].upper() + low[1:]
     if gram == PAST:
         if word in IRREGULAR_PAST:
             return IRREGULAR_PAST[word]

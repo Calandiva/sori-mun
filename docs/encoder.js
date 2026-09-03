@@ -126,9 +126,10 @@
     const e = (lang === "ko" ? KO : EN).get(form + "|" + tag);
     return e ? e[0] * 1e7 + e[2] : 1e9;
   }
-  function parseMarkers(rest) {
-    // 남은 글자를 표지들로 가른다. 긴 것부터, 물러서기 포함.
-    if (!rest) return [];
+  function parseMarkersAll(rest, out, acc, depth) {
+    // 남은 글자를 표지들로 가르는 모든 길 (긴 조각 우선, 몇 갈래만)
+    if (out.length >= 24 || depth > 6) return;
+    if (!rest) { out.push(acc.slice()); return; }
     for (let cut = rest.length; cut >= 1; cut--) {
       const piece = rest.slice(0, cut);
       if (!SYL.test(piece)) continue;
@@ -136,11 +137,18 @@
       if (!cands) continue;
       for (const [t] of cands) {
         if (!GRAMMATICAL_KO.has(t)) continue;
-        const tail = parseMarkers(rest.slice(cut));
-        if (tail !== null) return [[piece, t], ...tail];
+        acc.push([piece, t]);
+        parseMarkersAll(rest.slice(cut), out, acc, depth + 1);
+        acc.pop();
+        if (out.length >= 24) return;
       }
     }
-    return null;
+  }
+  function parseMarkers(rest) {
+    if (!rest) return [];
+    const out = [];
+    parseMarkersAll(rest, out, [], 0);
+    return out.length ? out[0] : null;
   }
   function chainOk(morphs) {
     // 형태소가 문법에 맞게 이어지는가. VV 뒤에 바로 조사가 오는 따위의
@@ -163,47 +171,56 @@
   }
 
   function parseEojeol(core) {
-    // 후보 고르기: 문법에 맞고, 형태소가 적고, 흔한 것.
-    // kiwi 같은 언어 모형이 없으므로 이 셋이 잣대의 전부다.
-    let best = null;
-    const offer = (morphs, cut, rar) => {
+    // 후보 고르기: 문법에 맞고, 표면형이 그대로 되지어지고, 형태소가
+    // 적고, 어두가 내용어이고, (활용표의 비용이) 그럴듯한 것.
+    // kiwi 같은 언어 모형이 없으므로 이들이 잣대의 전부다.
+    let best = null, bestKey = null;
+    const lt = (a, b) => {
+      for (let i = 0; i < a.length; i++)
+        if (a[i] !== b[i]) return a[i] < b[i];
+      return false;
+    };
+    const offer = (morphs, cut, score, inflected) => {
       if (!chainOk(morphs)) return;
-      const n = morphs.length;
-      if (!best || n < best[3]
-          || (n === best[3] && (cut > best[1]
-              || (cut === best[1] && rar < best[2]))))
-        best = [morphs, cut, rar, n];
+      if (joinKo(morphs) !== core) return;   // 되지어 어긋나면 버린다
+      const key = [morphs.length,
+                   GRAMMATICAL_KO.has(morphs[0][1]) ? 1 : 0,
+                   -cut, inflected ? 1 : 0, score];
+      if (!bestKey || lt(key, bestKey)) { bestKey = key; best = morphs; }
     };
     for (let cut = core.length; cut >= 1; cut--) {
       const head = core.slice(0, cut), rest = core.slice(cut);
+      const tails = [];
+      parseMarkersAll(rest, tails, [], 0);
+      if (!rest.length) tails.push([]);
       // (a) 내용어 그대로
       const cands = KO_FORMS.get(head);
       if (cands) for (const [t] of cands) {
         if (GRAMMATICAL_KO.has(t)) continue;
-        const tail = parseMarkers(rest);
-        if (tail !== null)
-          offer([[head, t], ...tail], cut, rarity("ko", head, t));
+        for (const tail of tails)
+          offer([[head, t], ...tail], cut, rarity("ko", head, t), 0);
       }
-      // (b) 활용 표면형 (부른 = 부르/VV + ᆫ/ETM)
+      // (b) 활용 표면형 (부른 = 부르/VV + ᆫ/ETM) — 표의 비용을 믿는다
       const infl = INFLECT.get(head);
-      if (infl) for (const [mstr] of infl) {
+      if (infl) for (const [mstr, cost] of infl) {
         // 되지었을 때 같은 표면형이 나오는 갈래만 쓴다 — 그래야 되돌아온다
         const inv = INV_INFLECT.get(mstr);
         if (!inv || inv[0] !== head) continue;
         const morphs = mstr.split(" ").map(x => x.split("/"));
         const [hf, ht] = morphs[0];
         if (!KO.has(hf + "|" + ht)) continue;
-        const tail = parseMarkers(rest);
-        if (tail !== null)
-          offer([...morphs, ...tail], cut, rarity("ko", hf, ht));
+        for (const tail of tails)
+          offer([...morphs, ...tail], cut, cost, 1);
       }
     }
     // (c) 표지로만 이루어진 어절 (드묾)
     if (!best) {
-      const only = parseMarkers(core);
-      if (only && only.length) best = [only, 0, 0];
+      const tails = [];
+      parseMarkersAll(core, tails, [], 0);
+      for (const t of tails) if (chainOk(t) && joinKo(t) === core) return t;
+      return tails.length ? tails[0] : null;
     }
-    return best ? best[0] : null;
+    return best;
   }
   // 모음조화·받침 이형태 — kiwi 는 었/은 으로 눌러 적고 mecab 표는
   // 았/ᆫ 을 그대로 둔다. 두 표기를 잇는 다리.
@@ -215,8 +232,25 @@
                  "았었/EP": "었었/EP" };
   // kiwi 가 붙여 지을 때만 나오는 불규칙 결합.
   const JOIN_IRR = { "나/NP 가/JKS": "내가", "저/NP 가/JKS": "제가",
-                     "누구/NP 가/JKS": "누가" };
+                     "누구/NP 가/JKS": "누가", "너/NP 가/JKS": "네가",
+                     "나/NP 의/JKG": "내", "너/NP 의/JKG": "네",
+                     "저/NP 의/JKG": "제", "나/NP 의/JKB": "내",
+                     "너/NP 의/JKB": "네", "저/NP 의/JKB": "제" };
   const HARMONIC = { "었": "았", "어": "아", "어서": "아서", "었었": "았었" };
+  const JONG = { "ᆫ": 4, "ᆯ": 8, "ᆷ": 16, "ᆸ": 17 };   // 받침 자모 → 종성
+  const D_IRR = new Set(["걷", "듣", "묻", "깨닫", "싣", "긷", "일컫"]);
+  const fuseJamo = (out, f) => {
+    // 받침 자모로 시작하는 어미를 앞 음절에 산수로 붙인다
+    const jong = JONG[f[0]];
+    const last = out.charCodeAt(out.length - 1) - 0xAC00;
+    if (jong === undefined || last < 0 || last > 11171) return null;
+    const cur = last % 28;
+    let code;
+    if (cur === 0) code = last + jong;                     // 받침 없음 → 단다
+    else if (cur === 8 && jong === 4) code = last - 8 + 4; // ㄹ탈락: 놀+ᆫ→논
+    else return null;
+    return out.slice(0, -1) + String.fromCharCode(0xAC00 + code) + f.slice(1);
+  };
   const brightVowel = (ch) => {
     const c = ch.charCodeAt(0) - 0xAC00;
     if (c < 0 || c > 11171) return false;
@@ -237,16 +271,29 @@
           const alt = parts.map(x => ALLO[x] || x);
           inv = INV_INFLECT.get(alt.join(" "));
         }
+        // 표면형이 첫 형태소 그대로면 재료를 삼킨 표다 — 믿지 않는다
+        if (inv && inv[0] === morphs[i][0] && j - i > 1) inv = null;
         if (inv) { out += inv[0]; i = j; used = true; break; }
       }
       if (!used) {
         let [f, t] = morphs[i];
+        // ㄷ불규칙 — 걷/듣/묻 어간 뒤에 홀소리 어미가 오면 ㄷ→ㄹ
+        if (i > 0 && D_IRR.has(morphs[i - 1][0])
+            && /^(었|어|아|았|으|은|을)/.test(f)
+            && out && (out.charCodeAt(out.length - 1) - 0xAC00) % 28 === 7) {
+          const lc = out.charCodeAt(out.length - 1) - 0xAC00;
+          out = out.slice(0, -1) + String.fromCharCode(0xAC00 + lc - 7 + 8);
+        }
         // 모음조화 되살리기 — 밝은 홀소리(ㅏ·ㅗ) 어간 뒤의 었/어 는
         // 았/아 로 소리 난다. kiwi 표기를 표면형으로 돌리는 걸음.
         if ((t === "EP" || t === "EC") && HARMONIC[f]
             && out && out.slice(-1) !== "하" && brightVowel(out.slice(-1)))
           f = HARMONIC[f];
-        if (!SYL.test(f) && HANGUL.test(out.slice(-1))) return null; // 자모 융합 불가
+        if (!SYL.test(f) && HANGUL.test(out.slice(-1))) {
+          const fused = fuseJamo(out, f);            // 한글 산수 융합
+          if (fused != null) { out = fused; i++; continue; }
+          return null;                               // 못 붙이는 자모
+        }
         out += f; i++;
       }
     }
@@ -330,23 +377,10 @@
   const AUX = new Set(ET.aux), BE = new Set(ET.be), COP = new Set(ET.copula);
   const NOMINAL = new Set(ET.nominal), GRAM_EN = new Set(ET.grammatical);
 
-  const IRR_PAST = { be:"was",become:"became",begin:"began","break":"broke",
-    bring:"brought",build:"built",buy:"bought","catch":"caught",choose:"chose",
-    come:"came","do":"did",draw:"drew",drink:"drank",drive:"drove",eat:"ate",
-    fall:"fell",feel:"felt",find:"found",fly:"flew",forget:"forgot",get:"got",
-    give:"gave",go:"went",grow:"grew",have:"had",hear:"heard",hold:"held",
-    keep:"kept",know:"knew",leave:"left",lose:"lost",make:"made",meet:"met",
-    pay:"paid",put:"put",read:"read",run:"ran",say:"said",see:"saw",sell:"sold",
-    send:"sent",sing:"sang",sit:"sat",sleep:"slept",speak:"spoke",stand:"stood",
-    take:"took",teach:"taught",tell:"told",think:"thought",
-    understand:"understood",wear:"wore",win:"won",write:"wrote",shake:"shook",
-    "throw":"threw",blow:"blew",ring:"rang",swim:"swam",rise:"rose",
-    shine:"shone",hide:"hid",lie:"lay",lay:"laid",seek:"sought",spend:"spent",
-    lend:"lent",bend:"bent",feed:"fed",lead:"led",hurt:"hurt",cost:"cost",
-    cut:"cut",let:"let",set:"set",shut:"shut",hit:"hit",quit:"quit" };
+  const IRR_PAST = (D.enIrr && D.enIrr.past) || {};
   const PAST_TO_BASE = {}; Object.entries(IRR_PAST).forEach(([b, p]) => {
     if (!(p in PAST_TO_BASE)) PAST_TO_BASE[p] = b; });
-  const IRR_PL = { child:"children",man:"men",woman:"women",person:"people",
+  const IRR_PL = (D.enIrr && D.enIrr.plural) || { child:"children",man:"men",woman:"women",person:"people",
     foot:"feet",tooth:"teeth",mouse:"mice",goose:"geese",life:"lives",
     leaf:"leaves",knife:"knives",wife:"wives" };
   const PL_TO_BASE = {}; Object.entries(IRR_PL).forEach(([b, p]) => PL_TO_BASE[p] = b);

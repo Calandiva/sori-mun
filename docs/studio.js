@@ -50,10 +50,16 @@
   const clampRoot = (v, root) => Math.min(root, K.highest - v[v.length - 1]);
 
   /* ── 이펙터 — 재생에만 얹는다. 내려받는 WAV 는 언제나 마른 소리다. ──
-     공간계 위주의 단순한 세팅: 홑음 멜로디도 아름답게 울리도록. */
-  window.__fx = { revType: "bloom", revMix: .5, preDelay: .03, tone: 3600,
+     Hologram Microcosm 의 짜임을 빌렸다:
+       입력 → 그레인 엔진(마이크로루프·그래뉼·글리치) → 핑퐁 딜레이
+            → 공명 필터(+변조) → 공간 → 출력.
+     그레인 엔진은 AudioWorklet 이 4초 링버퍼에서 조각을 붙잡아
+     되풀고, 흩뿌리고, 옥타브를 올린다. 전부 템포에 물린다. */
+  window.__fx = { prog: "haze", grainDiv: .5, activity: .55, shape: .6,
+                  pitchSet: "shimmer", grainMix: .45,
                   dlyDiv: 0, dlyFb: .38, dlyMix: .28,
-                  chorus: true, chorusMix: .22,
+                  cut: 5200, res: .8, modRate: .18, modDepth: .25,
+                  revType: "bloom", revMix: .5, preDelay: .03, tone: 3600,
                   loop: false, tempo: 72 };
   const _imp = {};
   function impulse(c, type) {
@@ -87,23 +93,169 @@
     return b;
   }
 
+  /* 그레인 엔진 — 링버퍼에서 조각을 붙잡는 워크릿.
+     모드: mosaic(조각 하나를 붙잡아 되풂) · sequence(되풀며 아르페지오)
+           glitch(아무 조각이나 더듬거림·역재생) · haze(긴 그레인 구름)
+           tunnel(짧고 촘촘한 그레인) · strum(조각을 펼쳐 뜯는다) */
+  const GRAIN_SRC = `
+class SoriGrain extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.B = new Float32Array(sampleRate * 4);
+    this.w = 0;
+    this.mode = "off"; this.div = sampleRate * .35;
+    this.act = .55; this.shape = .6; this.pitches = [0, 12];
+    this.grains = []; this.slice = null; this.next = 0;
+    this.port.onmessage = e => {
+      const m = e.data;
+      if (m.mode !== undefined && m.mode !== this.mode) {
+        this.mode = m.mode; this.slice = null; this.grains.length = 0;
+      }
+      if (m.div) this.div = Math.max(1600, Math.round(m.div * sampleRate));
+      if (m.act !== undefined) this.act = m.act;
+      if (m.shape !== undefined) this.shape = m.shape;
+      if (m.pitches) this.pitches = m.pitches;
+    };
+  }
+  pick() { return this.pitches[(Math.random() * this.pitches.length) | 0]; }
+  spawn(pos, len, semi, pan, gain, rev, wait) {
+    if (this.grains.length > 48) return;
+    this.grains.push({ pos, len, t: 0, wait: wait || 0,
+      rate: Math.pow(2, semi / 12) * (rev ? -1 : 1),
+      pan, gain });
+  }
+  process(inputs, outputs) {
+    const inp = inputs[0] && inputs[0][0];
+    const L = outputs[0][0], R = outputs[0][1] || outputs[0][0];
+    const N = L.length, B = this.B, BL = B.length;
+    for (let i = 0; i < N; i++) {
+      B[this.w] = inp ? inp[i] : 0;
+      this.w = (this.w + 1) % BL;
+    }
+    if (this.mode === "off") return true;
+    const div = this.div | 0, act = this.act;
+
+    // 경계 스케줄 — 템포 격자에서 조각을 붙잡는다
+    this.next -= N;
+    if (this.next <= 0) {
+      this.next += div;
+      const start = (this.w - div + BL) % BL;
+      if (this.mode === "mosaic" || this.mode === "sequence") {
+        if (!this.slice || Math.random() < act)
+          this.slice = { start, len: div, step: 0 };
+      } else if (this.mode === "glitch") {
+        if (Math.random() < act) {
+          const len = (div * (.35 + Math.random() * .8)) | 0;
+          const back = (Math.random() * sampleRate * 1.2) | 0;
+          this.spawn((this.w - len - back + BL) % BL, len, this.pick(),
+                     Math.random() * 1.6 - .8, .95, Math.random() < .4, 0);
+        }
+      } else if (this.mode === "strum") {
+        if (Math.random() < act) {
+          const steps = [0, 4, 7, 12, 16, 19, 24];
+          const nvoice = 3 + ((act * 4) | 0);
+          const gap = (div / (nvoice + 1)) | 0;
+          for (let s = 0; s < nvoice; s++)
+            this.spawn(start, (div * .8) | 0, steps[s % steps.length],
+                       (s / nvoice) * 1.6 - .8, .7, false, s * gap);
+        }
+      }
+    }
+    // 구름 스케줄 — 확률로 흩뿌린다
+    if (this.mode === "haze") {
+      const rate = act * 26 / sampleRate * N;
+      if (Math.random() < rate) {
+        const len = (sampleRate * (.35 + Math.random() * .55)) | 0;
+        const back = (Math.random() * sampleRate * 1.6) | 0;
+        this.spawn((this.w - len - back + BL) % BL, len, this.pick(),
+                   Math.random() * 1.8 - .9, .5, Math.random() < .15, 0);
+      }
+    } else if (this.mode === "tunnel") {
+      const rate = act * 70 / sampleRate * N;
+      if (Math.random() < rate) {
+        const len = (sampleRate * (.04 + Math.random() * .07)) | 0;
+        const back = (Math.random() * sampleRate * .5) | 0;
+        this.spawn((this.w - len - back + BL) % BL, len,
+                   this.pick() + (Math.random() * 2 - 1) * .6,
+                   Math.random() * 1.8 - .9, .6, false, 0);
+      }
+    }
+    // 마이크로루프 — 조각이 끝나면 곧바로 되풀린다
+    if ((this.mode === "mosaic" || this.mode === "sequence") && this.slice
+        && !this.grains.some(g => g.loop)) {
+      const s = this.slice;
+      let semi = this.pick();
+      if (this.mode === "sequence") {
+        const arp = [0, 4, 7, 12];
+        semi = arp[s.step % arp.length] + (this.pitches[0] || 0);
+        s.step++;
+      }
+      const g = { pos: s.start, len: s.len, t: 0, wait: 0,
+                  rate: Math.pow(2, semi / 12), pan: (s.step % 2) * 1.2 - .6,
+                  gain: .85, loop: true };
+      this.grains.push(g);
+    }
+
+    // 렌더
+    const fadeK = .06 + .38 * this.shape;
+    for (let i = 0; i < N; i++) { L[i] = 0; R[i] = 0; }
+    for (const g of this.grains) {
+      const fade = Math.max(64, g.len * fadeK);
+      for (let i = 0; i < N; i++) {
+        if (g.wait > 0) { g.wait--; continue; }
+        if (g.t >= g.len) { g.done = true; break; }
+        const off = g.rate >= 0 ? g.t * g.rate : (g.len + g.t * g.rate);
+        if (off < 0 || off >= g.len) { g.done = true; break; }
+        const fi = (g.pos + off) % BL;
+        const i0 = fi | 0, fr = fi - i0;
+        const v0 = B[i0], v1 = B[(i0 + 1) % BL];
+        let v = (v0 + (v1 - v0) * fr) * g.gain;
+        const edge = Math.min(g.t, g.len - g.t);
+        if (edge < fade) v *= edge / fade;
+        const pl = .5 - g.pan * .5, pr = .5 + g.pan * .5;
+        L[i] += v * pl; R[i] += v * pr;
+        g.t++;
+      }
+      if (g.done && g.loop) g.t = 0, g.done = false;   // 되풂
+    }
+    this.grains = this.grains.filter(g => !g.done);
+    return true;
+  }
+}
+registerProcessor("sori-grain", SoriGrain);
+`;
+  const PITCH_SETS = {
+    unison: [0], octave: [12], shimmer: [0, 12, 12], fifth: [0, 7],
+    sub: [-12, 0], spread: [-12, 0, 7, 12],
+  };
+
   /* 상주 이펙터 랙 — 모든 재생이 이 입구를 지나고, 조절값은 재생 중에도
      그대로 먹는다. 내려받는 WAV 는 이 랙을 지나지 않는다. */
   let RACK = null;
   function rack(c) {
     if (RACK) return RACK;
-    const input = c.createGain(), out = c.createGain();
-    // 드라이
-    const dry = c.createGain(); dry.gain.value = 1;
-    input.connect(dry); dry.connect(out);
-    // 리버브: 프리딜레이 → 컨볼루션 → 톤(저역통과) → 양
-    const pre = c.createDelay(.25);
-    const cv = c.createConvolver();
-    const damp = c.createBiquadFilter(); damp.type = "lowpass";
-    const revWet = c.createGain();
-    input.connect(pre); pre.connect(cv); cv.connect(damp);
-    damp.connect(revWet); revWet.connect(out);
-    // 딜레이: 좌우로 튀는 핑퐁 — 감쇠 필터를 문 되먹임
+    const input = c.createGain();          // 마른 입력
+    const sum = c.createGain();            // 마름 + 그레인 + 딜레이
+    const out = c.createGain();
+    input.connect(sum);
+
+    // 그레인 엔진 (워크릿이 준비되면 이 사이에 끼운다)
+    const grainWet = c.createGain(); grainWet.gain.value = 0;
+    grainWet.connect(sum);
+    let grain = null;
+    if (c.audioWorklet) {
+      const url = URL.createObjectURL(
+        new Blob([GRAIN_SRC], { type: "application/javascript" }));
+      c.audioWorklet.addModule(url).then(() => {
+        grain = new AudioWorkletNode(c, "sori-grain",
+          { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+        input.connect(grain); grain.connect(grainWet);
+        RACK.grain = grain;
+        applyFx();
+      }).catch(() => {});
+    }
+
+    // 핑퐁 딜레이 — 마른 소리와 그레인을 함께 문다
     const dl = c.createDelay(2.5), dr = c.createDelay(2.5);
     const fbl = c.createGain(), fbr = c.createGain();
     const dampL = c.createBiquadFilter(); dampL.type = "lowpass";
@@ -114,38 +266,65 @@
     const panR = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
     if (panL.pan) { panL.pan.value = -.55; panR.pan.value = .55; }
     const dlyWet = c.createGain();
-    input.connect(dl);
+    input.connect(dl); grainWet.connect(dl);
     dl.connect(dampL); dampL.connect(fbl); fbl.connect(dr);   // 좌 → 우
     dr.connect(dampR); dampR.connect(fbr); fbr.connect(dl);   // 우 → 좌
     dl.connect(panL); dr.connect(panR);
-    panL.connect(dlyWet); panR.connect(dlyWet); dlyWet.connect(out);
-    // 합창: 흔들리는 짧은 지연 두 갈래 — 홑음에 폭을 준다
-    const chWet = c.createGain(); chWet.gain.value = 0;
-    for (const [base, rate, pan] of [[.012, .8, -.6], [.019, .53, .6]]) {
-      const d = c.createDelay(.06); d.delayTime.value = base;
-      const lfo = c.createOscillator(), depth = c.createGain();
-      lfo.frequency.value = rate; depth.gain.value = .0035;
-      lfo.connect(depth); depth.connect(d.delayTime); lfo.start();
-      const pn = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
-      if (pn.pan) pn.pan.value = pan;
-      input.connect(d); d.connect(pn); pn.connect(chWet);
-    }
-    chWet.connect(out);
-    out.connect(c.destination);
-    RACK = { input, cv, pre, damp, revWet, dl, dr, fbl, fbr, dlyWet, chWet,
-             ctx: c };
+    panL.connect(dlyWet); panR.connect(dlyWet); dlyWet.connect(sum);
+
+    // 공명 필터 + 변조 — 모든 것이 이 문을 지난다
+    const filt = c.createBiquadFilter(); filt.type = "lowpass";
+    filt.frequency.value = 5200; filt.Q.value = .8;
+    const lfo = c.createOscillator(); lfo.type = "sine";
+    const lfoAmp = c.createGain(); lfoAmp.gain.value = 0;
+    lfo.frequency.value = .18;
+    lfo.connect(lfoAmp); lfoAmp.connect(filt.frequency); lfo.start();
+    sum.connect(filt);
+
+    // 공간 — 필터 뒤에서 젖는다
+    const dryOut = c.createGain(); dryOut.gain.value = 1;
+    const pre = c.createDelay(.25);
+    const cv = c.createConvolver();
+    const damp = c.createBiquadFilter(); damp.type = "lowpass";
+    const revWet = c.createGain();
+    filt.connect(dryOut); dryOut.connect(out);
+    filt.connect(pre); pre.connect(cv); cv.connect(damp);
+    damp.connect(revWet); revWet.connect(out);
+
+    // 리미터 — 그레인·공간이 겹쳐도 찌그러지지 않게
+    const lim = c.createDynamicsCompressor();
+    lim.threshold.value = -8; lim.knee.value = 4;
+    lim.ratio.value = 14; lim.attack.value = .002; lim.release.value = .18;
+    const trim = c.createGain(); trim.gain.value = .8;
+    out.connect(trim); trim.connect(lim);
+
+    // 레벨미터 — 리미터 뒤(귀에 닿는 소리)를 좌우로 갈라 잰다
+    const split = c.createChannelSplitter(2);
+    const anL = c.createAnalyser(), anR = c.createAnalyser();
+    anL.fftSize = 512; anR.fftSize = 512;
+    lim.connect(split); split.connect(anL, 0); split.connect(anR, 1);
+
+    lim.connect(c.destination);
+    RACK = { input, sum, out, grain, grainWet, cv, pre, damp, revWet,
+             dl, dr, fbl, fbr, dlyWet, filt, lfo, lfoAmp, anL, anR, ctx: c };
     applyFx();
     return RACK;
   }
   function applyFx() {
     if (!RACK) return;
     const F = window.__fx, c = RACK.ctx, t = c.currentTime + .02;
-    const rev = F.revType && F.revType !== "off";
-    if (rev) RACK.cv.buffer = impulse(c, F.revType);
-    RACK.revWet.gain.setTargetAtTime(rev ? F.revMix : 0, t, .05);
-    RACK.pre.delayTime.setTargetAtTime(F.preDelay || 0, t, .05);
-    RACK.damp.frequency.setTargetAtTime(F.tone || 4200, t, .05);
     const beat = 60 / (F.tempo || 72);
+    // 그레인
+    const gOn = F.prog && F.prog !== "off";
+    RACK.grainWet.gain.setTargetAtTime(gOn ? F.grainMix : 0, t, .05);
+    if (RACK.grain)
+      RACK.grain.port.postMessage({
+        mode: gOn ? F.prog : "off",
+        div: Math.min(2.2, beat * (F.grainDiv || .5)),
+        act: F.activity, shape: F.shape,
+        pitches: PITCH_SETS[F.pitchSet] || [0],
+      });
+    // 딜레이
     const on = F.dlyDiv > 0;
     const dt = Math.min(2.4, beat * (on ? F.dlyDiv : .5));
     RACK.dl.delayTime.setTargetAtTime(dt, t, .05);
@@ -153,7 +332,34 @@
     RACK.fbl.gain.setTargetAtTime(on ? Math.min(.72, F.dlyFb) : 0, t, .05);
     RACK.fbr.gain.setTargetAtTime(on ? Math.min(.72, F.dlyFb) : 0, t, .05);
     RACK.dlyWet.gain.setTargetAtTime(on ? F.dlyMix : 0, t, .05);
-    RACK.chWet.gain.setTargetAtTime(F.chorus ? F.chorusMix : 0, t, .05);
+    // 필터 + 변조
+    RACK.filt.frequency.setTargetAtTime(F.cut || 5200, t, .05);
+    RACK.filt.Q.setTargetAtTime(.5 + (F.res || 0) * 11, t, .05);
+    RACK.lfo.frequency.setTargetAtTime(Math.max(.02, F.modRate || .18), t, .05);
+    RACK.lfoAmp.gain.setTargetAtTime((F.modDepth || 0) * (F.cut || 5200) * .55,
+                                     t, .05);
+    // 공간
+    const rev = F.revType && F.revType !== "off";
+    if (rev) RACK.cv.buffer = impulse(c, F.revType);
+    RACK.revWet.gain.setTargetAtTime(rev ? F.revMix : 0, t, .05);
+    RACK.pre.delayTime.setTargetAtTime(F.preDelay || 0, t, .05);
+    RACK.damp.frequency.setTargetAtTime(F.tone || 4200, t, .05);
+  }
+  /* 레벨 — 좌·우 RMS 와 피크 [0..1]. 미터가 매 프레임 부른다. */
+  const _mBuf = new Float32Array(512);
+  function meterLevel() {
+    if (!RACK) return null;
+    const read = an => {
+      an.getFloatTimeDomainData(_mBuf);
+      let s = 0, pk = 0;
+      for (let i = 0; i < _mBuf.length; i++) {
+        const v = _mBuf[i]; s += v * v;
+        const a = Math.abs(v); if (a > pk) pk = a;
+      }
+      return [Math.sqrt(s / _mBuf.length), pk];
+    };
+    const [rl, pl] = read(RACK.anL), [rr, pr] = read(RACK.anR);
+    return { l: rl, r: rr, pl, pr };
   }
   function fxInput(c) {
     return { input: rack(c).input };
@@ -565,10 +771,12 @@
     return out.reverse();
   }
 
-  function openCinema(piece, tempo) {
+  function openCinema(piece, tempo, auto) {
     const host = $("#cinema");
     host.hidden = false;
-    document.body.style.overflow = "hidden";
+    if (cine.raf) cancelAnimationFrame(cine.raf);
+    if (cine.src) { try { cine.src.stop(); } catch (e) {} cine.src = null; }
+    cine = { raf: null, src: null };
     tempo = tempo || 72;
     const sched = W.schedule(piece.notes, tempo);
     const total = sched[sched.length - 1][0] + sched[sched.length - 1][1] + .3;
@@ -903,7 +1111,9 @@
       }
       cine.raf = requestAnimationFrame(frame);
     }
-    startFrom(0);
+    if (auto) startFrom(0);
+    else { drawAsm(sched[0] && sched[0][2], 0); buildSeg(0); shadeSeg(-1);
+           $("#cnPlay").textContent = "▶"; }
     cine.raf = requestAnimationFrame(frame);
   }
   function closeCinema() {
@@ -911,7 +1121,6 @@
     if (cine.src) { try { cine.src.stop(); } catch (e) {} }
     cine = { raf: null, src: null };
     $("#cinema").hidden = true;
-    document.body.style.overflow = "";
   }
 
   window.__cnTrailOn = true;
@@ -920,7 +1129,7 @@
 
   window.SoriStudio = { renderTheory, searchFull, refreshPiano, loadFull,
                         openCinema, closeCinema, playChord, playMelody,
-                        playBuffer, fxInput, applyFx,
+                        playBuffer, fxInput, applyFx, meterLevel,
                         cineToggle: () => cine.toggle && cine.toggle(),
                         cineMatrix: () => cine.applyMatrixMode
                           && cine.applyMatrixMode(),

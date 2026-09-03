@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>소리문 — 음 입력</title>
+<meta name="description" content="소리를 글로 되읽는다 — WAV, 음이름, 안내형 입력.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><div class="wrap">
+  <a class="brand" href="./">소리문</a>
+  <span style="flex:1"></span>
+  <a class="sm" href="guide.html">설명·이론</a>
+  <a class="sm" href="dict.html">사전</a>
+  <a class="sm on" href="input.html">음 입력</a>
+  <a class="sm" href="https://github.com/Calandiva/sori-mun">github</a>
+</div></nav>
+<header class="pgheader"><div class="wrap">
+  <h1>음 입력</h1>
+  <p class="lede" style="margin-left:0;text-align:left">소리를 글로 —
+    WAV 파일, 음이름, 또는 화음을 하나씩 눌러 낱말을 짓는 안내형 입력.</p>
+</div></header>
+<section id="readback">
+  <div class="wrap">
+    <h2><span class="en">READ</span>소리를 글로</h2>
+    <p class="sub">WAV든 음이름이든, 넣으면 두 언어로 돌아온다.
+      판독이 보는 것은 음높이와 화성뿐이다.</p>
+    <div class="row">
+      <label class="file">🎵 소리 파일 넣기 (.wav)
+        <input type="file" id="afile" accept="audio/*"></label>
+      <span class="dim" style="font-size:.82rem">또는 음이름으로:</span>
+    </div>
+    <textarea id="chordIn" class="notes" spellcheck="false"
+      placeholder="D#3+F#3+A3  B3  E4  D4 …  (화음은 + 로, 홑음은 그대로, 사이는 빈칸)"></textarea>
+    <div class="row">
+      <button class="act primary" id="doRead">읽기</button>
+      <span class="err" id="rerr"></span>
+    </div>
+    <div class="panel" style="margin-top:26px">
+      <h3>화음을 눌러 낱말 짓기 — 안내형 입력</h3>
+      <p class="sub" style="font-size:.85rem;margin-bottom:12px">
+        지금 올 수 있는 소리가 단추로 나온다. 차례로 누르면 낱말이
+        완성되고, 아래에 두 언어로 읽힌다. 건반은 자유 입력.</p>
+      <div id="pianoState" class="dim" style="font-size:.85rem"></div>
+      <div id="candBox"></div>
+      <div id="keys"></div>
+      <div class="row">
+        <span class="mono dim" style="font-size:.78rem">고른 음: <span id="pickShow">—</span></span>
+        <button class="act" id="addChord">이 화음 넣기</button>
+        <button class="act" id="undoChord">하나 지우기</button>
+        <button class="act" id="clearChord">모두 지우기</button>
+      </div>
+      <div id="seqShow" style="margin:6px 0"></div>
+      <div id="pianoOut"></div>
+    </div>
+    <div id="rout" hidden>
+      <div class="readings">
+        <div class="reading k"><span class="tag">한국어로</span>
+          <div class="body" id="rko"></div></div>
+        <div class="reading e"><span class="tag">IN ENGLISH</span>
+          <div class="body" id="ren"></div></div>
+      </div>
+      <div class="panel"><h3>되찾은 것</h3>
+        <div class="scroll"><table id="tblRead"></table></div></div>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="wrap">
+    <p><a href="https://github.com/Calandiva/sori-mun">github.com/Calandiva/sori-mun</a>
+      · <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/RULES.md">규칙 전체</a>
+      · <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/DATA.md">자료 출처</a></p>
+    <p class="dim">mecab-ko-dic (Apache-2.0) · FrequencyWords (CC-BY-SA) ·
+      KNU 한국어 감성사전 · Moby POS (public domain) · VADER (MIT) · AFINN ·
+      MUSE 대역쌍 · kiwipiepy. 코드는 MIT.</p>
+  </div>
+</footer>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script src="decoder.js"></script>
+<script src="encoder.js"></script>
+<script src="studio.js"></script>
+<script>
+(function(){
+"use strict";
+const D=window.SORIMUN,K=D.codes,R=window.SoriRead,W=window.SoriWrite,
+      ST=window.SoriStudio;
+const $=s=>document.querySelector(s);
+const el=(t,a,c)=>{const n=document.createElement(t);
+  if(a)for(const k in a)n.setAttribute(k,a[k]);
+  if(c!=null)n.textContent=c;return n;};
+const NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const nm=m=>NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);
+const TIERL=K.tierLabel;
+let actx=null;
+function audio(){return actx||(actx=new (window.AudioContext||window.webkitAudioContext)());}
+/* ── 소리 읽기 ── */
+async function showReading(chords){
+  $("#rerr").textContent="";
+  if(!chords.length){$("#rerr").textContent="화음을 찾지 못했다.";return;}
+  let readings=R.readAll(chords);
+  // 부분집합 밖의 드문 낱말 — 그 말의 전체 사전을 내려받아 채우고 다시 읽는다
+  const miss=R.unresolvedLangs(readings);
+  if(miss.length&&window.SoriStudio){
+    $("#rerr").textContent="드문 낱말이 있다 — 전체 사전을 여는 중 …";
+    try{
+      for(const lg of miss)
+        window.SoriWrite.feedFull(lg,await window.SoriStudio.loadFull(lg));
+    }catch(e){}
+    $("#rerr").textContent="";
+    readings=R.readAll(chords);
+  }
+  $("#rout").hidden=false;
+  const langs=new Set();
+  for(const r of readings)for(const it of r.items)if(it.lang)langs.add(it.lang);
+  const src=langs.size===1?[...langs][0]:null;
+  const outKo=readings.map(r=>src==="ko"?R.toSame(r.items,r.terminator,"ko")
+    :R.toKorean(R.crossItems(r.items),r.terminator)).join(" ");
+  const outEn=readings.map(r=>src==="en"?R.toSame(r.items,r.terminator,"en")
+    :R.toEnglish(R.crossItems(r.items),r.terminator)).join(" ");
+  $("#rko").textContent=outKo||"—";
+  $("#ren").textContent=outEn||"—";
+  const t=$("#tblRead");t.textContent="";
+  let tr=el("tr");
+  ["되찾은 것","자리","갈래"].forEach(h=>tr.appendChild(el("th",null,h)));
+  t.appendChild(tr);
+  readings.forEach((r,si)=>{
+    if(readings.length>1){
+      tr=el("tr");
+      const td=el("td",{class:"dim",colspan:"3"},`— 문장 ${si+1} —`);
+      tr.appendChild(td);t.appendChild(tr);
+    }
+    for(const it of r.items){
+      tr=el("tr");
+      if(it.kind==="개념"){
+        tr.appendChild(el("td",null,`${it.c[0]} ↔ ${it.c[2]}`));
+        tr.appendChild(el("td",null,K.roles[it.role]));
+        tr.appendChild(el("td",{class:"dim"},"개념 — 두 말 다"));
+      }else if(it.kind==="글자"){
+        tr.appendChild(el("td",{class:"mono"},it.form));
+        tr.appendChild(el("td",null,K.roles[it.role]));
+        tr.appendChild(el("td",{class:"dim"},`받아적기 (${it.lang})`));
+      }else{
+        const f=W.lookupRev(it.lang,it.tier,it.quality,it.index);
+        const ci=f?W.approxOf(it.lang,f[0],f[1]):null;
+        tr.appendChild(el("td",{class:"mono"},f?f[0]+"/"+f[1]:`#${it.index}`));
+        tr.appendChild(el("td",null,K.roles[it.role]));
+        tr.appendChild(el("td",{class:"dim"},
+          `${it.lang} 전용`+(ci!=null?` ≈ ${D.concepts[ci][0]}↔${D.concepts[ci][2]}`:"")));
+      }
+      t.appendChild(tr);
+    }
+    for(const w of r.warnings){
+      tr=el("tr");
+      tr.appendChild(el("td",{class:"err",colspan:"3"},"! "+w));
+      t.appendChild(tr);
+    }
+  });
+}
+$("#doRead").addEventListener("click",()=>{
+  const txt=$("#chordIn").value.trim();
+  if(!txt){$("#rerr").textContent="음이름을 넣거나 파일을 골라 주세요.";return;}
+  try{
+    const chords=[];
+    const alias={DB:"C#",EB:"D#",GB:"F#",AB:"G#",BB:"A#"};
+    for(const tok of txt.replace(/,/g," ").split(/\s+/)){
+      if(!tok)continue;const ps=[];
+      for(const part of tok.split("+")){
+        const s2=part.trim();if(!s2)continue;
+        if(/^\d+$/.test(s2)){ps.push(+s2);continue;}
+        const body=s2.slice(0,-1).toUpperCase(),oct=s2.slice(-1);
+        const b=alias[body]||body;const k=NAMES.indexOf(b);
+        if(k<0||!/^\d$/.test(oct))throw new Error("음이름을 알 수 없습니다: "+s2);
+        ps.push(k+(+oct+1)*12);}
+      if(ps.length)chords.push(ps.sort((a,b)=>a-b));}
+    showReading(chords);
+  }catch(e){$("#rerr").textContent=e.message;}
+});
+$("#afile").addEventListener("change",async ev=>{
+  const f=ev.target.files[0];
+  if(!f)return;
+  $("#rerr").textContent="읽는 중 …";
+  try{
+    const buf=await f.arrayBuffer();
+    const c=audio();
+    const ab=await c.decodeAudioData(buf);
+    const x=ab.getChannelData(0);
+    const chords=R.chordsFromSamples(x,ab.sampleRate);
+    $("#chordIn").value=chords.map(ch=>ch.map(nm).join("+")).join(" ");
+    showReading(chords);
+    $("#rerr").textContent="";
+  }catch(e){$("#rerr").textContent="소리를 읽지 못했다: "+e.message;}
+  ev.target.value="";
+});
+
+
+ST.refreshPiano();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>소리문 — 사전</title>
+<meta name="description" content="소리문의 전체 사전 검색과 개념표.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><div class="wrap">
+  <a class="brand" href="./">소리문</a>
+  <span style="flex:1"></span>
+  <a class="sm" href="guide.html">설명·이론</a>
+  <a class="sm on" href="dict.html">사전</a>
+  <a class="sm" href="input.html">음 입력</a>
+  <a class="sm" href="https://github.com/Calandiva/sori-mun">github</a>
+</div></nav>
+<header class="pgheader"><div class="wrap">
+  <h1>사전</h1>
+  <p class="lede" style="margin-left:0;text-align:left">546,068 항목 전체와
+    두 말을 잇는 개념표. 미리보기가 그 낱말의 멜로디를 들려준다.</p>
+</div></header>
+<section id="dict">
+  <div class="wrap">
+    <h2><span class="en">DICTIONARY</span>낱말 — 전부 찾고, 미리 듣는다</h2>
+    <p class="sub">546,068 항목 전체. 등급·성질·개념 이음이 보이고,
+      미리보기가 그 낱말을 들려준다. 첫 검색 때 사전을 한 번 내려받는다.</p>
+    <div class="row"><input id="dictQ" type="search"
+      placeholder="아무 낱말이나 — 어루만지다의 어간 '어루만지', 밤, serendipity …"
+      autocomplete="off"></div>
+    <div id="dictHits"></div>
+  </div>
+</section>
+<section id="concepts">
+  <div class="wrap">
+    <h2><span class="en">CONCEPTS</span>개념 — 두 말을 잇는 자리</h2>
+    <p class="sub" id="cxSub"></p>
+    <div class="row"><input id="q" type="search"
+      placeholder="한국어나 영어로 — 사랑, love, 밤, night …" autocomplete="off"></div>
+    <div id="hits"></div>
+  </div>
+</section>
+<footer>
+  <div class="wrap">
+    <p><a href="https://github.com/Calandiva/sori-mun">github.com/Calandiva/sori-mun</a>
+      · <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/RULES.md">규칙 전체</a>
+      · <a href="https://github.com/Calandiva/sori-mun/blob/main/docs/DATA.md">자료 출처</a></p>
+    <p class="dim">mecab-ko-dic (Apache-2.0) · FrequencyWords (CC-BY-SA) ·
+      KNU 한국어 감성사전 · Moby POS (public domain) · VADER (MIT) · AFINN ·
+      MUSE 대역쌍 · kiwipiepy. 코드는 MIT.</p>
+  </div>
+</footer>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script src="decoder.js"></script>
+<script src="encoder.js"></script>
+<script src="studio.js"></script>
+<script>
+(function(){
+"use strict";
+const D=window.SORIMUN,K=D.codes,R=window.SoriRead,W=window.SoriWrite,
+      ST=window.SoriStudio;
+const $=s=>document.querySelector(s);
+const el=(t,a,c)=>{const n=document.createElement(t);
+  if(a)for(const k in a)n.setAttribute(k,a[k]);
+  if(c!=null)n.textContent=c;return n;};
+const NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const nm=m=>NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);
+const TIERL=K.tierLabel;
+let actx=null;
+function audio(){return actx||(actx=new (window.AudioContext||window.webkitAudioContext)());}
+let dictTimer=null;
+$("#dictQ").addEventListener("input",()=>{
+  clearTimeout(dictTimer);
+  dictTimer=setTimeout(()=>ST.searchFull($("#dictQ").value),250);
+});
+
+/* 개념 찾기 */
+$("#cxSub").textContent=`개념 ${D.meta.concepts.toLocaleString()}개. `+
+  `소리에 적히는 것은 이 번호뿐 — 어느 말인지는 적히지 않는다. `+
+  `한쪽에만 있는 낱말은 근사 ${D.approx.length.toLocaleString()}개가 잇는다.`;
+function hits(){const q=$("#q").value.trim().toLowerCase();const box=$("#hits");
+ box.textContent="";
+ let rows=D.concepts.map((c,i)=>[c,i]);
+ if(q)rows=rows.filter(([c])=>c[0].startsWith(q)||c[2].toLowerCase().startsWith(q));
+ else rows=rows.slice(0,25);
+ box.appendChild(el("p",{class:"dim",style:"font-size:.82rem"},
+   q?`${rows.length.toLocaleString()}개 중 앞의 ${Math.min(30,rows.length)}개`
+    :"앞자리 개념 — 가장 흔한 것부터 (이름이 가장 짧게 적힌다)"));
+ for(const [c] of rows.slice(0,30)){const d=el("div",{class:"hit"});
+  d.appendChild(el("div",null,`${c[0]} / ${c[1]}`));
+  d.appendChild(el("div",null,`${c[2]} / ${c[3]}`));
+  d.appendChild(el("div",{class:"dim",style:"font-size:.8rem"},
+    `${TIERL[c[4]]}${c[5]?"  극성 "+(c[5]>0?"+":"")+c[5]:""}`));
+  box.appendChild(d);}}
+$("#q").addEventListener("input",hits);hits();
+
+
+})();
+</script>
+</body>
+</html>
