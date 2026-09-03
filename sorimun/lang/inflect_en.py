@@ -43,6 +43,9 @@ IRREGULAR_PAST = {
     "swim": "swam", "rise": "rose", "shine": "shone", "hide": "hid",
     "lie": "lay", "lay": "laid", "seek": "sought", "spend": "spent",
     "lend": "lent", "bend": "bent", "feed": "fed", "lead": "led",
+    "permit": "permitted", "admit": "admitted", "submit": "submitted",
+    "commit": "committed", "omit": "omitted", "regret": "regretted",
+    "upset": "upset",
     "hurt": "hurt", "cost": "cost", "cut": "cut", "let": "let",
     "set": "set", "shut": "shut", "hit": "hit", "quit": "quit",
 }
@@ -58,7 +61,12 @@ _PLURAL_TO_BASE = {v: k for k, v in IRREGULAR_PLURAL.items()}
 _VOWELS = "aeiou"
 
 
+_NO_DOUBLE = ("er", "en", "on", "el", "ow", "it", "et", "om", "an")
+
+
 def _double(stem: str) -> bool:
+    if len(stem) >= 5 and stem.endswith(_NO_DOUBLE):
+        return False        # 무강세 어미 어림 — cover, happen, visit …
     return (len(stem) >= 3 and stem[-1] not in _VOWELS + "wxy"
             and stem[-2] in _VOWELS and stem[-3] not in _VOWELS)
 

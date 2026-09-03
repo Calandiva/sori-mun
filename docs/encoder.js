@@ -385,7 +385,9 @@
     leaf:"leaves",knife:"knives",wife:"wives" };
   const PL_TO_BASE = {}; Object.entries(IRR_PL).forEach(([b, p]) => PL_TO_BASE[p] = b);
   const V = "aeiou";
-  const dbl = w => w.length >= 3 && !(V + "wxy").includes(w[w.length-1])
+  const NO_DBL = /(er|en|on|el|ow|it|et|om|an)$/;
+  const dbl = w => !(w.length >= 5 && NO_DBL.test(w))
+    && w.length >= 3 && !(V + "wxy").includes(w[w.length-1])
     && V.includes(w[w.length-2]) && !V.includes(w[w.length-3]);
   const addS = w => /(s|x|z|ch|sh)$/.test(w) ? w + "es"
     : (/[^aeiou]y$/.test(w) ? w.slice(0, -1) + "ies"
