@@ -15,9 +15,11 @@
   <a class="brand" href="./">소리문</a>
   <span class="dim" style="font-size:.78rem">문장은 음악이 되고, 음악은 다시 문장이 된다</span>
   <span style="flex:1"></span>
+  <a class="sm" href="flow.html">긴 글</a>
   <a class="sm" href="guide.html">설명·이론</a>
   <a class="sm" href="dict.html">사전</a>
   <a class="sm" href="input.html">음 입력</a>
+  <a class="sm" href="story.html">만들기의 기록</a>
   <a class="sm" href="https://github.com/Calandiva/sori-mun">github</a>
 </div></nav>
 
@@ -49,8 +51,17 @@
         ♩ <input type="range" id="wtempo" min="40" max="132" value="72"
           style="width:90px;accent-color:var(--accent)">
         <span class="mono" id="wtempoV">72</span></label>
-      <button class="cnclose" id="wdl">⬇ WAV</button>
+      <span class="dlwrap" style="position:relative">
+        <button class="cnclose" id="wdl">⬇ WAV</button>
+        <span id="dlMenu" hidden>
+          <button class="cnclose" id="dlDry">드라이</button>
+          <button class="cnclose" id="dlWet">이펙터 포함</button>
+        </span>
+      </span>
       <span style="flex:1"></span>
+      <label class="dim" style="font-size:.75rem;display:flex;align-items:center;gap:6px"
+        title="전체 볼륨">🔊 <input type="range" id="vol" min="0" max="100" value="90"
+        style="width:74px;accent-color:var(--accent)"></label>
       <canvas id="meter" width="66" height="17" title="출력 레벨 (좌·우)"></canvas>
       <span id="cnClock"></span>
     </div>
@@ -133,8 +144,8 @@
         <label>프리딜레이 <input type="range" id="fxPre" min="0" max="120" value="30"></label>
         <label>톤 <input type="range" id="fxTone" min="1200" max="8000" value="3600"></label>
       </div>
-      <div class="cnfxrow"><span class="dim">그레인 → 딜레이 → 필터 → 공간 ·
-        재생 전용 — 내려받는 WAV 는 드라이</span></div>
+      <div class="cnfxrow"><span class="dim">그레인 → 딜레이 → 필터 → 공간 →
+        리미터 → 볼륨 · 내려받을 때 드라이/이펙터 포함을 고른다</span></div>
     </div>
     <div class="cnfoot">해체 — 번호 — 가락과 종지 · 꼭대기가 멜로디, 아래가 화성 · C3–C5</div>
   </div>
@@ -183,7 +194,11 @@ const EX=["아름다운 노래가 어두운 밤을 천천히 어루만졌다.",
   "Time flowed like deep water.",
   "별이 밤하늘에 빛난다.",
   "The candle shook before the wind.",
-  "밤이 깊다. 사랑은 강하다."];
+  "밤이 깊다. 사랑은 강하다.",
+  "새가 나무에 앉았다.",
+  "The wind touched the flower.",
+  "하늘이 매우 높다. 비가 조용히 내린다.",
+  "We walked together again."];
 for(const t of EX){
   const b=el("button",{class:"chip",type:"button"},
     t.length>19?t.slice(0,18)+"…":t);
@@ -296,8 +311,29 @@ $("#wtempo").addEventListener("input",()=>{
   $("#wtempoV").textContent=$("#wtempo").value;});
 $("#wdl").addEventListener("click",()=>{
   if(!lastBlobUrl)return;
+  const m=$("#dlMenu");m.hidden=!m.hidden;
+});
+$("#dlDry").addEventListener("click",()=>{
+  $("#dlMenu").hidden=true;
+  if(!lastBlobUrl)return;
   const a=document.createElement("a");
   a.href=lastBlobUrl;a.download="sorimun.wav";a.click();
+});
+$("#dlWet").addEventListener("click",async()=>{
+  if(!lastPcm)return;
+  const b=$("#dlWet");b.disabled=true;b.textContent="굽는 중 …";
+  try{
+    const ab=await ST.renderWet(lastPcm,W.SR);
+    const url=URL.createObjectURL(ST.wavBlobStereo(ab));
+    const a=document.createElement("a");
+    a.href=url;a.download="sorimun-fx.wav";a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+  }catch(e){$("#werr").textContent="이펙터 굽기 실패: "+e.message;}
+  b.disabled=false;b.textContent="이펙터 포함";
+  $("#dlMenu").hidden=true;
+});
+$("#vol").addEventListener("input",()=>{
+  window.__fx.master=+$("#vol").value/100;ST.applyFx();
 });
 
 /* ── 무대 조작 ── */

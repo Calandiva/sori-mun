@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>소리문 — 긴 글</title>
+<meta name="description" content="A4 한 장 분량의 글을 통째로 음악으로. 지나간 것, 우는 것, 올 것이 한 눈에 흐른다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="stage flow">
+<nav class="top"><div class="wrap">
+  <a class="brand" href="./">소리문</a>
+  <span class="dim" style="font-size:.78rem">긴 글 — 한 장을 통째로</span>
+  <span style="flex:1"></span>
+  <a class="sm on" href="flow.html">긴 글</a>
+  <a class="sm" href="guide.html">설명·이론</a>
+  <a class="sm" href="dict.html">사전</a>
+  <a class="sm" href="input.html">음 입력</a>
+  <a class="sm" href="story.html">만들기의 기록</a>
+  <a class="sm" href="https://github.com/Calandiva/sori-mun">github</a>
+</div></nav>
+
+<main class="flowwrap">
+  <textarea id="src" maxlength="6000" rows="7" spellcheck="false"
+    placeholder="A4 한 장 분량까지 — 여러 문장을 이어 쓰면 통째로 하나의 곡이 됩니다."></textarea>
+  <div class="row">
+    <button class="act primary" id="go">♪ 악보로</button>
+    <span id="chips"></span>
+    <span class="count"><span id="cnt">0</span>/6000</span>
+  </div>
+  <div class="err" id="werr"></div>
+
+  <div id="deck" hidden>
+    <div class="cnbar">
+      <button class="cnplay" id="fPlay">▶</button>
+      <label class="dim" style="font-size:.78rem"><input type="checkbox" id="fLoop">루퍼</label>
+      <label class="dim" style="font-size:.75rem;display:flex;align-items:center;gap:7px">
+        ♩ <input type="range" id="fTempo" min="40" max="132" value="72"
+          style="width:90px;accent-color:var(--accent)">
+        <span class="mono" id="fTempoV">72</span></label>
+      <label class="dim" style="font-size:.75rem;display:flex;align-items:center;gap:6px">
+        공간 <select id="fPreset" style="background:var(--bg3);color:var(--ink);
+          border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:.74rem">
+          <option value="dry">드라이</option>
+          <option value="ambient" selected>앰비언트</option>
+          <option value="mosaic">모자이크</option>
+          <option value="glitch">글리치</option>
+          <option value="tunnel">터널</option>
+          <option value="cathedral">성당</option>
+          <option value="glacial">빙하</option>
+          <option value="dream">꿈</option></select></label>
+      <span class="dlwrap" style="position:relative">
+        <button class="cnclose" id="fDl">⬇ WAV</button>
+        <span id="dlMenu" hidden>
+          <button class="cnclose" id="dlDry">드라이</button>
+          <button class="cnclose" id="dlWet">이펙터 포함</button>
+        </span>
+      </span>
+      <span style="flex:1"></span>
+      <label class="dim" style="font-size:.75rem;display:flex;align-items:center;gap:6px"
+        title="전체 볼륨">🔊 <input type="range" id="vol" min="0" max="100" value="90"
+        style="width:74px;accent-color:var(--accent)"></label>
+      <canvas id="meter" width="66" height="17"></canvas>
+      <span class="fprog" id="fClock"></span>
+    </div>
+
+    <div id="nowCard">
+      <div>
+        <div id="nowWord">—</div>
+        <div id="nowMeta"></div>
+      </div>
+      <svg id="nowSpark" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="fprog" id="fSent" style="text-align:right"></div>
+    </div>
+
+    <div id="ribbonBox">
+      <svg id="ribbon" xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="none"></svg>
+    </div>
+
+    <div id="flowText"></div>
+    <p class="dim" style="font-size:.76rem">지나간 낱말은 가라앉고, 우는
+      낱말은 켜지고, 올 낱말은 멀수록 어둡다 — 글 전체의 흐름이 한 눈에
+      보인다. 색은 성질(장·단·중성), 문장 왼끝의 선은 그 문장의 주된
+      성질이다. 리본을 누르면 그 자리로 간다.</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><a href="./">첫 화면</a> · <a href="guide.html">설명·이론</a>
+      · <a href="https://github.com/Calandiva/sori-mun">github.com/Calandiva/sori-mun</a></p>
+  </div>
+</footer>
+
+<div id="tip"></div>
+<script src="data.js"></script>
+<script src="decoder.js"></script>
+<script src="encoder.js"></script>
+<script src="studio.js"></script>
+<script>
+(function(){
+"use strict";
+const D=window.SORIMUN,K=D.codes,R=window.SoriRead,W=window.SoriWrite,
+      ST=window.SoriStudio;
+const $=s=>document.querySelector(s);
+const el=(t,a,c)=>{const n=document.createElement(t);
+  if(a)for(const k in a)n.setAttribute(k,a[k]);
+  if(c!=null)n.textContent=c;return n;};
+const NS="http://www.w3.org/2000/svg";
+const sv=(t,a)=>{const n=document.createElementNS(NS,t);
+  for(const k in a)n.setAttribute(k,a[k]);return n;};
+const NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const nm=m=>NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);
+const COLOR={major:"#e9b44c",minor:"#9b8ec4",neutral:"#5f8fa6"};
+const Q_NAME=["major","minor","neutral"];
+let actx=null;
+function audio(){return actx||(actx=new (window.AudioContext||window.webkitAudioContext)());}
+
+/* ── 예문 — 한 장 분량 ── */
+const EX=[
+["봄의 하루","봄이 왔다. 아이가 조용히 웃었다. 바람이 꽃을 흔들었다. 새가 나무에 앉았다. 하늘이 매우 높다. 비가 조용히 내린다. 나무가 바람에 흔들린다. 별이 밤하늘에 빛난다. 밤이 깊다. 음악이 방 안을 가득 채웠다. 그녀가 슬픈 노래를 부른다. 아름다운 노래가 어두운 밤을 천천히 어루만졌다."],
+["겨울 편지","겨울이 지나면 봄이 온다. 눈이 하얗게 쌓였다. 겨울 바다는 차갑고 쓸쓸하다. 촛불이 바람 앞에서 흔들렸다. 할머니는 오래된 편지를 읽었다. 그리움이 파도처럼 밀려온다. 너의 목소리가 아직 들린다. 우리는 함께 먼 길을 걸었다. 시간이 빠르게 흘러갔다. 사랑은 죽음보다 강하다."],
+["NIGHT WALK","The spring came. The child laughed quietly. The wind touched the flower. A bird sat on the tree. The rain falls quietly. Stars shine in the night sky. The night is deep. Music filled the small room slowly. She sings sad songs. The moon rose over the quiet sea. We walked together on the long road. Love is stronger than death. The beautiful song gently touched the dark night."],
+];
+for(const [name,t] of EX){
+  const b=el("button",{class:"chip",type:"button"},name);
+  b.title=t.slice(0,80)+" …";
+  b.addEventListener("click",()=>{$("#src").value=t;
+    $("#cnt").textContent=t.length;build(true);});
+  $("#chips").appendChild(b);
+}
+$("#src").addEventListener("input",()=>{$("#cnt").textContent=$("#src").value.length;});
+
+/* ── 프리셋 (첫 화면과 같은 값) ── */
+const FX_PRESETS={
+  dry:{prog:"off",grainMix:0,dlyDiv:0,dlyFb:.3,dlyMix:0,cut:9000,res:.05,
+    modDepth:0,modRate:.18,revType:"off",revMix:0,preDelay:0,tone:4600},
+  ambient:{prog:"haze",grainDiv:.5,activity:.45,shape:.7,pitchSet:"shimmer",
+    grainMix:.4,dlyDiv:0,dlyFb:.38,dlyMix:.28,cut:5200,res:.08,modDepth:.25,
+    modRate:.18,revType:"bloom",revMix:.5,preDelay:.03,tone:3600},
+  mosaic:{prog:"mosaic",grainDiv:.5,activity:.65,shape:.35,pitchSet:"unison",
+    grainMix:.5,dlyDiv:.75,dlyFb:.45,dlyMix:.24,cut:6400,res:.12,modDepth:.1,
+    modRate:.3,revType:"hall",revMix:.4,preDelay:.02,tone:4200},
+  glitch:{prog:"glitch",grainDiv:.25,activity:.6,shape:.15,pitchSet:"spread",
+    grainMix:.55,dlyDiv:.5,dlyFb:.5,dlyMix:.26,cut:6800,res:.22,modDepth:.08,
+    modRate:1.2,revType:"room",revMix:.28,preDelay:.01,tone:4600},
+  tunnel:{prog:"tunnel",grainDiv:.5,activity:.6,shape:.5,pitchSet:"sub",
+    grainMix:.5,dlyDiv:0,dlyFb:.4,dlyMix:.2,cut:3200,res:.3,modDepth:.3,
+    modRate:.12,revType:"glacial",revMix:.55,preDelay:.05,tone:2600},
+  cathedral:{prog:"off",grainMix:0,dlyDiv:0,dlyFb:.35,dlyMix:.2,cut:5600,
+    res:.05,modDepth:.1,modRate:.1,revType:"cathedral",revMix:.6,preDelay:.04,
+    tone:3000},
+  glacial:{prog:"haze",grainDiv:1,activity:.35,shape:.85,pitchSet:"octave",
+    grainMix:.4,dlyDiv:0,dlyFb:.4,dlyMix:.2,cut:2400,res:.15,modDepth:.35,
+    modRate:.07,revType:"glacial",revMix:.65,preDelay:.05,tone:2400},
+  dream:{prog:"haze",grainDiv:.75,activity:.5,shape:.7,pitchSet:"shimmer",
+    grainMix:.45,dlyDiv:1,dlyFb:.55,dlyMix:.34,cut:4600,res:.12,modDepth:.3,
+    modRate:.14,revType:"hall",revMix:.5,preDelay:.03,tone:3200},
+};
+$("#fPreset").addEventListener("change",()=>{
+  Object.assign(window.__fx,FX_PRESETS[$("#fPreset").value]||{});
+  window.__fx.tempo=tempo;ST.applyFx();
+});
+$("#vol").addEventListener("input",()=>{
+  window.__fx.master=+$("#vol").value/100;ST.applyFx();
+});
+
+/* ── 짓기 ── */
+let piece=null,sched=null,total=0,pcm=null,blobUrl=null,tempo=72;
+let wordsIdx=[],sentIdx=[],ribbonEls=null;
+
+function build(auto){
+  const text=$("#src").value.trim();
+  $("#werr").textContent="";
+  if(!text)return;
+  if(text.length>6000){$("#werr").textContent="6,000자까지입니다.";return;}
+  const lang=W.detect(text);
+  try{piece=W.compose(text,lang);}
+  catch(e){$("#werr").textContent="옮기지 못했다: "+e.message;return;}
+  $("#deck").hidden=false;
+  sched=W.schedule(piece.notes,tempo);
+  total=sched.length?sched[sched.length-1][0]+sched[sched.length-1][1]+.3:0;
+  pcm=W.synth(piece.notes,tempo);
+  if(blobUrl)URL.revokeObjectURL(blobUrl);
+  blobUrl=URL.createObjectURL(W.wavBlob(pcm));
+  buildText();
+  buildRibbon();
+  stopSrc();offset=0;
+  if(auto)startFrom(0);else drawFrameOnce();
+}
+$("#go").addEventListener("click",()=>build(true));
+
+/* 낱말·문장 → 시간 구간 */
+function buildText(){
+  const box=$("#flowText");box.textContent="";
+  wordsIdx=[];sentIdx=[];
+  // 시간 구간
+  const wr=new Map(),sr=new Map();
+  sched.forEach(([t0,du,n])=>{
+    if(n.w>=0){
+      const k=n.si+"/"+n.w;
+      const v=wr.get(k)||{a:1e9,b:0};
+      v.a=Math.min(v.a,t0);v.b=Math.max(v.b,t0+du);wr.set(k,v);
+    }
+    const v=sr.get(n.si)||{a:1e9,b:0};
+    v.a=Math.min(v.a,t0);v.b=Math.max(v.b,t0+du);sr.set(n.si,v);
+  });
+  piece.sentences.forEach((sn,si)=>{
+    // 문장의 주된 성질
+    const qc={major:0,minor:0,neutral:0};
+    for(const g of sn.glyphs)qc[Q_NAME[g.qi]||"neutral"]++;
+    const domQ=Object.keys(qc).sort((a,b)=>qc[b]-qc[a])[0];
+    const sEl=el("span",{class:"fsent"});
+    sEl.style.borderLeftColor=COLOR[domQ]+"55";
+    // 낱말별 성질(첫 내용 글리프의 성질)
+    const wq={};
+    for(const g of sn.glyphs)
+      if(g.word>=0&&wq[g.word]===undefined)wq[g.word]=Q_NAME[g.qi]||"neutral";
+    sn.analysis.forEach((a,wi)=>{
+      const wEl=el("span",{class:"fword"},a.surface);
+      wEl.title=a.role;
+      sEl.appendChild(wEl);
+      const t2=wr.get(si+"/"+wi)||{a:0,b:0};
+      wordsIdx.push({el:wEl,si,wi,a:t2.a,b:t2.b,q:wq[wi]||"neutral",
+        surface:a.surface,role:a.role,last:-1});
+    });
+    sEl.appendChild(el("span",{class:"fterm"},sn.term));
+    box.appendChild(sEl);
+    const st=sr.get(si)||{a:0,b:0};
+    sentIdx.push({a:st.a,b:st.b});
+  });
+}
+
+/* 리본 — 전곡의 미니 악보. 지난 것은 또렷하고 올 것은 흐리다 */
+function buildRibbon(){
+  const rb=$("#ribbon");rb.textContent="";
+  const RW=1200,RH=96;
+  rb.setAttribute("viewBox",`0 0 ${RW} ${RH}`);
+  const x=t=>t/total*RW;
+  const y=p=>6+(K.highest-p)*(RH-24)/(K.highest-K.lowest);
+  ribbonEls=[];
+  sched.forEach(([t0,du,n])=>{
+    const q=Q_NAME[n.qi];
+    const mel=n.slot==="종지"||n.slot==="이름"||n.slot==="으뜸";
+    const col=mel&&q?COLOR[q]:"#3d4b5c";
+    for(const p of n.p){
+      const r=sv("rect",{x:x(t0),y:y(p)-1.4,
+        width:Math.max(1.2,x(t0+du)-x(t0)-.6),height:2.8,rx:.8,
+        fill:col});
+      rb.appendChild(r);
+      ribbonEls.push({t:t0,el:r});
+    }
+  });
+  // 문장 눈금
+  sentIdx.forEach((s,i)=>{
+    rb.appendChild(sv("line",{x1:x(s.a),x2:x(s.a),y1:0,y2:RH,
+      stroke:"#222a34","stroke-width":.7}));
+    const t2=sv("text",{x:x(s.a)+3,y:RH-3,fill:"#43536a","font-size":"8",
+      "font-family":"ui-monospace,monospace"});
+    t2.textContent=i+1;rb.appendChild(t2);
+  });
+  // 재생 머리 + 잔광
+  const glow=sv("rect",{x:0,y:0,width:0,height:RH,fill:"url(#gGlow)"});
+  const defs=sv("defs",{});
+  defs.innerHTML='<linearGradient id="gGlow" x1="0" y1="0" x2="1" y2="0">'
+    +'<stop offset="0" stop-color="#e9b44c" stop-opacity="0"/>'
+    +'<stop offset="1" stop-color="#e9b44c" stop-opacity=".14"/></linearGradient>';
+  rb.appendChild(defs);rb.appendChild(glow);
+  const head=sv("line",{x1:0,x2:0,y1:0,y2:RH,stroke:"#e9b44c","stroke-width":1.4});
+  rb.appendChild(head);
+  rb.__head=head;rb.__glow=glow;rb.__x=x;
+  rb.addEventListener("click",ev=>{
+    const r=rb.getBoundingClientRect();
+    const t2=(ev.clientX-r.left)/r.width*total;
+    if(playing)startFrom(Math.max(0,t2));else{offset=Math.max(0,t2);drawFrameOnce();}
+  });
+}
+
+/* ── 트랜스포트 ── */
+let playing=false,offset=0,startPerf=0,srcNode=null,raf=null;
+function startFrom(off){
+  stopSrc();
+  const c=audio();if(c.state==="suspended")c.resume();
+  const buf=c.createBuffer(1,pcm.length,W.SR);
+  const ch=buf.getChannelData(0);
+  for(let i=0;i<pcm.length;i++)ch[i]=pcm[i]/32768;
+  srcNode=c.createBufferSource();srcNode.buffer=buf;
+  srcNode.connect(ST.fxInput(c).input);
+  srcNode.start(0,Math.min(off,buf.duration-.01));
+  offset=off;startPerf=performance.now()/1000;playing=true;
+  $("#fPlay").textContent="⏸";
+  if(!raf)raf=requestAnimationFrame(frame);
+}
+function stopSrc(){if(srcNode){try{srcNode.stop()}catch(e){}srcNode=null;}}
+function pause(){if(!playing)return;offset=getT();stopSrc();playing=false;
+  $("#fPlay").textContent="▶";}
+const getT=()=>playing?offset+(performance.now()/1000-startPerf):offset;
+$("#fPlay").addEventListener("click",()=>{
+  if(!piece)return;
+  if(playing)pause();
+  else startFrom(getT()>=total-.05?0:getT());
+});
+$("#fLoop").addEventListener("change",e=>window.__fx.loop=e.target.checked);
+$("#fTempo").addEventListener("input",()=>{$("#fTempoV").textContent=$("#fTempo").value;});
+$("#fTempo").addEventListener("change",()=>{
+  tempo=+$("#fTempo").value;
+  window.__fx.tempo=tempo;ST.applyFx();
+  if(piece){const t2=getT()/total;
+    sched=W.schedule(piece.notes,tempo);
+    total=sched.length?sched[sched.length-1][0]+sched[sched.length-1][1]+.3:0;
+    pcm=W.synth(piece.notes,tempo);
+    if(blobUrl)URL.revokeObjectURL(blobUrl);
+    blobUrl=URL.createObjectURL(W.wavBlob(pcm));
+    buildText();buildRibbon();
+    if(playing)startFrom(t2*total);else{offset=t2*total;drawFrameOnce();}
+  }
+});
+
+/* ── 흐름 그리기 — 지남·지금·올 것의 그라데이션 ── */
+const DONE={major:"#8a7440",minor:"#6b6389",neutral:"#4a6b7d"};
+function shade(w,t){
+  // 밝기: 지나감 .5 · 지금 1 · 다가옴은 멀수록 어둡다(.18까지)
+  let b,c;
+  if(t>=w.b){b=.5;c=DONE[w.q];}
+  else if(t>=w.a){b=1;c=COLOR[w.q];}
+  else{
+    const d=w.a-t;
+    b=Math.max(.18,.62-d*.045);
+    c=COLOR[w.q];
+  }
+  const key=(b*100|0);
+  if(key===w.last)return;
+  w.last=key;
+  const on=t>=w.a&&t<w.b;
+  w.el.classList.toggle("now",on);
+  if(on){w.el.style.color="#f2f6fa";w.el.style.opacity=1;}
+  else{w.el.style.color=c;w.el.style.opacity=b;}
+}
+let curWordKey=null;
+function drawNow(t){
+  let cur=null;
+  for(const w of wordsIdx)if(t>=w.a&&t<w.b){cur=w;break;}
+  const key=cur?cur.si+"/"+cur.wi:null;
+  if(key===curWordKey)return;
+  curWordKey=key;
+  const sp=$("#nowSpark");sp.textContent="";
+  if(!cur){$("#nowWord").textContent="—";$("#nowMeta").textContent="";return;}
+  $("#nowWord").textContent=cur.surface;
+  $("#nowWord").style.color=COLOR[cur.q];
+  const gl=piece.sentences[cur.si].glyphs.filter(g=>g.word===cur.wi);
+  $("#nowMeta").textContent=cur.role+" · "
+    +(gl.length?["개념 — 두 말 다","이 말 전용","받아적기"][gl[0].kind]:"");
+  // 멜로디 스파크라인 — 이 낱말의 소리
+  const mine=sched.filter(([,,n])=>n.si===cur.si&&n.w===cur.wi);
+  if(mine.length){
+    const a0=mine[0][0],b0=mine[mine.length-1][0]+mine[mine.length-1][1];
+    sp.setAttribute("viewBox","0 0 420 64");
+    const sx=t2=>(t2-a0)/(b0-a0||1)*400+10;
+    const sy=p=>58-(p-K.lowest)*52/(K.highest-K.lowest);
+    let prev=null;
+    for(const [t0,du,n] of mine){
+      const top=Math.max(...n.p);
+      const mel=n.p.length===1||top>56;
+      const col=mel?COLOR[cur.q]:"#4a5a6d";
+      for(const p of n.p){
+        sp.appendChild(sv("circle",{cx:sx(t0),cy:sy(p),
+          r:p===top&&mel?3.2:1.8,fill:col,
+          "fill-opacity":p===top?1:.5}));
+      }
+      if(prev&&mel)sp.appendChild(sv("line",{x1:prev[0],y1:prev[1],
+        x2:sx(t0),y2:sy(top),stroke:col,"stroke-width":1,"stroke-opacity":.5}));
+      if(mel)prev=[sx(t0),sy(top)];
+    }
+  }
+}
+function drawFrame(t){
+  for(const w of wordsIdx)shade(w,t);
+  const rb=$("#ribbon");
+  if(rb.__head){
+    const px=rb.__x(Math.min(t,total));
+    rb.__head.setAttribute("x1",px);rb.__head.setAttribute("x2",px);
+    rb.__glow.setAttribute("width",px);
+  }
+  for(const r of ribbonEls)
+    r.el.setAttribute("fill-opacity",r.t<=t?.95:.18);
+  drawNow(t);
+  const si=sentIdx.findIndex(s=>t>=s.a&&t<s.b);
+  const mm=x=>{const m=Math.floor(x/60),s2=Math.floor(x%60);
+    return m+":"+String(s2).padStart(2,"0");};
+  $("#fClock").textContent=mm(Math.min(t,total))+" / "+mm(total);
+  $("#fSent").textContent="문장 "+(si>=0?si+1:"—")+" / "+sentIdx.length;
+}
+function drawFrameOnce(){drawFrame(getT());}
+function frame(){
+  const t=getT();
+  drawFrame(Math.min(t,total));
+  if(playing&&t>=total){
+    if(window.__fx.loop)startFrom(0);
+    else pause();
+  }
+  raf=requestAnimationFrame(frame);
+}
+
+/* ── 내려받기 ── */
+$("#fDl").addEventListener("click",()=>{
+  if(!blobUrl)return;
+  const m=$("#dlMenu");m.hidden=!m.hidden;
+});
+$("#dlDry").addEventListener("click",()=>{
+  $("#dlMenu").hidden=true;
+  if(!blobUrl)return;
+  const a=document.createElement("a");
+  a.href=blobUrl;a.download="sorimun-page.wav";a.click();
+});
+$("#dlWet").addEventListener("click",async()=>{
+  if(!pcm)return;
+  const b=$("#dlWet");b.disabled=true;b.textContent="굽는 중 …";
+  try{
+    const ab=await ST.renderWet(pcm,W.SR);
+    const url=URL.createObjectURL(ST.wavBlobStereo(ab));
+    const a=document.createElement("a");
+    a.href=url;a.download="sorimun-page-fx.wav";a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+  }catch(e){$("#werr").textContent="이펙터 굽기 실패: "+e.message;}
+  b.disabled=false;b.textContent="이펙터 포함";
+  $("#dlMenu").hidden=true;
+});
+
+/* ── 레벨미터 ── */
+const mcv=$("#meter"),mg=mcv.getContext("2d");
+const mpk=[0,0];
+const mgrad=mg.createLinearGradient(0,0,60,0);
+mgrad.addColorStop(0,"#4caf7d");mgrad.addColorStop(.68,"#e9b44c");
+mgrad.addColorStop(1,"#e05c5c");
+(function mloop(){
+  const lv=ST.meterLevel();
+  mg.clearRect(0,0,66,17);
+  const rows=lv?[[lv.l,lv.pl],[lv.r,lv.pr]]:[[0,0],[0,0]];
+  rows.forEach(([r,p],i)=>{
+    mpk[i]=Math.max(p,mpk[i]*.93);
+    mg.fillStyle="#161c24";mg.fillRect(0,2+i*8,60,5);
+    mg.fillStyle=mgrad;
+    mg.fillRect(0,2+i*8,Math.min(1,r*2.6)*60,5);
+    mg.fillStyle="#f2f6fa";
+    mg.fillRect(Math.min(59,mpk[i]*2.6*60),2+i*8,1.5,5);
+  });
+  requestAnimationFrame(mloop);
+})();
+
+/* 앰비언트로 시작, 첫 예문을 차려 둔다 (소리는 ▶) */
+Object.assign(window.__fx,FX_PRESETS.ambient);
+window.__fx.master=.9;
+$("#src").value=EX[0][1];$("#cnt").textContent=EX[0][1].length;
+build(false);
+raf=requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

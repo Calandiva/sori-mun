@@ -255,3 +255,36 @@ details.anls summary{cursor:pointer;color:var(--ink2);font-size:.86rem}
 details.anls[open] summary{margin-bottom:10px}
 .pgheader{padding:34px 0 4px}
 .pgheader h1{font-size:1.9rem;text-align:left;text-indent:0;letter-spacing:.14em}
+
+#dlMenu{position:absolute;top:110%;left:0;display:flex;gap:6px;z-index:30;
+  background:#0d1218f6;border:1px solid var(--line2);border-radius:10px;
+  padding:8px}
+#dlMenu[hidden]{display:none}
+
+/* ── 긴 글 (flow) ── */
+body.flow{background:#05070a}
+.flowwrap{max-width:1240px;margin:0 auto;padding:20px 28px 50px;
+  display:flex;flex-direction:column;gap:12px}
+.flowwrap textarea{width:100%;background:#0a0e13;border:1px solid var(--line);
+  border-radius:12px;color:var(--ink);font-family:var(--serif);
+  font-size:1rem;line-height:1.9;padding:14px 18px;min-height:150px;
+  resize:vertical}
+.flowwrap textarea:focus{outline:none;border-color:var(--line2)}
+#flowText{font-family:var(--serif);font-size:clamp(1.05rem,1.7vw,1.35rem);
+  line-height:2.35;padding:18px 6px;word-break:keep-all}
+.fsent{display:inline;border-left:3px solid transparent;padding-left:8px;
+  margin-right:.2em}
+.fword{display:inline-block;margin:0 .18em;color:#3d4b5c;
+  border-bottom:2px solid transparent;transform-origin:center bottom;
+  transition:transform .18s;will-change:color,transform}
+.fword.now{border-bottom-color:var(--accent);transform:scale(1.22)}
+.fterm{color:#2c3745;margin-right:.5em}
+#ribbonBox{position:relative}
+#ribbon{width:100%;height:96px;display:block;cursor:crosshair}
+#nowCard{display:flex;gap:22px;align-items:center;min-height:96px;
+  border:1px solid var(--line);border-radius:12px;padding:10px 20px;
+  background:#0a0e13}
+#nowWord{font-family:var(--serif);font-size:2rem;font-weight:600;min-width:6ch}
+#nowMeta{color:var(--ink3);font-size:.8rem;line-height:1.7}
+#nowSpark{height:64px;flex:1;max-width:420px}
+.fprog{font-family:var(--mono);font-size:.74rem;color:#5b6b7f}

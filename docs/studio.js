@@ -49,21 +49,28 @@
   }
   const clampRoot = (v, root) => Math.min(root, K.highest - v[v.length - 1]);
 
-  /* ── 이펙터 — 재생에만 얹는다. 내려받는 WAV 는 언제나 마른 소리다. ──
+  /* ── 이펙터 — 재생에만 얹는다. 내려받는 WAV 는 고르는 대로다. ──
      Hologram Microcosm 의 짜임을 빌렸다:
        입력 → 그레인 엔진(마이크로루프·그래뉼·글리치) → 핑퐁 딜레이
-            → 공명 필터(+변조) → 공간 → 출력.
-     그레인 엔진은 AudioWorklet 이 4초 링버퍼에서 조각을 붙잡아
-     되풀고, 흩뿌리고, 옥타브를 올린다. 전부 템포에 물린다. */
+            → 공명 필터(+변조) → 공간 → 리미터 → 볼륨.
+
+     잡음을 막는 규칙 셋:
+       1. 되풀리는 조각은 붙잡는 순간 제 버퍼로 베껴 둔다 — 링버퍼의
+          쓰기 머리가 조각을 덮어써서 나던 지직거림이 사라진다.
+       2. 모든 그레인은 올린-코사인 창을 쓰고 여닫이가 5ms 아래로
+          내려가지 않는다 — 조각 끝의 딱 소리가 사라진다.
+       3. 그레인 합은 부드럽게 눌러 담고(soft clip), 공간의 울림에서
+          직류 성분을 걷어낸다 — 웅웅대는 바닥음이 사라진다. */
   window.__fx = { prog: "haze", grainDiv: .5, activity: .55, shape: .6,
                   pitchSet: "shimmer", grainMix: .45,
                   dlyDiv: 0, dlyFb: .38, dlyMix: .28,
-                  cut: 5200, res: .8, modRate: .18, modDepth: .25,
+                  cut: 5200, res: .08, modRate: .18, modDepth: .25,
                   revType: "bloom", revMix: .5, preDelay: .03, tone: 3600,
-                  loop: false, tempo: 72 };
+                  master: .9, loop: false, tempo: 72 };
   const _imp = {};
   function impulse(c, type) {
-    if (_imp[type]) return _imp[type];
+    const key = type + "@" + c.sampleRate;
+    if (_imp[key]) return _imp[key];
     // 종류마다 길이·감쇠·질감이 다르다.
     // 질감 0 보통 · 1 밝게(고역) · 2 어둡게(저역) · 3 피어남(느린 부풂+저역)
     const spec = { room: [1.0, 3.6, 0], chamber: [0.55, 4.6, 0],
@@ -88,8 +95,15 @@
         }
         d[i] = v;
       }
+      // 저역통과 잡음에는 직류가 고인다 — 걷어내지 않으면 웅웅댄다
+      if (spec[2] >= 2) {
+        let mean = 0;
+        for (let i = 0; i < n; i++) mean += d[i];
+        mean /= n;
+        for (let i = 0; i < n; i++) d[i] -= mean * (1 - i / n);
+      }
     }
-    _imp[type] = b;
+    _imp[key] = b;
     return b;
   }
 
@@ -99,12 +113,16 @@
            tunnel(짧고 촘촘한 그레인) · strum(조각을 펼쳐 뜯는다) */
   const GRAIN_SRC = `
 class SoriGrain extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
-    this.B = new Float32Array(sampleRate * 4);
+    this.B = new Float32Array(sampleRate * 6);
     this.w = 0;
-    this.mode = "off"; this.div = sampleRate * .35;
-    this.act = .55; this.shape = .6; this.pitches = [0, 12];
+    const o = (options && options.processorOptions) || {};
+    this.mode = o.mode || "off";
+    this.div = Math.max(1600, Math.round((o.div || .35) * sampleRate));
+    this.act = o.act === undefined ? .55 : o.act;
+    this.shape = o.shape === undefined ? .6 : o.shape;
+    this.pitches = o.pitches || [0, 12];
     this.grains = []; this.slice = null; this.next = 0;
     this.port.onmessage = e => {
       const m = e.data;
@@ -118,11 +136,13 @@ class SoriGrain extends AudioWorkletProcessor {
     };
   }
   pick() { return this.pitches[(Math.random() * this.pitches.length) | 0]; }
+  // 링버퍼에서 그레인 — 짧게 살다 가는 것은 베낄 필요가 없다
+  //   (6초 링에서 조각 길이+되돌아간 거리 < 4초를 지키므로 쓰기 머리가
+  //    사는 동안 따라잡지 못한다)
   spawn(pos, len, semi, pan, gain, rev, wait) {
-    if (this.grains.length > 48) return;
+    if (this.grains.length > 40) return;
     this.grains.push({ pos, len, t: 0, wait: wait || 0,
-      rate: Math.pow(2, semi / 12) * (rev ? -1 : 1),
-      pan, gain });
+      rate: Math.pow(2, semi / 12), rev: !!rev, pan, gain, snap: null });
   }
   process(inputs, outputs) {
     const inp = inputs[0] && inputs[0][0];
@@ -132,6 +152,7 @@ class SoriGrain extends AudioWorkletProcessor {
       B[this.w] = inp ? inp[i] : 0;
       this.w = (this.w + 1) % BL;
     }
+    for (let i = 0; i < N; i++) { L[i] = 0; R[i] = 0; }
     if (this.mode === "off") return true;
     const div = this.div | 0, act = this.act;
 
@@ -141,23 +162,29 @@ class SoriGrain extends AudioWorkletProcessor {
       this.next += div;
       const start = (this.w - div + BL) % BL;
       if (this.mode === "mosaic" || this.mode === "sequence") {
-        if (!this.slice || Math.random() < act)
-          this.slice = { start, len: div, step: 0 };
+        if (!this.slice || Math.random() < act) {
+          // 조각을 제 버퍼로 베낀다 — 쓰기 머리가 덮어써도 안전하다
+          const snap = new Float32Array(div);
+          for (let k = 0; k < div; k++) snap[k] = B[(start + k) % BL];
+          this.slice = { snap, step: 0 };
+          this.grains = this.grains.filter(g => !g.loop);
+        }
       } else if (this.mode === "glitch") {
         if (Math.random() < act) {
           const len = (div * (.35 + Math.random() * .8)) | 0;
-          const back = (Math.random() * sampleRate * 1.2) | 0;
+          const back = (Math.random() * sampleRate * .8) | 0;
           this.spawn((this.w - len - back + BL) % BL, len, this.pick(),
-                     Math.random() * 1.6 - .8, .95, Math.random() < .4, 0);
+                     Math.random() * 1.6 - .8, .9, Math.random() < .4, 0);
         }
       } else if (this.mode === "strum") {
         if (Math.random() < act) {
           const steps = [0, 4, 7, 12, 16, 19, 24];
           const nvoice = 3 + ((act * 4) | 0);
           const gap = (div / (nvoice + 1)) | 0;
+          const start2 = (this.w - div + BL) % BL;
           for (let s = 0; s < nvoice; s++)
-            this.spawn(start, (div * .8) | 0, steps[s % steps.length],
-                       (s / nvoice) * 1.6 - .8, .7, false, s * gap);
+            this.spawn(start2, (div * .8) | 0, steps[s % steps.length],
+                       (s / nvoice) * 1.6 - .8, .65, false, s * gap);
         }
       }
     }
@@ -168,7 +195,7 @@ class SoriGrain extends AudioWorkletProcessor {
         const len = (sampleRate * (.35 + Math.random() * .55)) | 0;
         const back = (Math.random() * sampleRate * 1.6) | 0;
         this.spawn((this.w - len - back + BL) % BL, len, this.pick(),
-                   Math.random() * 1.8 - .9, .5, Math.random() < .15, 0);
+                   Math.random() * 1.8 - .9, .45, Math.random() < .15, 0);
       }
     } else if (this.mode === "tunnel") {
       const rate = act * 70 / sampleRate * N;
@@ -177,10 +204,10 @@ class SoriGrain extends AudioWorkletProcessor {
         const back = (Math.random() * sampleRate * .5) | 0;
         this.spawn((this.w - len - back + BL) % BL, len,
                    this.pick() + (Math.random() * 2 - 1) * .6,
-                   Math.random() * 1.8 - .9, .6, false, 0);
+                   Math.random() * 1.8 - .9, .55, false, 0);
       }
     }
-    // 마이크로루프 — 조각이 끝나면 곧바로 되풀린다
+    // 마이크로루프 — 베껴 둔 조각이 끝나면 곧바로 되풀린다
     if ((this.mode === "mosaic" || this.mode === "sequence") && this.slice
         && !this.grains.some(g => g.loop)) {
       const s = this.slice;
@@ -190,35 +217,47 @@ class SoriGrain extends AudioWorkletProcessor {
         semi = arp[s.step % arp.length] + (this.pitches[0] || 0);
         s.step++;
       }
-      const g = { pos: s.start, len: s.len, t: 0, wait: 0,
-                  rate: Math.pow(2, semi / 12), pan: (s.step % 2) * 1.2 - .6,
-                  gain: .85, loop: true };
-      this.grains.push(g);
+      this.grains.push({ pos: 0, len: s.snap.length, t: 0, wait: 0,
+        rate: Math.pow(2, semi / 12), rev: false,
+        pan: (s.step % 2) * 1.2 - .6, gain: .8, loop: true, snap: s.snap });
     }
 
-    // 렌더
-    const fadeK = .06 + .38 * this.shape;
-    for (let i = 0; i < N; i++) { L[i] = 0; R[i] = 0; }
+    // 렌더 — 올린-코사인 창, 여닫이는 5ms 아래로 내려가지 않는다
+    const fadeK = .08 + .38 * this.shape;
+    const minFade = sampleRate * .005;
     for (const g of this.grains) {
-      const fade = Math.max(64, g.len * fadeK);
+      const fade = Math.max(minFade, g.len * fadeK);
+      const pl = .5 - g.pan * .5, pr = .5 + g.pan * .5;
       for (let i = 0; i < N; i++) {
         if (g.wait > 0) { g.wait--; continue; }
-        if (g.t >= g.len) { g.done = true; break; }
-        const off = g.rate >= 0 ? g.t * g.rate : (g.len + g.t * g.rate);
-        if (off < 0 || off >= g.len) { g.done = true; break; }
-        const fi = (g.pos + off) % BL;
-        const i0 = fi | 0, fr = fi - i0;
-        const v0 = B[i0], v1 = B[(i0 + 1) % BL];
+        const span = g.snap ? g.snap.length / g.rate : g.len / g.rate;
+        if (g.t >= span) { g.done = true; break; }
+        let off = g.t * g.rate;
+        const total = g.snap ? g.snap.length : g.len;
+        if (g.rev) off = total - 1 - off;
+        if (off < 0 || off >= total) { g.done = true; break; }
+        const i0 = off | 0, fr = off - i0;
+        let v0, v1;
+        if (g.snap) { v0 = g.snap[i0]; v1 = g.snap[(i0 + 1) % total]; }
+        else {
+          const fi = (g.pos + i0) % BL;
+          v0 = B[fi]; v1 = B[(fi + 1) % BL];
+        }
         let v = (v0 + (v1 - v0) * fr) * g.gain;
-        const edge = Math.min(g.t, g.len - g.t);
-        if (edge < fade) v *= edge / fade;
-        const pl = .5 - g.pan * .5, pr = .5 + g.pan * .5;
+        const edge = Math.min(off, total - 1 - off);
+        if (edge < fade)
+          v *= .5 - .5 * Math.cos(Math.PI * Math.max(0, edge) / fade);
         L[i] += v * pl; R[i] += v * pr;
         g.t++;
       }
-      if (g.done && g.loop) g.t = 0, g.done = false;   // 되풂
+      if (g.done && g.loop) { g.t = 0; g.done = false; }   // 되풂
     }
     this.grains = this.grains.filter(g => !g.done);
+    // 부드럽게 눌러 담는다 — 겹친 그레인이 모나게 튀지 않도록
+    for (let i = 0; i < N; i++) {
+      L[i] = Math.tanh(L[i] * 1.1) * .9;
+      R[i] = Math.tanh(R[i] * 1.1) * .9;
+    }
     return true;
   }
 }
@@ -228,32 +267,29 @@ registerProcessor("sori-grain", SoriGrain);
     unison: [0], octave: [12], shimmer: [0, 12, 12], fifth: [0, 7],
     sub: [-12, 0], spread: [-12, 0, 7, 12],
   };
-
-  /* 상주 이펙터 랙 — 모든 재생이 이 입구를 지나고, 조절값은 재생 중에도
-     그대로 먹는다. 내려받는 WAV 는 이 랙을 지나지 않는다. */
-  let RACK = null;
-  function rack(c) {
-    if (RACK) return RACK;
-    const input = c.createGain();          // 마른 입력
-    const sum = c.createGain();            // 마름 + 그레인 + 딜레이
-    const out = c.createGain();
-    input.connect(sum);
-
-    // 그레인 엔진 (워크릿이 준비되면 이 사이에 끼운다)
-    const grainWet = c.createGain(); grainWet.gain.value = 0;
-    grainWet.connect(sum);
-    let grain = null;
-    if (c.audioWorklet) {
-      const url = URL.createObjectURL(
+  let _grainUrl = null;
+  function grainUrl() {
+    if (!_grainUrl)
+      _grainUrl = URL.createObjectURL(
         new Blob([GRAIN_SRC], { type: "application/javascript" }));
-      c.audioWorklet.addModule(url).then(() => {
-        grain = new AudioWorkletNode(c, "sori-grain",
-          { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
-        input.connect(grain); grain.connect(grainWet);
-        RACK.grain = grain;
-        applyFx();
-      }).catch(() => {});
-    }
+    return _grainUrl;
+  }
+  function grainOpts(F, beat) {
+    return { mode: (F.prog && F.prog !== "off") ? F.prog : "off",
+             div: Math.min(2.2, beat * (F.grainDiv || .5)),
+             act: F.activity, shape: F.shape,
+             pitches: PITCH_SETS[F.pitchSet] || [0] };
+  }
+
+  /* 이펙터 그래프 — 상주 랙과 오프라인 렌더가 같은 회로를 쓴다 */
+  function fxGraph(c, F) {
+    const beat = 60 / (F.tempo || 72);
+    const input = c.createGain();
+    const sum = c.createGain();
+    const grainWet = c.createGain();
+    const gOn = F.prog && F.prog !== "off";
+    grainWet.gain.value = gOn ? F.grainMix : 0;
+    input.connect(sum); grainWet.connect(sum);
 
     // 핑퐁 딜레이 — 마른 소리와 그레인을 함께 문다
     const dl = c.createDelay(2.5), dr = c.createDelay(2.5);
@@ -266,6 +302,12 @@ registerProcessor("sori-grain", SoriGrain);
     const panR = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
     if (panL.pan) { panL.pan.value = -.55; panR.pan.value = .55; }
     const dlyWet = c.createGain();
+    const dOn = F.dlyDiv > 0;
+    const dt = Math.min(2.4, beat * (dOn ? F.dlyDiv : .5));
+    dl.delayTime.value = dt; dr.delayTime.value = dt;
+    fbl.gain.value = dOn ? Math.min(.72, F.dlyFb) : 0;
+    fbr.gain.value = dOn ? Math.min(.72, F.dlyFb) : 0;
+    dlyWet.gain.value = dOn ? F.dlyMix : 0;
     input.connect(dl); grainWet.connect(dl);
     dl.connect(dampL); dampL.connect(fbl); fbl.connect(dr);   // 좌 → 우
     dr.connect(dampR); dampR.connect(fbr); fbr.connect(dl);   // 우 → 좌
@@ -274,19 +316,27 @@ registerProcessor("sori-grain", SoriGrain);
 
     // 공명 필터 + 변조 — 모든 것이 이 문을 지난다
     const filt = c.createBiquadFilter(); filt.type = "lowpass";
-    filt.frequency.value = 5200; filt.Q.value = .8;
+    filt.frequency.value = F.cut || 5200;
+    filt.Q.value = .5 + (F.res || 0) * 11;
     const lfo = c.createOscillator(); lfo.type = "sine";
-    const lfoAmp = c.createGain(); lfoAmp.gain.value = 0;
-    lfo.frequency.value = .18;
+    const lfoAmp = c.createGain();
+    lfo.frequency.value = Math.max(.02, F.modRate || .18);
+    lfoAmp.gain.value = (F.modDepth || 0) * (F.cut || 5200) * .55;
     lfo.connect(lfoAmp); lfoAmp.connect(filt.frequency); lfo.start();
     sum.connect(filt);
 
     // 공간 — 필터 뒤에서 젖는다
+    const out = c.createGain();
     const dryOut = c.createGain(); dryOut.gain.value = 1;
     const pre = c.createDelay(.25);
     const cv = c.createConvolver();
     const damp = c.createBiquadFilter(); damp.type = "lowpass";
     const revWet = c.createGain();
+    const rev = F.revType && F.revType !== "off";
+    if (rev) cv.buffer = impulse(c, F.revType);
+    revWet.gain.value = rev ? F.revMix : 0;
+    pre.delayTime.value = F.preDelay || 0;
+    damp.frequency.value = F.tone || 4200;
     filt.connect(dryOut); dryOut.connect(out);
     filt.connect(pre); pre.connect(cv); cv.connect(damp);
     damp.connect(revWet); revWet.connect(out);
@@ -296,17 +346,40 @@ registerProcessor("sori-grain", SoriGrain);
     lim.threshold.value = -8; lim.knee.value = 4;
     lim.ratio.value = 14; lim.attack.value = .002; lim.release.value = .18;
     const trim = c.createGain(); trim.gain.value = .8;
-    out.connect(trim); trim.connect(lim);
+    const master = c.createGain();
+    master.gain.value = F.master === undefined ? .9 : F.master;
+    out.connect(trim); trim.connect(lim); lim.connect(master);
 
-    // 레벨미터 — 리미터 뒤(귀에 닿는 소리)를 좌우로 갈라 잰다
+    return { input, sum, grainWet, dl, dr, fbl, fbr, dlyWet,
+             filt, lfo, lfoAmp, cv, pre, damp, revWet, out,
+             lim, trim, master, ctx: c };
+  }
+
+  /* 상주 이펙터 랙 — 모든 재생이 이 입구를 지나고, 조절값은 재생 중에도
+     그대로 먹는다. */
+  let RACK = null;
+  function rack(c) {
+    if (RACK) return RACK;
+    const F = window.__fx;
+    RACK = fxGraph(c, F);
+    if (c.audioWorklet) {
+      c.audioWorklet.addModule(grainUrl()).then(() => {
+        if (!RACK || RACK.ctx !== c) return;
+        const grain = new AudioWorkletNode(c, "sori-grain",
+          { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+            processorOptions: grainOpts(window.__fx, 60 / (window.__fx.tempo || 72)) });
+        RACK.input.connect(grain); grain.connect(RACK.grainWet);
+        RACK.grain = grain;
+        applyFx();
+      }).catch(() => {});
+    }
+    // 레벨미터 — 귀에 닿는 소리(볼륨 뒤)를 좌우로 갈라 잰다
     const split = c.createChannelSplitter(2);
     const anL = c.createAnalyser(), anR = c.createAnalyser();
     anL.fftSize = 512; anR.fftSize = 512;
-    lim.connect(split); split.connect(anL, 0); split.connect(anR, 1);
-
-    lim.connect(c.destination);
-    RACK = { input, sum, out, grain, grainWet, cv, pre, damp, revWet,
-             dl, dr, fbl, fbr, dlyWet, filt, lfo, lfoAmp, anL, anR, ctx: c };
+    RACK.master.connect(split); split.connect(anL, 0); split.connect(anR, 1);
+    RACK.anL = anL; RACK.anR = anR;
+    RACK.master.connect(c.destination);
     applyFx();
     return RACK;
   }
@@ -317,13 +390,7 @@ registerProcessor("sori-grain", SoriGrain);
     // 그레인
     const gOn = F.prog && F.prog !== "off";
     RACK.grainWet.gain.setTargetAtTime(gOn ? F.grainMix : 0, t, .05);
-    if (RACK.grain)
-      RACK.grain.port.postMessage({
-        mode: gOn ? F.prog : "off",
-        div: Math.min(2.2, beat * (F.grainDiv || .5)),
-        act: F.activity, shape: F.shape,
-        pitches: PITCH_SETS[F.pitchSet] || [0],
-      });
+    if (RACK.grain) RACK.grain.port.postMessage(grainOpts(F, beat));
     // 딜레이
     const on = F.dlyDiv > 0;
     const dt = Math.min(2.4, beat * (on ? F.dlyDiv : .5));
@@ -344,11 +411,63 @@ registerProcessor("sori-grain", SoriGrain);
     RACK.revWet.gain.setTargetAtTime(rev ? F.revMix : 0, t, .05);
     RACK.pre.delayTime.setTargetAtTime(F.preDelay || 0, t, .05);
     RACK.damp.frequency.setTargetAtTime(F.tone || 4200, t, .05);
+    // 볼륨
+    RACK.master.gain.setTargetAtTime(
+      F.master === undefined ? .9 : F.master, t, .05);
+  }
+
+  /* 오프라인 렌더 — 지금의 이펙터 그대로 소리를 굽는다. 스테레오. */
+  async function renderWet(pcm, sr) {
+    const F = window.__fx;
+    const TAIL = { room: 1.5, chamber: 1.2, hall: 3.5, cathedral: 6.2,
+                   plate: 2.2, glacial: 9, bloom: 6.5 };
+    const rev = F.revType && F.revType !== "off";
+    const tail = (rev ? (TAIL[F.revType] || 3) : .3)
+      + (F.dlyDiv > 0 ? 2.5 : 0)
+      + (F.prog && F.prog !== "off" ? 1.5 : 0);
+    const c = new OfflineAudioContext(
+      2, Math.ceil((pcm.length / sr + tail) * sr), sr);
+    const g = fxGraph(c, F);
+    if (c.audioWorklet && F.prog && F.prog !== "off") {
+      await c.audioWorklet.addModule(grainUrl());
+      const grain = new AudioWorkletNode(c, "sori-grain",
+        { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+          processorOptions: grainOpts(F, 60 / (F.tempo || 72)) });
+      g.input.connect(grain); grain.connect(g.grainWet);
+    }
+    g.master.connect(c.destination);
+    const buf = c.createBuffer(1, pcm.length, sr);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+    const src = c.createBufferSource();
+    src.buffer = buf; src.connect(g.input); src.start();
+    return await c.startRendering();
+  }
+  /* 스테레오 AudioBuffer → 16비트 WAV */
+  function wavBlobStereo(ab) {
+    const n = ab.length, sr = ab.sampleRate;
+    const L = ab.getChannelData(0);
+    const R = ab.numberOfChannels > 1 ? ab.getChannelData(1) : L;
+    const bytes = 44 + n * 4;
+    const b = new ArrayBuffer(bytes), v = new DataView(b);
+    const ws = (o, s2) => { for (let i = 0; i < s2.length; i++)
+      v.setUint8(o + i, s2.charCodeAt(i)); };
+    ws(0, "RIFF"); v.setUint32(4, bytes - 8, true); ws(8, "WAVE");
+    ws(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, 2, true); v.setUint32(24, sr, true);
+    v.setUint32(28, sr * 4, true); v.setUint16(32, 4, true);
+    v.setUint16(34, 16, true); ws(36, "data"); v.setUint32(40, n * 4, true);
+    let o = 44;
+    for (let i = 0; i < n; i++) {
+      v.setInt16(o, Math.max(-1, Math.min(1, L[i])) * 32767, true); o += 2;
+      v.setInt16(o, Math.max(-1, Math.min(1, R[i])) * 32767, true); o += 2;
+    }
+    return new Blob([b], { type: "audio/wav" });
   }
   /* 레벨 — 좌·우 RMS 와 피크 [0..1]. 미터가 매 프레임 부른다. */
   const _mBuf = new Float32Array(512);
   function meterLevel() {
-    if (!RACK) return null;
+    if (!RACK || !RACK.anL) return null;
     const read = an => {
       an.getFloatTimeDomainData(_mBuf);
       let s = 0, pk = 0;
@@ -1129,7 +1248,7 @@ registerProcessor("sori-grain", SoriGrain);
 
   window.SoriStudio = { renderTheory, searchFull, refreshPiano, loadFull,
                         openCinema, closeCinema, playChord, playMelody,
-                        playBuffer, fxInput, applyFx, meterLevel,
+                        playBuffer, fxInput, applyFx, meterLevel, renderWet, wavBlobStereo,
                         cineToggle: () => cine.toggle && cine.toggle(),
                         cineMatrix: () => cine.applyMatrixMode
                           && cine.applyMatrixMode(),

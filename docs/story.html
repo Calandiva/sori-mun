@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>소리문 — 만들기의 기록</title>
+<meta name="description" content="소리문을 만들며 겪은 시행착오의 기록 — 조금 과장해서.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+body{background:#05070a}
+.st{max-width:1240px;margin:0 auto;padding:30px 28px 80px}
+.plate{border:1px solid var(--line);border-radius:16px;margin:34px 0;
+  padding:38px 42px;position:relative;overflow:hidden}
+.plate .no{position:absolute;top:18px;right:26px;font-family:var(--mono);
+  font-size:4.6rem;font-weight:700;opacity:.08;line-height:1}
+.plate h2{font-family:var(--serif);font-size:1.9rem;margin:0 0 4px}
+.plate .era{font-family:var(--mono);font-size:.68rem;letter-spacing:.22em;
+  color:var(--ink3);margin-bottom:18px}
+.plate p.talk{font-size:1.02rem;color:var(--ink2);max-width:62ch;line-height:1.95}
+.plate p.talk b{color:var(--ink)}
+.big{font-family:var(--serif);font-size:clamp(1.4rem,3vw,2.2rem);
+  font-weight:600;margin:26px 0 10px;line-height:1.5}
+.viz{margin:26px 0;display:flex;gap:18px;flex-wrap:wrap;align-items:stretch}
+.card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+  flex:1;min-width:230px;background:#0a0e13}
+.card h4{margin:0 0 8px;font-size:.85rem;font-weight:500;color:var(--ink2)}
+.mono2{font-family:var(--mono);font-size:.78rem;line-height:1.9;color:var(--ink2)}
+svg{display:block;max-width:100%}
+/* 1장 — 단색·어설픔 */
+.rough{filter:grayscale(1) contrast(.9)}
+.rough .card{border-style:dashed;border-color:#3a4450}
+.scrib{font-family:var(--mono);color:#8a97a8;font-size:.85rem;line-height:2.1}
+.scrib del{color:#5b6b7f}
+/* 2장 — 회색 + 노랑 하나 */
+.research .card{background:#0c1016}
+.research .card.lit{border-color:#e9b44c66}
+/* 3장 — 색이 태어난다 */
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;
+  vertical-align:-2px;margin-right:6px}
+table.map{border-collapse:collapse;font-size:.82rem}
+table.map td,table.map th{border:1px solid var(--line);padding:5px 12px;
+  font-family:var(--mono)}
+table.map th{color:var(--ink3);font-weight:400}
+/* 4장 — 경고 */
+.fail{border-color:#e05c5c55;
+  background:repeating-linear-gradient(-45deg,#0a0e13 0 26px,#12090b 26px 52px)}
+.fail h2{color:#e79}
+.xcard{border:1px solid #e05c5c66;border-radius:12px;padding:16px 18px;
+  flex:1;min-width:250px;background:#0d0a0cdd;position:relative}
+.xcard::after{content:"✗";position:absolute;top:6px;right:12px;
+  color:#e05c5c;font-size:1.6rem;font-weight:700}
+.xcard h4{margin:0 0 8px;font-size:.9rem;color:#e8a3a3}
+.cons{font-family:var(--mono);font-size:.74rem;color:#d98;line-height:1.9;
+  background:#120a0c;border-radius:8px;padding:10px 14px}
+.stamp{display:inline-block;border:3px solid #e05c5c;color:#e05c5c;
+  font-family:var(--mono);font-weight:700;font-size:1.5rem;border-radius:8px;
+  padding:2px 16px;transform:rotate(-7deg);letter-spacing:.1em;opacity:.9}
+/* 5장 — 만개 */
+.bloom2{border-color:#e9b44c44;
+  background:radial-gradient(1000px 400px at 70% -10%,#1a150a55,transparent),#070a0e}
+.okstamp{display:inline-block;border:3px solid #4caf7d;color:#4caf7d;
+  font-family:var(--mono);font-weight:700;font-size:1.4rem;border-radius:8px;
+  padding:2px 16px;transform:rotate(4deg);letter-spacing:.1em}
+/* 6장 */
+.rackrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  font-family:var(--mono);font-size:.8rem}
+.rackbox{border:1px solid var(--line2);border-radius:10px;padding:10px 16px;
+  background:#0c1016}
+.rackbox.on{border-color:#e9b44c88;color:#e9b44c}
+.arrow{color:#5b6b7f}
+.badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.badge{border:1px solid #4caf7d66;color:#7fcfa3;border-radius:999px;
+  padding:4px 16px;font-family:var(--mono);font-size:.76rem}
+@keyframes drift{0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+.grain{animation:drift 5s ease-in-out infinite}
+</style>
+</head>
+<body class="stage">
+<nav class="top"><div class="wrap">
+  <a class="brand" href="./">소리문</a>
+  <span class="dim" style="font-size:.78rem">만들기의 기록 — 조금 과장해서</span>
+  <span style="flex:1"></span>
+  <a class="sm" href="flow.html">긴 글</a>
+  <a class="sm" href="guide.html">설명·이론</a>
+  <a class="sm" href="dict.html">사전</a>
+  <a class="sm" href="input.html">음 입력</a>
+  <a class="sm on" href="story.html">만들기의 기록</a>
+  <a class="sm" href="https://github.com/Calandiva/sori-mun">github</a>
+</div></nav>
+
+<main class="st">
+<header class="pgheader"><div>
+  <h1>만들기의 기록</h1>
+  <p class="lede" style="margin-left:0;text-align:left">한 문장이 음악이 되기까지,
+    여섯 막. 실제보다 조금 웅장하게 적었다 — 그날의 기분은 정확히 이랬으므로.</p>
+</div></header>
+
+<!-- 1막 · 초기 구상 -->
+<section class="plate rough">
+  <span class="no">01</span>
+  <h2>초기 구상</h2>
+  <div class="era">DAY 0 · 색도 없고 계획도 없다</div>
+  <p class="talk">칠판에 이렇게 적었다. <b>「문장 → ♪ → 문장」</b>.
+    끝. 이게 설계도의 전부였다. 화살표 두 개가 세계를 바꿀 줄 알았다.</p>
+  <div class="viz">
+    <div class="card">
+      <h4>설계도 제1호 (전부)</h4>
+      <svg viewBox="0 0 460 150">
+        <rect x="14" y="52" width="120" height="46" rx="6" fill="none"
+          stroke="#8a97a8" stroke-width="1.6" stroke-dasharray="7 5"
+          transform="rotate(-1 74 75)"/>
+        <text x="42" y="80" fill="#c8d4e2" font-size="16">문 장</text>
+        <path d="M140 74 q 30 -16 58 -2" fill="none" stroke="#8a97a8"
+          stroke-width="1.6"/>
+        <path d="M192 66 l 8 6 l -10 4" fill="none" stroke="#8a97a8"
+          stroke-width="1.6"/>
+        <text x="212" y="86" fill="#c8d4e2" font-size="30">♪</text>
+        <text x="236" y="66" fill="#8a97a8" font-size="15">?</text>
+        <path d="M252 70 q 34 14 62 2" fill="none" stroke="#8a97a8"
+          stroke-width="1.6"/>
+        <path d="M308 68 l 10 3 l -8 7" fill="none" stroke="#8a97a8"
+          stroke-width="1.6"/>
+        <rect x="326" y="52" width="120" height="46" rx="6" fill="none"
+          stroke="#8a97a8" stroke-width="1.6" stroke-dasharray="7 5"
+          transform="rotate(1.4 386 75)"/>
+        <text x="342" y="80" fill="#c8d4e2" font-size="15">다시 문장?!</text>
+        <text x="150" y="132" fill="#5b6b7f" font-size="11"
+          font-family="monospace">← 여기서 5개월을 쓰게 된다</text>
+      </svg>
+    </div>
+    <div class="card">
+      <h4>첫 낙서</h4>
+      <div class="scrib">
+        <del>글자마다 음 하나씩 배정하면 되지 않나</del> → 한 문장이 3분<br>
+        <del>단어를 주파수로 바꾸면</del> → 그건 모뎀이다<br>
+        <del>그냥 AI한테 시키면</del> → 되돌릴 수 없으면 문자가 아니다<br>
+        조건: <b>겹치지 않게. 되돌아오게. 두 말이 같은 소리로.</b>
+      </div>
+    </div>
+  </div>
+  <div class="big">"소리로 적는다. 적었으면, 반드시 되읽힌다."</div>
+</section>
+
+<!-- 2막 · 리서치 -->
+<section class="plate research">
+  <span class="no">02</span>
+  <h2>리서치</h2>
+  <div class="era">WEEK 1 · 도서관을 털다 — 첫 색 하나가 스며든다</div>
+  <p class="talk">언어학 절반, 음악학 절반. 지프의 법칙, 헬름홀츠의 거칢,
+    형태소 분석기 두 종, 대역쌍 수십만 줄. 책상 위 지도가 처음으로
+    <b>노랗게 한 점</b> 물들었다.</p>
+  <div class="viz">
+    <div class="card">
+      <h4>Zipf — 흔한 낱말은 소수다</h4>
+      <svg viewBox="0 0 220 110">
+        <path d="M14 14 C 40 88, 120 98, 208 100" fill="none"
+          stroke="#8a97a8" stroke-width="2"/>
+        <line x1="14" y1="104" x2="208" y2="104" stroke="#3a4450"/>
+        <line x1="14" y1="8" x2="14" y2="104" stroke="#3a4450"/>
+        <text x="20" y="24" fill="#8a97a8" font-size="10"
+          font-family="monospace">빈도 ∝ 1/순위</text>
+      </svg>
+    </div>
+    <div class="card">
+      <h4>Helmholtz — 음정의 거칢</h4>
+      <svg viewBox="0 0 220 110">
+        <polyline points="14,92 52,86 90,82 128,58 166,40 204,16"
+          fill="none" stroke="#8a97a8" stroke-width="2"/>
+        <circle cx="14" cy="92" r="3.5" fill="#8a97a8"/>
+        <circle cx="204" cy="16" r="3.5" fill="#8a97a8"/>
+        <text x="14" y="106" fill="#5b6b7f" font-size="9"
+          font-family="monospace">완전4도</text>
+        <text x="168" y="10" fill="#5b6b7f" font-size="9"
+          font-family="monospace">단2도</text>
+      </svg>
+    </div>
+    <div class="card lit">
+      <h4>이거다 — 두 축</h4>
+      <div class="mono2">
+        익숙함 ← 빈도 (지프)<br>
+        감정 ← 장/단 (헤브너 1935)<br>
+        <span style="color:#e9b44c">둘은 서로 다른 자리에 실을 수
+        있다 — 어긋날 길이 없다</span>
+      </div>
+    </div>
+    <div class="card">
+      <h4>재료 창고</h4>
+      <div class="mono2">kiwipiepy · mecab-ko-dic 27,524 활용<br>
+        MUSE 대역쌍 · KNU/VADER 감성<br>
+        FrequencyWords 546,068 항목</div>
+    </div>
+  </div>
+</section>
+
+<!-- 3막 · 발전 -->
+<section class="plate">
+  <span class="no">03</span>
+  <h2>발전</h2>
+  <div class="era">WEEK 2 · 표가 태어나고, 색이 셋으로 늘었다</div>
+  <p class="talk">처음으로 <b>매핑표</b>를 만들었다. 자리마다 화음,
+    등급마다 협화도, 감정마다 조성. 낱말 하나하나에 멜로디를 그려 보기
+    시작했다 — 아직 서툴렀지만, 처음으로 <b>소리가 뜻을 실어 날랐다</b>.</p>
+  <div class="viz">
+    <div class="card">
+      <h4>매핑표 v1 — 자리 = 화음 모양</h4>
+      <table class="map">
+        <tr><th>자리</th><th>화음(구식)</th></tr>
+        <tr><td>주어</td><td>D#3+F#3+A3</td></tr>
+        <tr><td>목적어</td><td>F3+C#4+D4</td></tr>
+        <tr><td>서술어</td><td>C3+F3</td></tr>
+        <tr><td colspan="2" style="color:#5b6b7f">…여덟 줄. 나중에 전부
+          갈아엎게 되지만 아직 모른다</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h4>색이 태어난 날</h4>
+      <div class="mono2">
+        <span class="sw" style="background:#e9b44c"></span>장 — 긍정, 장음계<br>
+        <span class="sw" style="background:#9b8ec4"></span>단 — 부정, 자연단음계<br>
+        <span class="sw" style="background:#5f8fa6"></span>중성 — 온음계<br>
+        <span style="color:#67788c">모니터가 처음으로 예뻐 보였다</span>
+      </div>
+    </div>
+    <div class="card">
+      <h4>「사랑」의 첫 멜로디 스케치</h4>
+      <svg viewBox="0 0 300 110">
+        <g stroke="#28313d"><line x1="10" y1="24" x2="290" y2="24"/>
+        <line x1="10" y1="44" x2="290" y2="44"/><line x1="10" y1="64" x2="290" y2="64"/>
+        <line x1="10" y1="84" x2="290" y2="84"/></g>
+        <circle cx="60" cy="74" r="7" fill="#e9b44c"/>
+        <circle cx="120" cy="44" r="7" fill="#e9b44c"/>
+        <circle cx="180" cy="34" r="7" fill="#e9b44c"/>
+        <circle cx="240" cy="54" r="7" fill="#e9b44c" fill-opacity=".55"/>
+        <polyline points="60,74 120,44 180,34 240,54" fill="none"
+          stroke="#e9b44c" stroke-width="1.4" stroke-opacity=".5"/>
+        <text x="16" y="102" fill="#67788c" font-size="10"
+          font-family="monospace">번호를 진법으로 → 음계 계단으로. 손이 떨렸다.</text>
+      </svg>
+    </div>
+  </div>
+  <div class="big">낱말마다 멜로디를 붙이는 밤이 이어졌다.
+    사전 546,068칸이 전부 제 가락을 가질 때까지.</div>
+</section>
+
+<!-- 4막 · 시행착오 -->
+<section class="plate fail">
+  <span class="no">04</span>
+  <h2>시행착오</h2>
+  <div class="era">WEEK 3 · 전부 무너진 날들 — 빨간 줄의 계절</div>
+  <p class="talk">완성했다고 세 번 선언했고, 세 번 다 틀렸다.
+    그때마다 검증기가 차갑게 숫자를 내밀었다.</p>
+  <div class="viz">
+    <div class="xcard">
+      <h4>길이에 뜻을 실었다</h4>
+      <div class="mono2">음의 길이로 숫자를 적었다. 완벽했다 —
+        기계가 연주할 때만. <b>사람이 연주하면 뜻이 무너졌다.</b>
+        루바토 한 번에 문장이 죽었다.</div>
+    </div>
+    <div class="xcard">
+      <h4>다 비슷하게 들렸다</h4>
+      <div class="mono2">구조 화음이 낱말마다 앞에서 쿵, 쿵, 쿵.
+        "답답해 죽겠다"는 평가를 받았다. 정당했다.</div>
+    </div>
+    <div class="xcard">
+      <h4>WAV 가 유령을 낳았다</h4>
+      <div class="mono2">화음 사이 간격 0.13초 — 위상 간섭이 무음 골을
+        파서 한 화음이 둘로 갈라졌다. 있지도 않은 음 (52,53,54) 가
+        판독기에 나타났다. 소리의 유령이었다.</div>
+    </div>
+  </div>
+  <div class="viz">
+    <div class="card" style="flex:2;background:#0d0a0c">
+      <h4>그날의 파형</h4>
+      <svg viewBox="0 0 560 90">
+        <polyline fill="none" stroke="#e05c5c" stroke-width="1.4"
+          points="0,45 20,20 40,70 60,10 80,80 100,8 120,82 140,12 160,78 180,45 200,45 220,44 240,46 260,45 280,20 300,70 320,8 340,82 360,45 380,45 400,44 420,46 440,15 460,75 480,10 500,80 520,45 540,45 560,45"/>
+        <line x1="0" y1="8" x2="560" y2="8" stroke="#e05c5c"
+          stroke-dasharray="4 4" stroke-opacity=".5"/>
+        <line x1="0" y1="82" x2="560" y2="82" stroke="#e05c5c"
+          stroke-dasharray="4 4" stroke-opacity=".5"/>
+        <text x="180" y="60" fill="#e79" font-size="11"
+          font-family="monospace">← 여기서 갈라졌다 (유령 출현 지점)</text>
+      </svg>
+      <div class="cons">$ python tools/verify.py<br>
+        ✗ 문장 59/60 이 돌아온다 — <b>1개가 돌아오지 않는다</b><br>
+        ✗ 화음 26개 중 27개가 읽혔다 (?!)<br>
+        AssertionError: 봄이 왔다. != 봄이 왔다</div>
+    </div>
+    <div class="card" style="background:#0d0a0c;display:flex;flex-direction:column;justify-content:center;gap:18px;align-items:center">
+      <span class="stamp">반 려</span>
+      <span class="stamp" style="transform:rotate(5deg)">전면 재설계</span>
+      <span class="mono2" style="color:#a86">×3회</span>
+    </div>
+  </div>
+</section>
+
+<!-- 5막 · 해결 -->
+<section class="plate bloom2">
+  <span class="no">05</span>
+  <h2>해결</h2>
+  <div class="era">WEEK 4 · 화성은 멜로디 아래에 숨는 것이었다</div>
+  <p class="talk">답은 음악이 백 년 전부터 알고 있었다.
+    <b>멜로디가 노래하고, 화성은 그 아래에서 받친다.</b>
+    구조 화음을 전부 없앴다 — 모든 소리에 멜로디가 있고, 베이스는
+    언제나 C3, 그 위 내성 하나가 문장 성분을 말한다.
+    멜로디만 들으면 낱말, 화성을 함께 들으면 역할.</p>
+  <div class="viz">
+    <div class="card" style="flex:2">
+      <h4>낱말 하나의 해부 — 「사랑」 을 주어 자리에</h4>
+      <svg viewBox="0 0 620 190">
+        <g stroke="#1d242e"><line x1="30" y1="30" x2="600" y2="30"/>
+        <line x1="30" y1="60" x2="600" y2="60"/><line x1="30" y1="90" x2="600" y2="90"/>
+        <line x1="30" y1="120" x2="600" y2="120"/><line x1="30" y1="150" x2="600" y2="150"/></g>
+        <text x="6" y="34" fill="#5b6b7f" font-size="9" font-family="monospace">C5</text>
+        <text x="6" y="154" fill="#5b6b7f" font-size="9" font-family="monospace">C3</text>
+        <!-- 머리: 베이스+내성+으뜸음 -->
+        <rect x="60" y="146" width="34" height="9" rx="2" fill="#4a5a6d"/>
+        <rect x="60" y="122" width="34" height="9" rx="2" fill="#4a5a6d"/>
+        <rect x="60" y="98" width="34" height="9" rx="2" fill="#e9b44c"/>
+        <text x="58" y="176" fill="#8fa3b8" font-size="10" font-family="monospace">C3+F3+A3</text>
+        <!-- 자릿음 -->
+        <rect x="150" y="66" width="30" height="9" rx="2" fill="#e9b44c"/>
+        <rect x="220" y="54" width="30" height="9" rx="2" fill="#e9b44c"/>
+        <!-- 종지 -->
+        <rect x="300" y="78" width="30" height="9" rx="2" fill="#e9b44c"/>
+        <rect x="370" y="112" width="42" height="9" rx="2" fill="#e9b44c"/>
+        <polyline points="77,102 165,70 235,58 315,82 391,116" fill="none"
+          stroke="#e9b44c" stroke-width="1.3" stroke-opacity=".55"/>
+        <text x="140" y="44" fill="#e9b44c" font-size="10"
+          font-family="monospace">멜로디 = 낱말</text>
+        <text x="60" y="140" fill="#8fa3b8" font-size="10"
+          font-family="monospace">화성 = 역할</text>
+        <text x="300" y="176" fill="#67788c" font-size="10"
+          font-family="monospace">종지: 3도(감정) → 하행 도약(익숙함)</text>
+        <!-- 다섯 조 바퀴 -->
+        <g transform="translate(520,90)">
+          <circle r="46" fill="none" stroke="#28313d"/>
+          <circle cx="0" cy="-46" r="6" fill="#e9b44c"/>
+          <circle cx="44" cy="-14" r="5" fill="#5f8fa6"/>
+          <circle cx="27" cy="37" r="5" fill="#9b8ec4"/>
+          <circle cx="-27" cy="37" r="5" fill="#5f8fa6"/>
+          <circle cx="-44" cy="-14" r="5" fill="#9b8ec4"/>
+          <text x="-30" y="70" fill="#67788c" font-size="9"
+            font-family="monospace">다섯 조 A3~C#4</text>
+        </g>
+      </svg>
+    </div>
+    <div class="card">
+      <h4>그날 밤의 로그</h4>
+      <div class="mono2" style="color:#7fcfa3">
+        글리프 17,280가지 전수 왕복 ✓<br>
+        길이를 마구 흔든 270번 전부 ✓<br>
+        문장 90/90 · WAV 90/90 ✓<br>
+        파이썬↔브라우저 상호 90/90 ✓</div>
+      <div style="margin-top:16px"><span class="okstamp">통 과</span></div>
+    </div>
+  </div>
+  <div class="big" style="color:#e9b44c">같은 낱말은 어디서나 같은 노래를
+    부른다. 자리가 바뀌면, 반주만 바뀐다.</div>
+</section>
+
+<!-- 6막 · 보완 -->
+<section class="plate">
+  <span class="no">06</span>
+  <h2>보완</h2>
+  <div class="era">NOW · 소리에 공간을, 글에 흐름을</div>
+  <p class="talk">문자는 완성됐지만 음악은 계속 자랐다. 그레인 엔진이
+    조각을 붙잡아 되풀고, 흩뿌리고, 옥타브 위에서 반짝이게 했다.
+    한 장 분량의 글이 통째로 한 곡이 되었고, 지나간 낱말은 가라앉고
+    올 낱말은 멀수록 어두워지는 <b>흐름의 화면</b>이 생겼다.</p>
+  <div class="viz">
+    <div class="card" style="flex:2">
+      <h4>소우주 — 신호의 길</h4>
+      <div class="rackrow">
+        <span class="rackbox">입력</span><span class="arrow">→</span>
+        <span class="rackbox on">그레인</span><span class="arrow">→</span>
+        <span class="rackbox">핑퐁 딜레이</span><span class="arrow">→</span>
+        <span class="rackbox">공명 필터</span><span class="arrow">→</span>
+        <span class="rackbox on">공간</span><span class="arrow">→</span>
+        <span class="rackbox">리미터</span><span class="arrow">→</span>
+        <span class="rackbox">볼륨</span>
+      </div>
+      <svg viewBox="0 0 560 100" class="grain" style="margin-top:14px">
+        <g fill="#e9b44c">
+          <circle cx="40" cy="60" r="2.4" fill-opacity=".9"/>
+          <circle cx="90" cy="30" r="1.8" fill-opacity=".55"/>
+          <circle cx="150" cy="72" r="3" fill-opacity=".8"/>
+          <circle cx="200" cy="44" r="1.6" fill-opacity=".4"/>
+          <circle cx="260" cy="24" r="2.2" fill-opacity=".65"/>
+          <circle cx="320" cy="58" r="2.8" fill-opacity=".9"/>
+          <circle cx="380" cy="36" r="1.5" fill-opacity=".35"/>
+          <circle cx="430" cy="66" r="2" fill-opacity=".6"/>
+          <circle cx="490" cy="30" r="2.6" fill-opacity=".75"/>
+        </g>
+        <g fill="#9b8ec4">
+          <circle cx="70" cy="80" r="1.6" fill-opacity=".5"/>
+          <circle cx="180" cy="16" r="1.8" fill-opacity=".45"/>
+          <circle cx="300" cy="84" r="1.5" fill-opacity=".4"/>
+          <circle cx="410" cy="14" r="2" fill-opacity=".5"/>
+          <circle cx="520" cy="74" r="1.7" fill-opacity=".45"/>
+        </g>
+        <text x="8" y="96" fill="#43536a" font-size="9"
+          font-family="monospace">아지랑이 — 지나간 소리의 조각들이 구름이 되어 떠다닌다</text>
+      </svg>
+    </div>
+    <div class="card">
+      <h4>흐름 — 글 전체가 한 눈에</h4>
+      <div style="font-family:var(--serif);font-size:1rem;line-height:2.2">
+        <span style="color:#8a7440;opacity:.55">봄이 왔다.</span>
+        <span style="color:#6b6389;opacity:.5">아이가</span>
+        <span style="color:#f2f6fa;border-bottom:2px solid #e9b44c">조용히</span>
+        <span style="color:#5f8fa6;opacity:.5">웃었다.</span>
+        <span style="color:#5f8fa6;opacity:.36">바람이</span>
+        <span style="color:#e9b44c;opacity:.28">꽃을</span>
+        <span style="color:#5f8fa6;opacity:.2">흔들었다.</span>
+      </div>
+      <div class="mono2" style="margin-top:10px;color:#67788c">
+        지남 · <b style="color:#f2f6fa">지금</b> · 다가옴 — 그라데이션</div>
+    </div>
+  </div>
+  <div class="badges">
+    <span class="badge">문장 90/90</span>
+    <span class="badge">WAV 90/90</span>
+    <span class="badge">상호 되읽기 90/90</span>
+    <span class="badge">시험 192</span>
+    <span class="badge">2옥타브 준수</span>
+    <span class="badge">길이 흔들기 270회</span>
+  </div>
+  <div class="big">아직 끝이 아니다. 끝이면 재미가 없다.</div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><a href="./">첫 화면</a> · <a href="guide.html">설명·이론</a>
+      · <a href="https://github.com/Calandiva/sori-mun">github.com/Calandiva/sori-mun</a></p>
+  </div>
+</footer>
+</body>
+</html>
