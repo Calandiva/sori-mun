@@ -25,17 +25,16 @@
     DEGREE[q] = {};
     K.digitOrder[q].forEach((deg, d) => DEGREE[q][sc[deg]] = d);
   });
-  const TONIC_SET = new Set(K.tonics);
 
   const readTerm = (ps) =>
     (ps.length >= 2 && Math.max(...ps) <= 56)
       ? TERM[srt(ps).join(",")] : undefined;
   const isStart = (ps) =>
     ps.length >= 2 && Math.min(...ps) === K.pedal
-      && TONIC_SET.has(Math.max(...ps));
-  const tonicOf = (tier, qi, index) => {
-    const n = K.tonics.length;
-    return K.tonics[(index + 3 * Math.max(0, tier) + 5 * qi) % n];
+      && Math.max(...ps) > 56;
+  const tonicOf = (q, tier, index) => {
+    const ts = K.tonicSet[q];
+    return ts[(index + 3 * Math.max(0, tier)) % ts.length];
   };
 
   function indexOf(digits, base) {
@@ -47,17 +46,16 @@
   function decodeGlyph(chords, i) {
     const head = srt(chords[i]);
     if (!isStart(head))
-      throw new Error(`${i}번째 소리는 낱말의 머리(베이스 C3 + 으뜸음)가 아닙니다`);
-    const tonic = head[head.length - 1];
+      throw new Error(`${i}번째 소리는 낱말의 머리(베이스 C3)가 아닙니다`);
     if (head.length !== 3)
       throw new Error(`${i}번째 머리의 내성이 맞지 않습니다`);
     const r = ROLE_BY_INNER[head[1] - K.pedal];
     if (r === undefined)
       throw new Error(`${i}번째 머리의 역할 내성이 맞지 않습니다`);
 
-    // 몸통 — 다음 머리나 종결까지. 꼭대기가 멜로디다.
+    // 몸통 — 머리의 꼭대기(첫 자릿음)부터 다음 머리나 종결까지.
     let j = i + 1;
-    const body = [];
+    const body = [[head[head.length - 1]]];
     while (j < chords.length) {
       const c = srt(chords[j]);
       if (isStart(c) || readTerm(c) !== undefined) break;
@@ -71,8 +69,10 @@
 
     const sig1ev = body[body.length - 2];
     const sig1 = sig1ev[sig1ev.length - 1];
-    let quality = QUAL_BY_SIG[sig1 - tonic];
-    if (quality === undefined) throw new Error("종지1 이 으뜸음 위 3도류가 아닙니다");
+    const anchor = K.sigAnchor[String(sig1)];
+    if (!anchor) throw new Error("종지1 이 여덟 닻의 하나가 아닙니다");
+    let quality = anchor[0];
+    const tonic = anchor[1];
     let tier = TIER_BY_LEAP[sig1 - body[body.length - 1][0]];
     if (tier === undefined) throw new Error("종지 하행이 등급이 아닙니다");
 
@@ -86,8 +86,10 @@
       else if (m === K.joinMark) join = true;
       else throw new Error(`모르는 표지 내성 ${m}`);
     }
-    let qi = { major: 0, minor: 1, neutral: 2 }[quality];
-    if (kind === 2) { tier = 0; quality = "neutral"; qi = 2; }
+    if (kind === 2) {
+      tier = 0;
+      if (quality !== "neutral") throw new Error("받아적기의 종지가 어긋납니다");
+    }
 
     const table = DEGREE[quality], base = K.scale[quality].length;
     const digits = [];
@@ -98,7 +100,7 @@
       digits.push(d);
     }
     const index = indexOf(digits, base);
-    if (tonicOf(tier, qi, index) !== tonic)
+    if (tonicOf(quality, tier, index) !== tonic)
       throw new Error("으뜸음이 낱말의 정체와 맞지 않습니다");
     return { role: r, kind: ["개념", "낱말", "글자"][kind], lang, tier,
              quality, flag, join, index, next: j };

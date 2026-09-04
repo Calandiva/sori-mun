@@ -72,8 +72,10 @@ def main() -> int:
     check(len(set(terms)) == len(terms)
           and all(max(v) <= 56 for v in C.TERM_SET.values()),
           "네 종결 이중음이 서로 다르고 모두 멜로디 창 밖(≤56)이다")
-    check(all(t in C.TONICS for t in C.TONICS) and min(C.TONICS) > 56,
-          "다섯 으뜸음이 표지 창 위(>56)에 산다 — 머리를 오독할 수 없다")
+    check(all(min(ts) > 56 for ts in C.TONIC_SET.values()),
+          "모든 조가 표지 창 위(>56)에 산다 — 머리를 오독할 수 없다")
+    check(len(C.SIG_ANCHOR) == sum(len(v) for v in C.TONIC_SET.values()),
+          "종지1 닻 여덟이 서로소 — (성질, 으뜸음) 이 유일하게 풀린다")
 
     print("\n2. 코덱 — 적은 것이 그대로 돌아오는가 (전수)")
     n = bad = 0

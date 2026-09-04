@@ -50,11 +50,15 @@ def render(piece: Piece, tempo: int | None = None) -> array.array:
     total = int((sched[-1][0] + sched[-1][1] + RELEASE + 0.3) * SAMPLE_RATE) + 1
     buf = array.array("d", bytes(8 * total))
 
+    ACCOMP = 0.6           # 화성(꼭대기 아님)은 멜로디보다 한 걸음 뒤에
     for start, hold, pitches, vel in sched:
         t0 = int(start * SAMPLE_RATE)
         count = int((hold + RELEASE) * SAMPLE_RATE)
-        amp = (vel / 127.0) ** 1.6 * 0.22 / max(1, len(pitches))
+        top = max(pitches)
+        wsum = sum(1.0 if p == top else ACCOMP for p in pitches)
+        base_amp = (vel / 127.0) ** 1.6 * 0.22 / max(1.0, wsum)
         for p in pitches:
+            amp = base_amp * (1.0 if p == top else ACCOMP)
             w = 2 * math.pi * _freq(p) / SAMPLE_RATE
             for i in range(count):
                 t = i / SAMPLE_RATE

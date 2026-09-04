@@ -68,7 +68,8 @@ def main() -> int:
           "자연단음계 — 단3도·단6도를 품고 장3도·이끔음이 없다")
     check(all(x % 2 == 0 for x in neu),
           "온음계 — 반음이 없어 어느 조성에도 기울지 않는다")
-    check(all(max(CO.TONICS) + max(sc) <= 72 for sc in CO.SCALE.values()),
+    check(all(max(ts) + max(CO.SCALE[q]) <= 72
+              for q, ts in CO.TONIC_SET.items()),
           "가장 높은 으뜸음에서도 세 음계가 2옥타브 상한 안에 있다")
 
     print("\n주장 3 — 네 사분면이 실제 낱말로 채워져 있는가")

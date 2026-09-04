@@ -245,7 +245,7 @@ function buildRibbon(){
   ribbonEls=[];
   sched.forEach(([t0,du,n])=>{
     const q=Q_NAME[n.qi];
-    const mel=n.slot==="종지"||n.slot==="이름"||n.slot==="으뜸";
+    const mel=n.slot==="종지"||n.slot==="이름"||n.slot==="머리";
     const col=mel&&q?COLOR[q]:"#3d4b5c";
     for(const p of n.p){
       const r=sv("rect",{x:x(t0),y:y(p)-1.4,

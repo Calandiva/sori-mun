@@ -130,14 +130,17 @@ def write(piece: Piece, path: Path | str, title: str | None = None) -> Path:
                 filled = 0
                 open_measure()
 
-    if filled < BEATS_PER_MEASURE and filled > 0:
-        rest = BEATS_PER_MEASURE - filled
-        for d, name, dots in _split(rest):
-            body.append(
-                f"<note><rest/><duration>{d}</duration>"
-                f"<type>{name}</type>{'<dot/>' * dots}</note>"
-            )
-    body.append("</measure>")
+    if filled == 0 and body and body[-1].startswith("<measure"):
+        body.pop()          # 마지막 소리가 마디를 꼭 채웠다 — 빈 마디 제거
+    else:
+        if filled < BEATS_PER_MEASURE:
+            rest = BEATS_PER_MEASURE - filled
+            for d, name, dots in _split(rest):
+                body.append(
+                    f"<note><rest/><duration>{d}</duration>"
+                    f"<type>{name}</type>{'<dot/>' * dots}</note>"
+                )
+        body.append("</measure>")
 
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'

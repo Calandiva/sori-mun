@@ -74,33 +74,36 @@
     const [num, den] = DUR.scale[K.roles[roleIdx]];
     return Math.max(1, Math.floor(d * num / den));
   }
-  function tonicOf(tier, qi, index) {
-    const n = K.tonics.length;
-    return K.tonics[(index + 3 * Math.max(0, tier) + 5 * qi) % n];
+  function tonicOf(q, tier, index) {
+    const ts = K.tonicSet[q];
+    return ts[(index + 3 * Math.max(0, tier)) % ts.length];
   }
 
   // kind: 0=개념 1=낱말 2=글자.
-  // 멜로디가 낱말이고, 함께 울리는 화성이 역할이다.
-  //   [으뜸음+베이스+역할내성] [자릿음…] [종지1(+표지내성)] [종지2]
+  // 멜로디가 낱말이고, 함께 울리는 화성이 역할이다. 여는 화음은 없다 —
+  // 낱말의 첫 자릿음이 곧 첫 소리이고, 베이스·내성은 그 아래에 깔린다.
+  //   [첫 자릿음+베이스+역할내성] [자릿음…] [종지1(+표지내성)] [종지2]
   function encodeGlyph(roleIdx, kind, lang, tier, qi, index, join, flag, pol) {
     const accent = DUR.vel.accent * Math.abs(pol || 0);
     let q = Q_NAME[qi], t = tier;
     if (kind === 2) { q = "neutral"; t = 0; qi = 2; }   // 글자의 고정 조
-    const tonic = tonicOf(t, qi, index);
+    const tonic = tonicOf(q, t, index);
     const ev = [];
     const put = (ps, d, v, slot) =>
       ev.push({ p: ps.slice().sort((a, b) => a - b),
                 d: scaled(d, roleIdx), v: Math.min(127, v), slot, rest: 0 });
 
-    // 1. 으뜸음 — 베이스 C3 페달과 역할 내성이 아래에 깔린다
-    put([K.pedal, K.pedal + K.roleInner[roleIdx], tonic],
-        DUR.tonic, DUR.vel.sig + accent, "으뜸");
-
-    // 2. 자릿음 — 지그재그 계단. 자릿값이 리듬(3~5)을 만든다
+    // 1~2. 자릿음 — 지그재그 계단. 첫 자릿음이 머리가 되어 베이스와
+    //      역할 내성을 아래에 거느린다. 자릿값이 리듬(3~5)을 만든다
     const scale = K.scale[q], order = K.digitOrder[q], base = scale.length;
-    digitsOf(index, base).forEach(d =>
-      put([tonic + scale[order[d]]], DUR.digit + d % 3,
-          DUR.vel.digit + accent, "이름"));
+    digitsOf(index, base).forEach((d, j) => {
+      const mel = tonic + scale[order[d]];
+      if (j === 0)
+        put([K.pedal, K.pedal + K.roleInner[roleIdx], mel],
+            DUR.tonic + d % 3, DUR.vel.sig + accent, "머리");
+      else
+        put([mel], DUR.digit + d % 3, DUR.vel.digit + accent, "이름");
+    });
 
     // 3. 종지1 — 으뜸음 위 3도. 표지 내성(갈래·대문자·이음)이 아래 선다
     const sig1 = tonic + K.qualitySig[q];
@@ -826,7 +829,7 @@
     // 글리프 번호 다시 매기기 (피아노롤 띠용)
     let gi = -1;
     for (const n of notes) {
-      if (n.slot === "으뜸" || n.slot === "종결") gi++;
+      if (n.slot === "머리" || n.slot === "종결") gi++;
       n.g = n.slot === "종결" ? -1 : gi;
     }
     const allGlyphs = sentences.flatMap(s => s.glyphs);
@@ -858,11 +861,16 @@
     const last = sched[sched.length - 1];
     const total = Math.ceil((last[0] + last[1] + REL + .3) * SR);
     const buf = new Float64Array(total);
+    const ACCOMP = .6;     // 화성(꼭대기 아님)은 멜로디보다 한 걸음 뒤에
     for (const [start, hold, pitches, vel] of sched) {
       const t0 = Math.round(start * SR);
       const count = Math.round((hold + REL) * SR);
-      const amp = Math.pow(vel / 127, 1.6) * .22 / Math.max(1, pitches.length);
+      const top = Math.max(...pitches);
+      let wsum = 0;
+      for (const p of pitches) wsum += p === top ? 1 : ACCOMP;
+      const baseAmp = Math.pow(vel / 127, 1.6) * .22 / Math.max(1, wsum);
       for (const p of pitches) {
+        const amp = baseAmp * (p === top ? 1 : ACCOMP);
         const w = 2 * Math.PI * 440 * Math.pow(2, (p - 69) / 12) / SR;
         for (let i = 0; i < count; i++) {
           const tt = i / SR;

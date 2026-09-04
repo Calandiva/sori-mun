@@ -29,8 +29,10 @@ def test_화성_규칙이_서로소():
     assert len(set(ri)) == len(ri)
     marks = set(C.KIND_MARK.values()) | {C.FLAG_MARK, C.JOIN_MARK}
     assert len(marks) == len(C.KIND_MARK) + 2
-    assert all(C.PEDAL < m <= 56 for m in marks)      # 으뜸음(57~) 아래 창
-    assert min(C.TONICS) > 56                          # 표지 창과 서로소
+    assert all(C.PEDAL < m <= 56 for m in marks)      # 멜로디(57~) 아래 창
+    assert all(min(ts) > 56 for ts in C.TONIC_SET.values())
+    # 종지1 닻 여덟이 (성질, 으뜸음) 을 유일하게 밝힌다
+    assert len(C.SIG_ANCHOR) == sum(len(v) for v in C.TONIC_SET.values())
     terms = [frozenset(v) for v in C.TERM_SET.values()]
     assert len(set(terms)) == len(terms)
     assert all(max(v) <= 56 for v in C.TERM_SET.values())
@@ -47,18 +49,18 @@ def test_머리만_베이스를_품는다():
 
 
 def test_멜로디가_축을_노래한다():
-    """모든 소리의 꼭대기가 멜로디다. 첫 음이 으뜸음, 마지막 두 음이
-    성질(3도)과 등급(하행 도약)을 맺는다."""
+    """모든 소리의 꼭대기가 멜로디다. 마지막 두 음이 성질·으뜸음(종지1
+    닻)과 등급(하행 도약)을 맺고, 앞의 모든 음이 그 조의 음계를 걷는다."""
     for q, sig in ((Quality.MAJOR, 4), (Quality.MINOR, 3),
                    (Quality.NEUTRAL, 6)):
         for tier in range(6):
             g = encode(ROLES[3], Kind.CONCEPT, tier, q, 42)
             mel = g.melody
-            tonic = mel[0]
-            assert tonic in C.TONICS
+            q2, tonic = C.SIG_ANCHOR[mel[-2]]
+            assert q2 is q
             assert mel[-2] - tonic == sig                     # 종지 = 성질
             assert mel[-2] - mel[-1] == C.TIER_LEAP[tier]     # 하행 = 등급
-            for p in mel[1:-2]:                               # 자릿음 = 음계
+            for p in mel[:-2]:                                # 자릿음 = 음계
                 assert p - tonic in C.SCALE[q]
 
 
@@ -77,9 +79,17 @@ def test_역할은_내성이다():
 
 def test_으뜸음이_조를_옮긴다():
     """낱말의 정체가 조를 정한다 — 이웃 번호가 다른 조로 옮겨 간다."""
-    tonics = {encode(ROLES[3], Kind.CONCEPT, 0, Quality.MAJOR, i).melody[0]
-              for i in range(10)}
-    assert len(tonics) == len(C.TONICS)
+    anchors = {encode(ROLES[3], Kind.CONCEPT, 0, Quality.MAJOR, i).melody[-2]
+               for i in range(10)}
+    assert len(anchors) == len(C.TONIC_SET[Quality.MAJOR])
+
+
+def test_첫_소리가_낱말마다_다르다():
+    """여는 화음이 없다 — 첫 소리(머리의 꼭대기)는 낱말의 첫 자릿음이라
+    이웃한 번호끼리도 다른 음으로 문을 연다."""
+    firsts = [encode(ROLES[3], Kind.CONCEPT, 0, Quality.MAJOR, i).melody[0]
+              for i in range(20)]
+    assert len(set(firsts)) >= 6
 
 
 def test_이웃_번호는_다른_윤곽():
@@ -91,10 +101,10 @@ def test_이웃_번호는_다른_윤곽():
 
 def test_멜로디_길이_경계():
     g = encode(ROLES[0], Kind.CONCEPT, 0, Quality.MAJOR, 0)
-    assert len(g.melody) == 4          # 으뜸 1 + 자릿 1 + 종지 2
+    assert len(g.melody) == 3          # 자릿 1 + 종지 2
     big = C.capacity(C.MELODY_MAX_DIGITS, 7) - 1
     g = encode(ROLES[0], Kind.CONCEPT, 0, Quality.MAJOR, big)
-    assert len(g.melody) == 11         # 으뜸 1 + 자릿 8 + 종지 2
+    assert len(g.melody) == 10         # 자릿 8 + 종지 2
 
 
 def test_자릿음은_홑음이다():

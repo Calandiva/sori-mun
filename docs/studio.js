@@ -20,10 +20,12 @@
                   marker:"#4a5a6d" };
   const Q_NAME = ["major", "minor", "neutral"];
   const Q_KO = { major:"장", minor:"단", neutral:"중성" };
-  const tonicOfNote = n => (n.qi == null || n.idx == null)
-    ? K.tonics[0]
-    : K.tonics[(n.idx + 3 * Math.max(0, n.tier || 0) + 5 * n.qi)
-               % K.tonics.length];
+  const tonicOfNote = n => {
+    const q = Q_NAME[n.qi] || "neutral";
+    const ts = K.tonicSet[q];
+    if (n.idx == null) return ts[0];
+    return ts[(n.idx + 3 * Math.max(0, n.tier || 0)) % ts.length];
+  };
 
   /* ── 화음 하나 울리기 ── */
   let ctx = null;
@@ -127,7 +129,8 @@ class SoriGrain extends AudioWorkletProcessor {
     this.port.onmessage = e => {
       const m = e.data;
       if (m.mode !== undefined && m.mode !== this.mode) {
-        this.mode = m.mode; this.slice = null; this.grains.length = 0;
+        this.mode = m.mode; this.slice = null;
+        for (const g of this.grains) g.loop = false;   // 자연 소멸
       }
       if (m.div) this.div = Math.max(1600, Math.round(m.div * sampleRate));
       if (m.act !== undefined) this.act = m.act;
@@ -167,7 +170,9 @@ class SoriGrain extends AudioWorkletProcessor {
           const snap = new Float32Array(div);
           for (let k = 0; k < div; k++) snap[k] = B[(start + k) % BL];
           this.slice = { snap, step: 0 };
-          this.grains = this.grains.filter(g => !g.loop);
+          // 우는 조각은 죽이지 않는다 — 이번 바퀴를 끝까지 불러
+          // 여닫이 창으로 스스로 잦아들게 한다 (탁 소리 방지)
+          for (const g of this.grains) g.loop = false;
         }
       } else if (this.mode === "glitch") {
         if (Math.random() < act) {
@@ -222,18 +227,19 @@ class SoriGrain extends AudioWorkletProcessor {
         pan: (s.step % 2) * 1.2 - .6, gain: .8, loop: true, snap: s.snap });
     }
 
-    // 렌더 — 올린-코사인 창, 여닫이는 5ms 아래로 내려가지 않는다
+    // 렌더 — 올린-코사인 창. 여닫이는 "귀의 시간"으로 재서 5ms 아래로
+    // 내려가지 않는다 (옥타브 위 조각도 창이 반토막 나지 않도록)
     const fadeK = .08 + .38 * this.shape;
     const minFade = sampleRate * .005;
     for (const g of this.grains) {
-      const fade = Math.max(minFade, g.len * fadeK);
+      const total = g.snap ? g.snap.length : g.len;
+      const span = total / g.rate;                  // 출력 샘플 수
+      const fade = Math.max(minFade, span * fadeK);
       const pl = .5 - g.pan * .5, pr = .5 + g.pan * .5;
       for (let i = 0; i < N; i++) {
         if (g.wait > 0) { g.wait--; continue; }
-        const span = g.snap ? g.snap.length / g.rate : g.len / g.rate;
         if (g.t >= span) { g.done = true; break; }
         let off = g.t * g.rate;
-        const total = g.snap ? g.snap.length : g.len;
         if (g.rev) off = total - 1 - off;
         if (off < 0 || off >= total) { g.done = true; break; }
         const i0 = off | 0, fr = off - i0;
@@ -244,7 +250,7 @@ class SoriGrain extends AudioWorkletProcessor {
           v0 = B[fi]; v1 = B[(fi + 1) % BL];
         }
         let v = (v0 + (v1 - v0) * fr) * g.gain;
-        const edge = Math.min(off, total - 1 - off);
+        const edge = Math.min(g.t, span - g.t);     // 시간 영역 여닫이
         if (edge < fade)
           v *= .5 - .5 * Math.cos(Math.PI * Math.max(0, edge) / fade);
         L[i] += v * pl; R[i] += v * pr;
@@ -483,19 +489,36 @@ registerProcessor("sori-grain", SoriGrain);
   function fxInput(c) {
     return { input: rack(c).input };
   }
+  /* 소스 하나를 여닫이 게인으로 감싸 시작·정지의 계단파를 없앤다 */
+  function envSource(c, buf, offset) {
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const g = c.createGain();
+    const t0 = c.currentTime;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(1, t0 + .008);
+    src.connect(g); g.connect(fxInput(c).input);
+    src.start(0, Math.min(offset || 0, buf.duration - .01));
+    return { src, g,
+      stop() {
+        const t = c.currentTime;
+        try {
+          g.gain.cancelScheduledValues(t);
+          g.gain.setValueAtTime(g.gain.value, t);
+          g.gain.linearRampToValueAtTime(0, t + .01);
+          src.stop(t + .03);
+        } catch (e) {}
+      } };
+  }
   function playBuffer(pcm, sr, onEnd) {
     const c = audio();
     const buf = c.createBuffer(1, pcm.length, sr);
     const ch = buf.getChannelData(0);
     for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
-    const src = c.createBufferSource();
-    src.buffer = buf;
-    src.loop = !!window.__fx.loop;      // 루퍼
-    const fx = fxInput(c);
-    src.connect(fx.input);
-    if (!src.loop) src.onended = onEnd;
-    src.start();
-    return { src, tap: fx.analyserTap, ctx: c };
+    const es = envSource(c, buf, 0);
+    es.src.loop = !!window.__fx.loop;   // 루퍼
+    if (!es.src.loop) es.src.onended = onEnd;
+    return { src: es.src, stopEnv: es.stop, ctx: c };
   }
   const at = (v, root) => v.map(x => root + x);
 
@@ -683,11 +706,11 @@ registerProcessor("sori-grain", SoriGrain);
 
   function expectation(chords) {
     const T = R.tables;
-    let i = 0, state = "start", run = [], tonic = null;
+    let i = 0, state = "start", run = [];
     const cadence = () => {
       if (run.length < 3) return false;
-      const q = T.QUAL_BY_SIG[run[run.length - 2] - tonic];
-      return q !== undefined && T.TIER_BY_LEAP[
+      const a2 = K.sigAnchor[String(run[run.length - 2])];
+      return !!a2 && T.TIER_BY_LEAP[
         run[run.length - 2] - run[run.length - 1]] !== undefined;
     };
     while (i < chords.length) {
@@ -697,13 +720,13 @@ registerProcessor("sori-grain", SoriGrain);
         if (!R.isStart(c) || c.length !== 3
             || T.ROLE_BY_INNER[c[1] - K.pedal] === undefined)
           return { state: "오류",
-            hint: `${i + 1}번째 — 낱말은 머리(베이스 C3 + 역할 내성 + 으뜸음)로 시작한다` };
-        tonic = c[2]; state = "mel"; run = []; i++; continue;
+            hint: `${i + 1}번째 — 낱말은 머리(베이스 C3 + 역할 내성 + 첫 자릿음)로 시작한다` };
+        run = [c[2]]; state = "mel"; i++; continue;
       }
       // state === "mel"
       if (R.isStart(c) || R.readTerm(c) !== undefined) {
         if (!cadence()) return { state: "오류",
-          hint: "종지 두 음(3도 → 하행 도약)이 어긋난다" };
+          hint: "종지 두 음(여덟 닻의 하나 → 하행 도약)이 어긋난다" };
         state = "start"; continue;      // 이 화음을 머리로 다시 읽는다
       }
       if (c.length > 1) {
@@ -717,56 +740,57 @@ registerProcessor("sori-grain", SoriGrain);
       }
       run.push(c[c.length - 1]); i++; continue;
     }
-    if (state === "start" || tonic == null) return { state: "start" };
-    const sigPending = run.length >= 1
-      && T.QUAL_BY_SIG[run[run.length - 1] - tonic] !== undefined;
-    return { state: "mel", run, tonic, cadenceOk: cadence(), sigPending,
+    if (state === "start") return { state: "start" };
+    const sigPending = run.length >= 2
+      && !!K.sigAnchor[String(run[run.length - 1])];
+    return { state: "mel", run, cadenceOk: cadence(), sigPending,
              sig1: run.length ? run[run.length - 1] : null };
   }
 
   function candidates(exp) {
     const out = [];
     if (exp.state === "오류") return out;
+    const heads = (label) => K.roles.forEach((r, i2) => out.push({
+      label: (label || "") + r, cls: "marker",
+      p: [K.pedal, K.pedal + K.roleInner[i2],
+          K.tonicSet.major[0] + K.scale.major[0]] }));
     if (exp.state === "start") {
-      // 머리: 베이스 C3 + 역할 내성 + 으뜸음. 으뜸음은 낱말이 정한다 —
-      // 다섯 으뜸음이 모두 문이 된다.
-      K.roles.forEach((r, i) => out.push({
-        label: r, cls: "marker",
-        p: [K.pedal, K.pedal + K.roleInner[i], K.tonics[0]],
-        alt: K.tonics.map(t => [K.pedal, K.pedal + K.roleInner[i], t]) }));
+      // 머리: 베이스 C3 + 역할 내성 + 첫 자릿음. 꼭대기는 낱말의 첫
+      // 자릿음이므로 낱말마다 다르다 — 후보는 틀만 보여 준다.
+      heads();
       K.terminators.forEach(t => out.push({
         label: "종결 " + t, cls: "marker", p: [...K.termSet[t]] }));
       return out;
     }
-    const tonic = exp.tonic;
     if (exp.sigPending)
       K.tierLeap.forEach((leap, t) => out.push({
         label: `${t}등급 하행 (−${leap})`, cls: "marker",
         p: [exp.sig1 - leap] }));
-    // 자릿음 — 으뜸음 위 계단 (종지가 성질을 확정한다)
+    // 자릿음 — 조마다의 음계 계단 (종지1 닻이 조·성질을 확정한다)
     for (const q of Q_NAME)
-      K.scale[q].forEach((off, deg) => {
-        const d = K.digitOrder[q].indexOf(deg);
-        out.push({ label: Q_KO[q] + "·" + d, cls: q, p: [tonic + off] });
-      });
-    for (const q of Q_NAME)
-      out.push({ label: "종지 " + Q_KO[q], cls: q,
-        p: [tonic + K.qualitySig[q]] });
-    if (exp.run.length >= 1) {
+      for (const tn of K.tonicSet[q])
+        K.scale[q].forEach((off, deg) => {
+          const d = K.digitOrder[q].indexOf(deg);
+          out.push({ label: `${Q_KO[q]}${tn}·${d}`, cls: q,
+            p: [tn + off] });
+        });
+    // 종지1 — 여덟 닻
+    for (const [sg, [q, tn]] of Object.entries(K.sigAnchor))
+      out.push({ label: `종지 ${Q_KO[q]} (조 ${tn})`, cls: q,
+        p: [+sg] });
+    if (exp.run.length >= 2) {
       // 표지 내성을 거느린 종지1 — 낱말 갈래·이음은 여기 함께 울린다
+      const sg0 = +Object.keys(K.sigAnchor)[0];
       for (const [kl, m] of Object.entries(K.kindMark)) {
         const [kn, lg] = kl.split("|");
         out.push({ label: (kn === "WORD" ? lg + " 전용" : lg + " 글자")
-                     + " 종지장", cls: "marker",
-          p: [m, tonic + K.qualitySig.major] });
+                     + " 종지", cls: "marker", p: [m, sg0] });
       }
-      out.push({ label: "이음 종지장 (낱말 계속)", cls: "marker",
-        p: [K.joinMark, tonic + K.qualitySig.major] });
+      out.push({ label: "이음 종지 (낱말 계속)", cls: "marker",
+        p: [K.joinMark, sg0] });
     }
     if (exp.cadenceOk) {
-      K.roles.forEach((r, i) => out.push({
-        label: "다음 낱말 · " + r, cls: "marker",
-        p: [K.pedal, K.pedal + K.roleInner[i], K.tonics[0]] }));
+      heads("다음 낱말 · ");
       K.terminators.forEach(t => out.push({
         label: "종결 " + t, cls: "marker", p: [...K.termSet[t]] }));
     }
@@ -876,7 +900,7 @@ registerProcessor("sori-grain", SoriGrain);
 
   /* ══ 4. 시각화 — 30초 기계적 예술 ══ */
   const SLOT_RULE = {
-    "으뜸": "낱말의 머리 — 으뜸음이 조를 열고, 베이스 C3 위 내성이 역할이다",
+    "머리": "낱말의 머리 — 첫 자릿음이 낱말의 첫 소리, 베이스 C3 위 내성이 역할이다",
     "종지": "멜로디의 맺음 — 3도가 감정을, 하행 도약이 익숙함을",
     "이름": "멜로디 자릿음 — 음계 계단이 진법 한 자리",
     "종결": "멜로디 없는 저음 이중음 — 문장의 끝",
@@ -1125,7 +1149,7 @@ registerProcessor("sori-grain", SoriGrain);
                  6: "종지 = 중성 (삼전음)" }[off]
           || "종지 하행 — 거칢이 익숙함을 말한다";
       } else if (n.slot === "이름") desc = Q_KO[q] + " 음계 · 지그재그 계단";
-      else if (n.slot === "으뜸")
+      else if (n.slot === "머리")
         desc = n.role + " — 베이스 위 +"
           + (n.p.length >= 2 ? n.p[1] - n.p[0] : "?") + "반음";
       put(6, 66, desc, 10.5, "#9fb0c4");
@@ -1175,18 +1199,16 @@ registerProcessor("sori-grain", SoriGrain);
     let playing = false, offset = 0, startPerf = 0, cur = -1;
     function startFrom(off) {
       stopSrc();
-      const srcN = c.createBufferSource();
-      srcN.buffer = buf;
-      srcN.connect(fxInput(c).input);
-      srcN.start(0, Math.min(off, buf.duration - .01));
-      cine.src = srcN;
+      const es = envSource(c, buf, off);
+      cine.src = es.src; cine.env = es;
       offset = off;
       startPerf = performance.now() / 1000;
       playing = true;
       $("#cnPlay").textContent = "⏸";
     }
     function stopSrc() {
-      if (cine.src) { try { cine.src.stop(); } catch (e) {} cine.src = null; }
+      if (cine.env) { cine.env.stop(); cine.env = null; cine.src = null; }
+      else if (cine.src) { try { cine.src.stop(); } catch (e) {} cine.src = null; }
     }
     function pause() {
       if (!playing) return;
@@ -1237,7 +1259,8 @@ registerProcessor("sori-grain", SoriGrain);
   }
   function closeCinema() {
     if (cine.raf) cancelAnimationFrame(cine.raf);
-    if (cine.src) { try { cine.src.stop(); } catch (e) {} }
+    if (cine.env) cine.env.stop();
+    else if (cine.src) { try { cine.src.stop(); } catch (e) {} }
     cine = { raf: null, src: null };
     $("#cinema").hidden = true;
   }
@@ -1249,6 +1272,7 @@ registerProcessor("sori-grain", SoriGrain);
   window.SoriStudio = { renderTheory, searchFull, refreshPiano, loadFull,
                         openCinema, closeCinema, playChord, playMelody,
                         playBuffer, fxInput, applyFx, meterLevel, renderWet, wavBlobStereo,
+                        envSource,
                         cineToggle: () => cine.toggle && cine.toggle(),
                         cineMatrix: () => cine.applyMatrixMode
                           && cine.applyMatrixMode(),

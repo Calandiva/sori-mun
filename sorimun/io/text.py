@@ -88,14 +88,19 @@ def rules_text() -> str:
     L.append("  함께 우는 화성을 들으면 그 낱말의 역할이다.\n")
 
     L.append("■ 글리프 — 낱말 하나가 이렇게 적힌다")
-    L.append("    [으뜸음+베이스 C3+역할 내성] [자릿음 1~8] [종지1(+표지 내성)] [종지2]")
+    L.append("    [첫 자릿음+베이스 C3+역할 내성] [자릿음 …] [종지1(+표지 내성)] [종지2]")
     L.append("  베이스 C3 이 울리면 새 낱말 — 경계 표시가 따로 없다.\n")
 
     L.append("■ 이름 멜로디 — 익숙함과 감정을 멜로디가 직접 노래한다")
-    L.append("  으뜸음  조    다섯 조 " 
-             + " ".join(pitch.name(t) for t in C.TONICS)
-             + " — (번호+3×등급+5×성질)%5")
-    L.append("  종지1  성질   으뜸음 위 장3도=장, 단3도=단, 삼전음=중성")
+    for q in Quality:
+        ts = C.TONIC_SET[q]
+        L.append(f"  {q.value:<7} 조 " 
+                 + " ".join(pitch.name(t) for t in ts)
+                 + f" — (번호+3×등급) 나머지 {len(ts)}")
+    L.append("  종지1  성질·조  으뜸음 위 장3도=장, 단3도=단, 삼전음=중성")
+    L.append("                 여덟 닻(" 
+             + " ".join(pitch.name(s2) for s2 in sorted(C.SIG_ANCHOR))
+             + ")이 서로소라 홀로 풀린다")
     L.append("  종지2  등급   종지1에서 아래로 해결: "
              + " ".join(f"{t}등급 −{v}반음" for t, v in enumerate(C.TIER_LEAP)))
     L.append("  자릿음 번호   으뜸음 위 그 성질의 음계 계단 = 전단사 진법 한 자리")
